@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Track } from "livekit-client";
 import type { VoiceChannel } from "../../voice/voiceApi";
 import {
@@ -8,7 +8,7 @@ import {
     MicOffIcon,
     ScreenShareIcon,
     PhoneOffIcon,
-    ChevronDownIcon as FullscreenIcon // Reusing for now or adding specific
+    ChevronDownIcon as FullscreenIcon
 } from "./Icons";
 import { ControlButton } from "./ControlButton";
 
@@ -51,6 +51,7 @@ export function VideoRoomView({
 }: VideoRoomViewProps) {
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
     const allParticipants = localParticipant
         ? [localParticipant, ...participants.filter(p => !p.isLocal)]
@@ -89,14 +90,58 @@ export function VideoRoomView({
         return screenTile ? [screenTile, cameraTile] : [cameraTile];
     });
 
+    useEffect(() => {
+        const screenTile = tiles.find((t) => t.tileKind === "screen");
+        if (!screenTile) {
+            if (focusedParticipant && !tiles.some((t) => t.tileId === focusedParticipant)) {
+                setFocusedParticipant(null);
+            }
+            return;
+        }
+
+        if (!focusedParticipant) {
+            setFocusedParticipant(screenTile.tileId);
+            return;
+        }
+
+        const focusedExists = tiles.some((t) => t.tileId === focusedParticipant);
+        if (!focusedExists) {
+            setFocusedParticipant(screenTile.tileId);
+        }
+    }, [focusedParticipant, tiles]);
+
     const gridCols = tiles.length <= 1 ? 1
         : tiles.length <= 4 ? 2
             : tiles.length <= 9 ? 3
                 : 4;
 
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(Boolean(document.fullscreenElement));
+        };
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        handleFullscreenChange();
+        return () => {
+            document.removeEventListener("fullscreenchange", handleFullscreenChange);
+        };
+    }, []);
+
+    const toggleFullscreen = useCallback(async () => {
+        try {
+            if (document.fullscreenElement) {
+                await document.exitFullscreen();
+                return;
+            }
+            const el = containerRef.current;
+            if (el && "requestFullscreen" in el) {
+                await (el as unknown as { requestFullscreen: () => Promise<void> }).requestFullscreen();
+            }
+        } catch {
+        }
+    }, []);
+
     return (
-        <div className="flex-1 flex flex-col bg-[#0a0a0f]">
-            {/* Header */}
+        <div ref={containerRef} className="flex-1 flex flex-col bg-[#0a0a0f]">
             <div className="h-12 px-4 flex items-center justify-between border-b border-white/10 shrink-0 bg-[#0a0a0f]/80 backdrop-blur-xl">
                 <div className="flex items-center gap-2">
                     <VideoIcon className="w-5 h-5 text-red-400" />
@@ -110,8 +155,10 @@ export function VideoRoomView({
                         {allParticipants.length} katılımcı
                     </span>
                     <button
-                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        onClick={() => void toggleFullscreen()}
                         className="p-2 rounded-lg hover:bg-white/10 text-zinc-400"
+                        aria-pressed={isFullscreen}
+                        title={isFullscreen ? "Tam ekrandan çık" : "Tam ekran"}
                     >
                         <FullscreenIcon className="w-5 h-5" />
                     </button>
@@ -223,7 +270,6 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
         const el = videoRef.current;
 
         if (track && el) {
-            // LiveKit tracks have .attach() and .detach()
             (track as any).attach(el);
             return () => {
                 (track as any).detach(el);

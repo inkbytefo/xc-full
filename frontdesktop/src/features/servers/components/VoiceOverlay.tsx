@@ -5,8 +5,12 @@ import {
     MicOffIcon,
     HeadphonesIcon,
     HeadphonesOffIcon,
+    VideoIcon,
+    VideoOffIcon,
+    ScreenShareIcon,
     PhoneOffIcon
 } from "./Icons";
+import { ControlButton } from "./ControlButton";
 
 interface VoiceOverlayProps {
     channel: VoiceChannel;
@@ -19,8 +23,12 @@ interface VoiceOverlayProps {
     }>;
     isMuted: boolean;
     isDeafened: boolean;
+    isCameraOn?: boolean;
+    isScreenSharing?: boolean;
     onToggleMute: () => void;
     onToggleDeafen: () => void;
+    onToggleCamera?: () => void;
+    onToggleScreenShare?: () => void;
     onDisconnect: () => void;
 }
 
@@ -29,14 +37,19 @@ export function VoiceOverlay({
     participants,
     isMuted,
     isDeafened,
+    isCameraOn,
+    isScreenSharing,
     onToggleMute,
     onToggleDeafen,
+    onToggleCamera,
+    onToggleScreenShare,
     onDisconnect,
 }: VoiceOverlayProps) {
+    const showVideoControls = channel.type === "video" && !!onToggleCamera && !!onToggleScreenShare;
+
     return (
         <div className="absolute bottom-0 left-0 right-0 bg-[#1a1a22]/95 backdrop-blur-xl border-t border-white/10 z-20">
             <div className="flex items-center gap-4 px-4 py-3">
-                {/* Channel Info */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
                         <VolumeIcon className="w-4 h-4 text-green-400" />
@@ -51,7 +64,6 @@ export function VoiceOverlay({
                     </div>
                 </div>
 
-                {/* Participant Avatars */}
                 <div className="flex items-center -space-x-2">
                     {participants.slice(0, 5).map((p, i) => (
                         <div
@@ -78,47 +90,58 @@ export function VoiceOverlay({
                     )}
                 </div>
 
-                {/* Controls */}
-                <div className="flex items-center gap-1">
-                    <button
+                <div className="flex items-center gap-2">
+                    <ControlButton
+                        icon={MicIcon}
+                        activeIcon={MicOffIcon}
+                        isActive={isMuted}
+                        danger={isMuted}
+                        label={isMuted ? "Sesi Aç" : "Sessiz"}
                         onClick={onToggleMute}
-                        className={`p-2.5 rounded-lg transition-colors ${isMuted
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                            : "bg-white/5 text-zinc-300 hover:bg-white/10"
-                            }`}
-                        title={isMuted ? "Sesi Aç" : "Sesini Kapat"}
-                    >
-                        {isMuted ? (
-                            <MicOffIcon className="w-5 h-5" />
-                        ) : (
-                            <MicIcon className="w-5 h-5" />
-                        )}
-                    </button>
+                        className="!p-2.5 !rounded-xl"
+                    />
 
-                    <button
+                    <ControlButton
+                        icon={HeadphonesIcon}
+                        activeIcon={HeadphonesOffIcon}
+                        isActive={isDeafened}
+                        danger={isDeafened}
+                        label={isDeafened ? "Kulaklığı Aç" : "Kulaklık"}
                         onClick={onToggleDeafen}
-                        className={`p-2.5 rounded-lg transition-colors ${isDeafened
-                            ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
-                            : "bg-white/5 text-zinc-300 hover:bg-white/10"
-                            }`}
-                        title={isDeafened ? "Kulaklığı Aç" : "Kulaklığı Kapat"}
-                    >
-                        {isDeafened ? (
-                            <HeadphonesOffIcon className="w-5 h-5" />
-                        ) : (
-                            <HeadphonesIcon className="w-5 h-5" />
-                        )}
-                    </button>
+                        className="!p-2.5 !rounded-xl"
+                    />
+
+                    {showVideoControls && (
+                        <>
+                            <ControlButton
+                                icon={VideoIcon}
+                                activeIcon={VideoOffIcon}
+                                isActive={!isCameraOn}
+                                danger={!isCameraOn}
+                                label={isCameraOn ? "Kamerayı Kapat" : "Kamera Aç"}
+                                onClick={onToggleCamera!}
+                                className="!p-2.5 !rounded-xl"
+                            />
+                            <ControlButton
+                                icon={ScreenShareIcon}
+                                isActive={!!isScreenSharing}
+                                label={isScreenSharing ? "Paylaşımı Durdur" : "Ekran Paylaş"}
+                                onClick={onToggleScreenShare!}
+                                className="!p-2.5 !rounded-xl"
+                            />
+                        </>
+                    )}
 
                     <div className="w-px h-6 bg-white/10 mx-1" />
 
-                    <button
+                    <ControlButton
+                        icon={PhoneOffIcon}
+                        isActive
+                        danger
+                        label="Bağlantıyı Kes"
                         onClick={onDisconnect}
-                        className="p-2.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                        title="Bağlantıyı Kes"
-                    >
-                        <PhoneOffIcon className="w-5 h-5" />
-                    </button>
+                        className="!p-2.5 !rounded-xl"
+                    />
                 </div>
             </div>
         </div>

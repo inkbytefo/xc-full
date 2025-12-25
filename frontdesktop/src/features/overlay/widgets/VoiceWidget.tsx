@@ -5,87 +5,37 @@
 import { useVoiceStore } from '../../../store/voiceStore';
 import { BaseWidget } from './BaseWidget';
 import { useOverlayMode } from '../hooks/useOverlayMode';
-
-// SVG Icons - Main Frontend ile tutarlı
-const MicIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-        />
-    </svg>
-);
-
-const MicOffIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"
-        />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" />
-    </svg>
-);
-
-const HeadphonesIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-        />
-    </svg>
-);
-
-const HeadphonesOffIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-        />
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-    </svg>
-);
-
-const PhoneOffIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.28 3H5z"
-        />
-    </svg>
-);
-
-const VolumeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
-        />
-    </svg>
-);
+import {
+    HeadphonesIcon,
+    HeadphonesOffIcon,
+    MicIcon,
+    MicOffIcon,
+    PhoneOffIcon,
+    ScreenShareIcon,
+    VideoIcon,
+    VideoOffIcon,
+    VolumeIcon
+} from '../../servers/components/Icons';
+import { ControlButton } from '../../servers/components/ControlButton';
 
 export function VoiceWidget() {
     const { pinnedView } = useOverlayMode();
     const {
         isConnected,
+        isConnecting,
         isMuted,
         isDeafened,
+        isCameraOn,
+        isScreenSharing,
         toggleMute,
         toggleDeafen,
+        toggleCamera,
+        toggleScreenShare,
         disconnect,
         participants,
-        activeChannel
+        activeChannel,
+        error,
+        ownerAvailable
     } = useVoiceStore();
 
     const sortedParticipants = [...participants].sort((a, b) => {
@@ -94,6 +44,8 @@ export function VoiceWidget() {
         if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
         return a.identity.localeCompare(b.identity);
     });
+    const controlsDisabled = !ownerAvailable || (!isConnected && !isConnecting);
+    const supportsVideo = activeChannel?.type === "video";
 
     return (
         <BaseWidget
@@ -103,329 +55,214 @@ export function VoiceWidget() {
             defaultPosition={{ x: 100, y: 550 }}
             defaultSize={{ width: 320, height: 280 }}
         >
-            {/* Channel Status */}
-            <div style={{
-                padding: '12px 16px',
-                borderBottom: '1px solid rgba(255,255,255,0.08)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
-            }}>
-                <div style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    background: isConnected ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.1)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                }}>
-                    <VolumeIcon className={`w-5 h-5 ${isConnected ? 'text-green-400' : 'text-zinc-400'}`} />
+            <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+                <div
+                    className={`w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 ${isConnected ? "bg-green-500/15 text-green-400" : "bg-white/5 text-zinc-400"
+                        }`}
+                >
+                    <VolumeIcon className="w-5 h-5" />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="flex-1 min-w-0">
                     {isConnected && activeChannel ? (
                         <>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: '#4ade80', marginBottom: 2 }}>
+                            <div className="text-sm font-semibold text-green-300 truncate">
                                 {activeChannel.name}
                             </div>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>
-                                Ses Bağlantısı • {participants.length} kişi
+                            <div className="text-xs text-zinc-400">
+                                {isConnecting ? "Bağlanıyor" : "Ses Bağlantısı"} • {participants.length} kişi
                             </div>
                         </>
                     ) : (
                         <>
-                            <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
+                            <div className="text-sm font-medium text-zinc-200">
                                 Bağlı Değil
                             </div>
-                            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-                                Bir ses kanalına katılın
+                            <div className="text-xs text-zinc-500">
+                                {ownerAvailable ? "Bir ses kanalına katılın" : "Ana uygulama aktif değil"}
                             </div>
                         </>
                     )}
                 </div>
             </div>
 
-            {/* Participants Grid */}
+            {error && (
+                <div className="px-4 py-2 text-xs text-red-300 border-b border-white/10 bg-red-500/10">
+                    {error}
+                </div>
+            )}
+
             {isConnected && sortedParticipants.length > 0 && !pinnedView && (
-                <div style={{
-                    padding: '12px 16px',
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: '8px',
-                    borderBottom: '1px solid rgba(255,255,255,0.08)'
-                }}>
+                <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-white/10">
                     {sortedParticipants.slice(0, 8).map((p) => (
                         <div
                             key={p.sid}
-                            title={p.identity + (p.isLocal ? ' (Sen)' : '')}
-                            style={{
-                                position: 'relative',
-                                width: 40,
-                                height: 40,
-                                borderRadius: '50%',
-                                background: p.isSpeaking
-                                    ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                                    : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 14,
-                                fontWeight: 600,
-                                color: '#fff',
-                                boxShadow: p.isSpeaking
-                                    ? '0 0 0 3px rgba(34, 197, 94, 0.4)'
-                                    : 'none',
-                                transition: 'all 0.2s ease'
-                            }}
+                            title={p.identity + (p.isLocal ? " (Sen)" : "")}
+                            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white border border-white/10 ${p.isSpeaking
+                                ? "bg-green-500/30 ring-2 ring-green-400/40 shadow-[0_0_12px_rgba(34,197,94,0.25)]"
+                                : "bg-gradient-to-br from-indigo-500 to-purple-600"
+                                }`}
                         >
-                            {p.identity[0]?.toUpperCase() || '?'}
+                            {p.identity[0]?.toUpperCase() || "?"}
                             {p.isMuted && (
-                                <div style={{
-                                    position: 'absolute',
-                                    bottom: -2,
-                                    right: -2,
-                                    width: 16,
-                                    height: 16,
-                                    borderRadius: '50%',
-                                    background: '#ef4444',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
+                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center border-2 border-black/50">
                                     <MicOffIcon className="w-2.5 h-2.5 text-white" />
                                 </div>
                             )}
                         </div>
                     ))}
                     {sortedParticipants.length > 8 && (
-                        <div style={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: '50%',
-                            background: 'rgba(255,255,255,0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 12,
-                            color: 'rgba(255,255,255,0.6)'
-                        }}>
+                        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs text-zinc-300">
                             +{sortedParticipants.length - 8}
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Participants List (Pinned View) */}
             {isConnected && sortedParticipants.length > 0 && pinnedView && (
-                <div style={{ padding: '10px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
-                            {activeChannel?.name ?? 'Ses Kanalı'}
+                <div className="p-3">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-semibold text-zinc-200 truncate">
+                            {activeChannel?.name ?? "Ses Kanalı"}
                         </div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
+                        <div className="text-[11px] text-zinc-400">
                             {sortedParticipants.length}
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div className="flex flex-col gap-1.5">
                         {sortedParticipants.slice(0, 12).map((p) => (
                             <div
                                 key={p.sid}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 10,
-                                    padding: '6px 8px',
-                                    borderRadius: 10,
-                                    background: p.isSpeaking ? 'rgba(34,197,94,0.10)' : 'rgba(0,0,0,0.10)',
-                                    border: p.isSpeaking ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(255,255,255,0.06)',
-                                    backdropFilter: 'blur(6px)',
-                                }}
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${p.isSpeaking
+                                    ? "bg-green-500/10 border-green-500/25"
+                                    : "bg-black/10 border-white/10"
+                                    }`}
                             >
                                 <div
-                                    style={{
-                                        width: 26,
-                                        height: 26,
-                                        borderRadius: 999,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: 12,
-                                        fontWeight: 700,
-                                        color: '#fff',
-                                        background: p.isSpeaking
-                                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-                                            : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-                                        boxShadow: p.isSpeaking ? '0 0 0 3px rgba(34, 197, 94, 0.35)' : 'none',
-                                        flexShrink: 0,
-                                    }}
+                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${p.isSpeaking
+                                        ? "bg-green-500/40 ring-2 ring-green-400/30"
+                                        : "bg-gradient-to-br from-indigo-500 to-purple-600"
+                                        }`}
                                 >
-                                    {p.identity[0]?.toUpperCase() || '?'}
+                                    {p.identity[0]?.toUpperCase() || "?"}
                                 </div>
-
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            color: 'rgba(255,255,255,0.92)',
-                                            overflow: 'hidden',
-                                            textOverflow: 'ellipsis',
-                                            whiteSpace: 'nowrap',
-                                            textShadow: '0 2px 10px rgba(0,0,0,0.45)',
-                                        }}
-                                    >
-                                        {p.identity}{p.isLocal ? ' (Sen)' : ''}
-                                    </div>
+                                <div className="flex-1 min-w-0 text-xs font-semibold text-zinc-100 truncate">
+                                    {p.identity}{p.isLocal ? " (Sen)" : ""}
                                 </div>
-
                                 {p.isMuted && (
-                                    <div style={{ color: 'rgba(248,113,113,0.95)', flexShrink: 0 }}>
+                                    <div className="text-red-300">
                                         <MicOffIcon className="w-4 h-4" />
                                     </div>
                                 )}
                             </div>
                         ))}
-
                         {sortedParticipants.length > 12 && (
-                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '2px 8px', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
+                            <div className="text-[11px] text-zinc-400 px-2 pt-1">
                                 +{sortedParticipants.length - 12} kişi daha
                             </div>
                         )}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10, opacity: 0.9 }}>
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                fontSize: 11,
-                                color: isMuted ? 'rgba(248,113,113,0.95)' : 'rgba(255,255,255,0.70)',
-                                textShadow: '0 2px 10px rgba(0,0,0,0.45)',
-                            }}
-                        >
+                    <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-zinc-300">
+                        <div className={`flex items-center gap-1.5 ${isMuted ? "text-red-300" : "text-zinc-300"}`}>
                             {isMuted ? <MicOffIcon className="w-4 h-4" /> : <MicIcon className="w-4 h-4" />}
-                            {isMuted ? 'Sessiz' : 'Açık'}
+                            {isMuted ? "Sessiz" : "Açık"}
                         </div>
-                        <div
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                fontSize: 11,
-                                color: isDeafened ? 'rgba(248,113,113,0.95)' : 'rgba(255,255,255,0.70)',
-                                textShadow: '0 2px 10px rgba(0,0,0,0.45)',
-                            }}
-                        >
+                        <div className={`flex items-center gap-1.5 ${isDeafened ? "text-red-300" : "text-zinc-300"}`}>
                             {isDeafened ? <HeadphonesOffIcon className="w-4 h-4" /> : <HeadphonesIcon className="w-4 h-4" />}
-                            {isDeafened ? 'Kapalı' : 'Açık'}
+                            {isDeafened ? "Kapalı" : "Açık"}
                         </div>
+                        {supportsVideo && (
+                            <>
+                                <div className={`flex items-center gap-1.5 ${!isCameraOn ? "text-red-300" : "text-zinc-300"}`}>
+                                    {!isCameraOn ? <VideoOffIcon className="w-4 h-4" /> : <VideoIcon className="w-4 h-4" />}
+                                    {isCameraOn ? "Kamera" : "Kapalı"}
+                                </div>
+                                <div className={`flex items-center gap-1.5 ${isScreenSharing ? "text-green-300" : "text-zinc-300"}`}>
+                                    <ScreenShareIcon className="w-4 h-4" />
+                                    {isScreenSharing ? "Ekran" : "Yok"}
+                                </div>
+                            </>
+                        )}
                     </div>
                 </div>
             )}
 
-            {/* Voice Controls */}
             {!pinnedView && (
-                <div style={{
-                padding: '16px',
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '12px'
-            }}>
-                {/* Mute Button */}
-                <button
-                    onClick={toggleMute}
-                    disabled={!isConnected}
-                    style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        border: 'none',
-                        background: isMuted
-                            ? 'rgba(239, 68, 68, 0.2)'
-                            : 'rgba(255, 255, 255, 0.1)',
-                        color: isMuted ? '#f87171' : 'rgba(255,255,255,0.8)',
-                        cursor: isConnected ? 'pointer' : 'not-allowed',
-                        opacity: isConnected ? 1 : 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease'
-                    }}
-                    title={isMuted ? "Mikrofonu Aç" : "Mikrofonu Kapat"}
-                >
-                    {isMuted ? <MicOffIcon /> : <MicIcon />}
-                </button>
+                <div className="p-4 flex items-center justify-center gap-3">
+                    <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
+                        <ControlButton
+                            icon={MicIcon}
+                            activeIcon={MicOffIcon}
+                            isActive={isMuted}
+                            danger={isMuted}
+                            label={isMuted ? "Mikrofonu Aç" : "Sessiz"}
+                            onClick={() => {
+                                void toggleMute();
+                            }}
+                            className="!rounded-xl !p-3"
+                        />
+                    </div>
 
-                {/* Deafen Button */}
-                <button
-                    onClick={toggleDeafen}
-                    disabled={!isConnected}
-                    style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        border: 'none',
-                        background: isDeafened
-                            ? 'rgba(239, 68, 68, 0.2)'
-                            : 'rgba(255, 255, 255, 0.1)',
-                        color: isDeafened ? '#f87171' : 'rgba(255,255,255,0.8)',
-                        cursor: isConnected ? 'pointer' : 'not-allowed',
-                        opacity: isConnected ? 1 : 0.5,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s ease'
-                    }}
-                    title={isDeafened ? "Sesi Aç" : "Sesi Kapat"}
-                >
-                    {isDeafened ? <HeadphonesOffIcon /> : <HeadphonesIcon />}
-                </button>
+                    <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
+                        <ControlButton
+                            icon={HeadphonesIcon}
+                            activeIcon={HeadphonesOffIcon}
+                            isActive={isDeafened}
+                            danger={isDeafened}
+                            label={isDeafened ? "Sesi Aç" : "Kulaklık"}
+                            onClick={toggleDeafen}
+                            className="!rounded-xl !p-3"
+                        />
+                    </div>
 
-                {/* Divider */}
-                {isConnected && (
-                    <div style={{
-                        width: 1,
-                        height: 32,
-                        background: 'rgba(255,255,255,0.1)',
-                        alignSelf: 'center'
-                    }} />
-                )}
+                    {supportsVideo && (
+                        <>
+                            <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
+                                <ControlButton
+                                    icon={VideoIcon}
+                                    activeIcon={VideoOffIcon}
+                                    isActive={!isCameraOn}
+                                    danger={!isCameraOn}
+                                    label={isCameraOn ? "Kamerayı Kapat" : "Kamera Aç"}
+                                    onClick={() => {
+                                        void toggleCamera();
+                                    }}
+                                    className="!rounded-xl !p-3"
+                                />
+                            </div>
+                            <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
+                                <ControlButton
+                                    icon={ScreenShareIcon}
+                                    isActive={isScreenSharing}
+                                    label={isScreenSharing ? "Paylaşımı Durdur" : "Ekran Paylaş"}
+                                    onClick={() => {
+                                        void toggleScreenShare();
+                                    }}
+                                    className="!rounded-xl !p-3"
+                                />
+                            </div>
+                        </>
+                    )}
 
-                {/* Disconnect Button */}
-                {isConnected && (
-                    <button
-                        onClick={disconnect}
-                        style={{
-                            width: 48,
-                            height: 48,
-                            borderRadius: 12,
-                            border: 'none',
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#f87171',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s ease'
-                        }}
-                        title="Bağlantıyı Kes"
-                    >
-                        <PhoneOffIcon />
-                    </button>
-                )}
+                    {isConnected && (
+                        <>
+                            <div className="w-px h-8 bg-white/10" />
+                            <ControlButton
+                                icon={PhoneOffIcon}
+                                isActive
+                                danger
+                                label="Bağlantıyı Kes"
+                                onClick={disconnect}
+                                className="!rounded-xl !p-3"
+                            />
+                        </>
+                    )}
                 </div>
             )}
 
-            {/* Not Connected Hint */}
             {!isConnected && (
-                <div style={{
-                    padding: '0 16px 16px',
-                    textAlign: 'center',
-                    fontSize: 12,
-                    color: 'rgba(255,255,255,0.4)'
-                }}>
+                <div className="px-4 pb-4 text-center text-xs text-zinc-500">
                     Ses kontrollerini kullanmak için bir sunucudan ses kanalına katılın
                 </div>
             )}

@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useVoiceStore } from "../../../store/voiceStore";
 import {
     MicIcon,
     MicOffIcon,
+    HeadphonesIcon,
+    HeadphonesOffIcon,
     VideoIcon,
     VideoOffIcon,
     ScreenShareIcon,
@@ -14,14 +16,19 @@ import { ControlButton } from "../../servers/components/ControlButton";
 
 export function GlobalVoiceSessionModal() {
     const navigate = useNavigate();
+    const location = useLocation();
     const {
         isConnected,
+        isConnecting,
+        connectionState,
         activeChannel,
         isMuted,
+        isDeafened,
         isCameraOn,
         isScreenSharing,
         participants,
         toggleMute,
+        toggleDeafen,
         toggleCamera,
         toggleScreenShare,
         disconnect
@@ -29,7 +36,9 @@ export function GlobalVoiceSessionModal() {
 
     const [isMinimized, setIsMinimized] = useState(false);
 
-    if (!isConnected || !activeChannel) return null;
+    if (!activeChannel) return null;
+    if (!isConnected && !isConnecting) return null;
+    if (/^\/servers\/[^/]+/.test(location.pathname)) return null;
 
     const handleReturnToChannel = () => {
         navigate(`/servers/${activeChannel.serverId}/channels/${activeChannel.id}`);
@@ -66,7 +75,11 @@ export function GlobalVoiceSessionModal() {
                                         {activeChannel.name}
                                     </h3>
                                     <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">
-                                        Bağlantı Kuruldu
+                                        {connectionState === "connected"
+                                            ? "Bağlı"
+                                            : connectionState === "reconnecting"
+                                                ? "Yeniden Bağlanıyor"
+                                                : "Bağlanıyor"}
                                     </p>
                                 </div>
                             </div>
@@ -113,6 +126,15 @@ export function GlobalVoiceSessionModal() {
                                     danger={isMuted}
                                     label={isMuted ? "Sesi Aç" : "Sessiz"}
                                     onClick={toggleMute}
+                                    className="!p-2"
+                                />
+                                <ControlButton
+                                    icon={HeadphonesIcon}
+                                    activeIcon={HeadphonesOffIcon}
+                                    isActive={isDeafened}
+                                    danger={isDeafened}
+                                    label={isDeafened ? "Sesi Aç" : "Kulaklık"}
+                                    onClick={toggleDeafen}
                                     className="!p-2"
                                 />
                                 <ControlButton

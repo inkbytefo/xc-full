@@ -20,6 +20,7 @@ import {
   ChevronLeftIcon,
   DiscoveryDashboard,
   VideoRoomView,
+  VoiceOverlay,
 } from "./components";
 
 // Modals
@@ -78,12 +79,15 @@ export function ServersPage() {
       const channel = serverData.voiceChannels.find((c) => c.id === channelId);
       if (!channel) return;
 
+      const isVideoChannel = channel.type === "video";
+
       if (voiceStore.isConnected && voiceStore.activeChannelId === channelId) {
-        setIsViewingVoiceRoom(!isViewingVoiceRoom);
-      } else {
-        voiceStore.connect(channel);
-        setIsViewingVoiceRoom(true);
+        setIsViewingVoiceRoom(isVideoChannel ? !isViewingVoiceRoom : false);
+        return;
       }
+
+      voiceStore.connect(channel);
+      setIsViewingVoiceRoom(isVideoChannel);
     },
     [voiceStore, serverData.voiceChannels, isViewingVoiceRoom]
   );
@@ -374,7 +378,7 @@ export function ServersPage() {
               setShowServerSettingsModal(true);
             }}
           />
-        ) : isViewingVoiceRoom && voiceStore.activeChannel ? (
+        ) : isViewingVoiceRoom && voiceStore.activeChannel?.type === "video" ? (
           /* Video Room View */
           <VideoRoomView
             channel={voiceStore.activeChannel!}
@@ -392,8 +396,15 @@ export function ServersPage() {
             }}
           />
         ) : serverData.currentChannel ? (
-          /* Chat Area with Voice Overlay */
-          <div className="flex-1 flex flex-col relative">
+          <div
+            className={`flex-1 flex flex-col relative ${serverData.currentServer &&
+              voiceStore.activeChannel &&
+              voiceStore.activeChannel.serverId === serverData.currentServer.id &&
+              (voiceStore.isConnected || voiceStore.isConnecting)
+              ? "pb-[76px]"
+              : ""
+              }`}
+          >
             <ChatArea
               channel={serverData.currentChannel}
               messages={chatMessages.messages}
@@ -408,6 +419,39 @@ export function ServersPage() {
               onTyping={chatMessages.handleTyping}
               typingUsers={chatMessages.typingUsers}
             />
+            {serverData.currentServer &&
+              voiceStore.activeChannel &&
+              voiceStore.activeChannel.serverId === serverData.currentServer.id &&
+              (voiceStore.isConnected || voiceStore.isConnecting) && (
+                <VoiceOverlay
+                  channel={voiceStore.activeChannel}
+                  participants={voiceStore.participants.map((p) => ({
+                    sid: p.sid,
+                    identity: p.identity,
+                    isSpeaking: p.isSpeaking,
+                    isMuted: p.isMuted,
+                    isLocal: p.isLocal,
+                  }))}
+                  isMuted={voiceStore.isMuted}
+                  isDeafened={voiceStore.isDeafened}
+                  isCameraOn={voiceStore.isCameraOn}
+                  isScreenSharing={voiceStore.isScreenSharing}
+                  onToggleMute={() => {
+                    void voiceStore.toggleMute();
+                  }}
+                  onToggleDeafen={voiceStore.toggleDeafen}
+                  onToggleCamera={() => {
+                    void voiceStore.toggleCamera();
+                  }}
+                  onToggleScreenShare={() => {
+                    void voiceStore.toggleScreenShare();
+                  }}
+                  onDisconnect={() => {
+                    voiceStore.disconnect();
+                    setIsViewingVoiceRoom(false);
+                  }}
+                />
+              )}
           </div>
         ) : (
           /* No Channel Selected */

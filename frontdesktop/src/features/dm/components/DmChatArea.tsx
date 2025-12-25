@@ -8,6 +8,8 @@ import type { Message, Conversation } from "../../../api/types";
 import { useAuthStore } from "../../../store/authStore";
 import { useOnlineStatus } from "../../../lib/websocket/useOnlineStatus";
 import { EmojiPicker } from "../../../components/EmojiPicker";
+import { VideoIcon, VolumeIcon } from "../../servers/components/Icons";
+import { ControlButton } from "../../servers/components/ControlButton";
 
 interface DmChatAreaProps {
     conversation: Conversation;
@@ -53,6 +55,12 @@ export function DmChatArea({
 
     // Emoji picker
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    const [callNotice, setCallNotice] = useState<string | null>(null);
+
+    const showCallNotAvailable = (kind: "voice" | "video") => {
+        setCallNotice(kind === "voice" ? "DM sesli arama henüz aktif değil." : "DM görüntülü arama henüz aktif değil.");
+        window.setTimeout(() => setCallNotice(null), 2500);
+    };
 
     const virtualizer = useVirtualizer({
         count: messages.length,
@@ -132,18 +140,25 @@ export function DmChatArea({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-zinc-200">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                    </button>
-                    <button className="p-2 rounded-lg hover:bg-white/10 text-zinc-400 hover:text-zinc-200">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    </button>
+                    <ControlButton
+                        icon={VolumeIcon}
+                        label="Sesli arama"
+                        onClick={() => showCallNotAvailable("voice")}
+                        className="!p-2 !rounded-xl"
+                    />
+                    <ControlButton
+                        icon={VideoIcon}
+                        label="Görüntülü arama"
+                        onClick={() => showCallNotAvailable("video")}
+                        className="!p-2 !rounded-xl"
+                    />
                 </div>
             </div>
+            {callNotice && (
+                <div className="px-4 py-2 bg-amber-500/10 border-b border-amber-500/30 text-amber-300 text-sm">
+                    {callNotice}
+                </div>
+            )}
 
             {/* Messages */}
             <div
