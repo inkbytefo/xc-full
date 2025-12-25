@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Server, Channel } from '../../../../api/types';
+import type { VoiceChannel } from '../../../voice/voiceApi';
 
 // SVG Icons
 const HashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -25,12 +26,22 @@ interface ChannelSidebarProps {
     channels: Channel[];
     selectedChannelId: string | null;
     onChannelSelect: (channelId: string) => void;
+    voiceChannels: VoiceChannel[];
+    activeVoiceChannelId?: string | null;
+    onVoiceChannelJoin: (channel: VoiceChannel) => void;
 }
 
-export function ChannelSidebar({ server, channels, selectedChannelId, onChannelSelect }: ChannelSidebarProps) {
+export function ChannelSidebar({
+    server,
+    channels,
+    selectedChannelId,
+    onChannelSelect,
+    voiceChannels,
+    activeVoiceChannelId,
+    onVoiceChannelJoin,
+}: ChannelSidebarProps) {
     const [channelListOpen, setChannelListOpen] = useState(true);
     const textChannels = channels.filter(c => c.type === 'text');
-    const voiceChannels = channels.filter(c => c.type === 'voice');
 
     return (
         <div style={{
@@ -141,31 +152,48 @@ export function ChannelSidebar({ server, channels, selectedChannelId, onChannelS
                             Ses Kanalları
                         </div>
 
-                        {voiceChannels.map(c => (
-                            <div
-                                key={c.id}
-                                style={{
-                                    padding: '6px 10px',
-                                    marginBottom: 2,
-                                    borderRadius: 6,
-                                    color: 'rgba(255,255,255,0.5)',
-                                    fontSize: 13,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: 6,
-                                    cursor: 'pointer'
-                                }}
-                            >
-                                <VolumeIcon className="w-4 h-4 opacity-60" />
-                                <span style={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    {c.name}
-                                </span>
-                            </div>
-                        ))}
+                        {voiceChannels.map((c) => {
+                            const isActive = activeVoiceChannelId === c.id;
+                            const limitLabel = c.userLimit > 0 ? `${c.participantCount}/${c.userLimit}` : `${c.participantCount}`;
+
+                            return (
+                                <div
+                                    key={c.id}
+                                    onClick={() => onVoiceChannelJoin(c)}
+                                    style={{
+                                        padding: '6px 10px',
+                                        marginBottom: 2,
+                                        borderRadius: 6,
+                                        color: isActive ? 'white' : 'rgba(255,255,255,0.5)',
+                                        background: isActive ? 'rgba(34, 197, 94, 0.12)' : 'transparent',
+                                        fontSize: 13,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 6,
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease'
+                                    }}
+                                >
+                                    <VolumeIcon className="w-4 h-4 opacity-60" />
+                                    <span style={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        flex: 1,
+                                        minWidth: 0,
+                                    }}>
+                                        {c.name}
+                                    </span>
+                                    <span style={{
+                                        fontSize: 11,
+                                        color: isActive ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.35)',
+                                        flexShrink: 0,
+                                    }}>
+                                        {limitLabel}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>

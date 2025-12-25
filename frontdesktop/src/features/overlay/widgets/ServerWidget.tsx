@@ -7,6 +7,8 @@ import { ServerRail } from './server/ServerRail';
 import { ChannelSidebar } from './server/ChannelSidebar';
 import { ServerChatArea } from './server/ServerChatArea';
 import { useServerData } from './server/useServerData';
+import { useVoiceStore } from '../../../store/voiceStore';
+import { useWidgetStore } from '../stores/widgetStore';
 
 const ServerIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -20,6 +22,7 @@ export function ServerWidget() {
         selectedServerId,
         setSelectedServerId,
         channels,
+        voiceChannels,
         selectedChannelId,
         setSelectedChannelId,
         messages,
@@ -30,6 +33,11 @@ export function ServerWidget() {
         selectedServer,
         selectedChannel
     } = useServerData();
+
+    const connect = useVoiceStore((s) => s.connect);
+    const activeVoiceChannelId = useVoiceStore((s) => s.activeChannelId);
+    const openWidget = useWidgetStore((s) => s.openWidget);
+    const bringToFront = useWidgetStore((s) => s.bringToFront);
 
     const CenterState = ({ title, subtitle }: { title: string; subtitle?: string }) => (
         <div style={{
@@ -105,6 +113,13 @@ export function ServerWidget() {
                     channels={channels}
                     selectedChannelId={selectedChannelId}
                     onChannelSelect={setSelectedChannelId}
+                    voiceChannels={voiceChannels}
+                    activeVoiceChannelId={activeVoiceChannelId}
+                    onVoiceChannelJoin={async (channel) => {
+                        await connect(channel);
+                        openWidget('voice');
+                        bringToFront('voice');
+                    }}
                 />
 
                 {loadingChannels ? (

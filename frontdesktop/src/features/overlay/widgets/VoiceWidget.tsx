@@ -4,6 +4,7 @@
 
 import { useVoiceStore } from '../../../store/voiceStore';
 import { BaseWidget } from './BaseWidget';
+import { useOverlayMode } from '../hooks/useOverlayMode';
 
 // SVG Icons - Main Frontend ile tutarlı
 const MicIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
@@ -75,6 +76,7 @@ const VolumeIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 
 export function VoiceWidget() {
+    const { pinnedView } = useOverlayMode();
     const {
         isConnected,
         isMuted,
@@ -85,6 +87,13 @@ export function VoiceWidget() {
         participants,
         activeChannel
     } = useVoiceStore();
+
+    const sortedParticipants = [...participants].sort((a, b) => {
+        if (a.isSpeaking !== b.isSpeaking) return a.isSpeaking ? -1 : 1;
+        if (a.isMuted !== b.isMuted) return a.isMuted ? 1 : -1;
+        if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
+        return a.identity.localeCompare(b.identity);
+    });
 
     return (
         <BaseWidget
@@ -137,7 +146,7 @@ export function VoiceWidget() {
             </div>
 
             {/* Participants Grid */}
-            {isConnected && participants.length > 0 && (
+            {isConnected && sortedParticipants.length > 0 && !pinnedView && (
                 <div style={{
                     padding: '12px 16px',
                     display: 'flex',
@@ -145,7 +154,7 @@ export function VoiceWidget() {
                     gap: '8px',
                     borderBottom: '1px solid rgba(255,255,255,0.08)'
                 }}>
-                    {participants.slice(0, 8).map((p) => (
+                    {sortedParticipants.slice(0, 8).map((p) => (
                         <div
                             key={p.sid}
                             title={p.identity + (p.isLocal ? ' (Sen)' : '')}
@@ -188,7 +197,7 @@ export function VoiceWidget() {
                             )}
                         </div>
                     ))}
-                    {participants.length > 8 && (
+                    {sortedParticipants.length > 8 && (
                         <div style={{
                             width: 40,
                             height: 40,
@@ -200,14 +209,125 @@ export function VoiceWidget() {
                             fontSize: 12,
                             color: 'rgba(255,255,255,0.6)'
                         }}>
-                            +{participants.length - 8}
+                            +{sortedParticipants.length - 8}
                         </div>
                     )}
                 </div>
             )}
 
+            {/* Participants List (Pinned View) */}
+            {isConnected && sortedParticipants.length > 0 && pinnedView && (
+                <div style={{ padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.9)', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
+                            {activeChannel?.name ?? 'Ses Kanalı'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
+                            {sortedParticipants.length}
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {sortedParticipants.slice(0, 12).map((p) => (
+                            <div
+                                key={p.sid}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: 10,
+                                    padding: '6px 8px',
+                                    borderRadius: 10,
+                                    background: p.isSpeaking ? 'rgba(34,197,94,0.10)' : 'rgba(0,0,0,0.10)',
+                                    border: p.isSpeaking ? '1px solid rgba(34,197,94,0.25)' : '1px solid rgba(255,255,255,0.06)',
+                                    backdropFilter: 'blur(6px)',
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        width: 26,
+                                        height: 26,
+                                        borderRadius: 999,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        color: '#fff',
+                                        background: p.isSpeaking
+                                            ? 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
+                                            : 'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
+                                        boxShadow: p.isSpeaking ? '0 0 0 3px rgba(34, 197, 94, 0.35)' : 'none',
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    {p.identity[0]?.toUpperCase() || '?'}
+                                </div>
+
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 600,
+                                            color: 'rgba(255,255,255,0.92)',
+                                            overflow: 'hidden',
+                                            textOverflow: 'ellipsis',
+                                            whiteSpace: 'nowrap',
+                                            textShadow: '0 2px 10px rgba(0,0,0,0.45)',
+                                        }}
+                                    >
+                                        {p.identity}{p.isLocal ? ' (Sen)' : ''}
+                                    </div>
+                                </div>
+
+                                {p.isMuted && (
+                                    <div style={{ color: 'rgba(248,113,113,0.95)', flexShrink: 0 }}>
+                                        <MicOffIcon className="w-4 h-4" />
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {sortedParticipants.length > 12 && (
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', padding: '2px 8px', textShadow: '0 2px 10px rgba(0,0,0,0.45)' }}>
+                                +{sortedParticipants.length - 12} kişi daha
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 10, opacity: 0.9 }}>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 11,
+                                color: isMuted ? 'rgba(248,113,113,0.95)' : 'rgba(255,255,255,0.70)',
+                                textShadow: '0 2px 10px rgba(0,0,0,0.45)',
+                            }}
+                        >
+                            {isMuted ? <MicOffIcon className="w-4 h-4" /> : <MicIcon className="w-4 h-4" />}
+                            {isMuted ? 'Sessiz' : 'Açık'}
+                        </div>
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                fontSize: 11,
+                                color: isDeafened ? 'rgba(248,113,113,0.95)' : 'rgba(255,255,255,0.70)',
+                                textShadow: '0 2px 10px rgba(0,0,0,0.45)',
+                            }}
+                        >
+                            {isDeafened ? <HeadphonesOffIcon className="w-4 h-4" /> : <HeadphonesIcon className="w-4 h-4" />}
+                            {isDeafened ? 'Kapalı' : 'Açık'}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Voice Controls */}
-            <div style={{
+            {!pinnedView && (
+                <div style={{
                 padding: '16px',
                 display: 'flex',
                 justifyContent: 'center',
@@ -295,7 +415,8 @@ export function VoiceWidget() {
                         <PhoneOffIcon />
                     </button>
                 )}
-            </div>
+                </div>
+            )}
 
             {/* Not Connected Hint */}
             {!isConnected && (

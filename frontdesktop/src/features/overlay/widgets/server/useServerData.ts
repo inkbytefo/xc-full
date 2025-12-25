@@ -3,6 +3,7 @@ import { fetchServers, fetchChannels, fetchChannelMessages, sendChannelMessage }
 import type { Server, Channel, ChannelMessage } from '../../../../api/types';
 import { subscribeToEvent, useWebSocketStore } from '../../../../lib/websocket/store';
 import type { ChannelMessageEventData } from '../../../../lib/websocket/types';
+import { getVoiceChannels, type VoiceChannel } from '../../../voice/voiceApi';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -65,6 +66,7 @@ export function useServerData() {
     const [servers, setServers] = useState<Server[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
     const [channels, setChannels] = useState<Channel[]>([]);
+    const [voiceChannels, setVoiceChannels] = useState<VoiceChannel[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChannelMessage[]>([]);
     const [loadingMessages, setLoadingMessages] = useState(false);
@@ -97,11 +99,18 @@ export function useServerData() {
         const loadChannels = async () => {
             setLoadingChannels(true);
             setChannels([]);
+            setVoiceChannels([]);
             setSelectedChannelId(null);
             try {
-                const data = await fetchChannels(selectedServerId);
-                setChannels(data);
-                const firstText = data.find(c => c.type === 'text');
+                const [textChannels, voiceChannels] = await Promise.all([
+                    fetchChannels(selectedServerId),
+                    getVoiceChannels(selectedServerId).catch(() => [] as VoiceChannel[]),
+                ]);
+
+                setChannels(textChannels);
+                setVoiceChannels(voiceChannels);
+
+                const firstText = textChannels.find((c) => c.type === 'text');
                 if (firstText) {
                     setSelectedChannelId(firstText.id);
                 } else {
@@ -228,6 +237,7 @@ export function useServerData() {
         selectedServerId,
         setSelectedServerId,
         channels,
+        voiceChannels,
         selectedChannelId,
         setSelectedChannelId,
         messages,
