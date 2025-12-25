@@ -15,6 +15,9 @@ interface ChatAreaProps {
     messagesEndRef: React.RefObject<HTMLDivElement>;
     onMessageChange: (text: string) => void;
     onSend: () => void;
+    variant?: "full" | "panel";
+    headerIcon?: React.ReactNode;
+    headerBadge?: React.ReactNode;
     // New: Edit/Delete handlers
     onEditMessage?: (messageId: string, content: string) => Promise<void>;
     onDeleteMessage?: (messageId: string) => Promise<void>;
@@ -32,6 +35,9 @@ export function ChatArea({
     messagesEndRef,
     onMessageChange,
     onSend,
+    variant = "full",
+    headerIcon,
+    headerBadge,
     onEditMessage,
     onDeleteMessage,
     onTyping,
@@ -117,10 +123,13 @@ export function ChatArea({
     return (
         <>
             {/* Channel Header */}
-            <div className="h-12 px-4 flex items-center justify-between border-b border-white/10 shrink-0 bg-[#0a0a0f]/80 backdrop-blur-xl">
+            <div
+                className={`${variant === "panel" ? "h-11 px-3" : "h-12 px-4"} flex items-center justify-between border-b border-white/10 shrink-0 bg-[#0a0a0f]/80 backdrop-blur-xl`}
+            >
                 <div className="flex items-center gap-2">
-                    <HashIcon className="w-5 h-5 text-zinc-500" />
+                    {headerIcon ?? <HashIcon className="w-5 h-5 text-zinc-500" />}
                     <span className="font-semibold text-zinc-100">{channel.name}</span>
+                    {headerBadge}
                     {channel.description && (
                         <>
                             <div className="w-[1px] h-5 bg-white/10 mx-2" />
@@ -128,26 +137,28 @@ export function ChatArea({
                         </>
                     )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-lg hover:bg-white/10 text-zinc-400">
-                        <BellIcon className="w-5 h-5" />
-                    </button>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            name="channel-search"
-                            id="channel-search"
-                            placeholder="Search"
-                            className="w-40 px-3 py-1.5 text-sm rounded-md bg-white/5 border border-white/10 text-zinc-300 placeholder-zinc-500 outline-none focus:border-white/20"
-                        />
+                {variant === "full" && (
+                    <div className="flex items-center gap-2">
+                        <button className="p-2 rounded-lg hover:bg-white/10 text-zinc-400">
+                            <BellIcon className="w-5 h-5" />
+                        </button>
+                        <div className="relative">
+                            <input
+                                type="text"
+                                name="channel-search"
+                                id="channel-search"
+                                placeholder="Search"
+                                className="w-40 px-3 py-1.5 text-sm rounded-md bg-white/5 border border-white/10 text-zinc-300 placeholder-zinc-500 outline-none focus:border-white/20"
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Messages */}
             <div
                 ref={parentRef}
-                className="flex-1 overflow-y-auto p-4"
+                className={`${variant === "panel" ? "p-3" : "p-4"} flex-1 overflow-y-auto`}
                 onClick={handleCloseContextMenu}
             >
                 {messagesLoading ? (
@@ -303,7 +314,7 @@ export function ChatArea({
             )}
 
             {/* Input */}
-            <div className="p-4 shrink-0 border-t border-white/10 bg-[#0a0a0f]/60 backdrop-blur-md">
+            <div className={`${variant === "panel" ? "p-3" : "p-4"} shrink-0 border-t border-white/10 bg-[#0a0a0f]/60 backdrop-blur-md`}>
                 <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-white/5 border border-white/10">
                     <button className="text-zinc-400 hover:text-zinc-300" title="Dosya Ekle">
                         <PlusIcon className="w-5 h-5" />
