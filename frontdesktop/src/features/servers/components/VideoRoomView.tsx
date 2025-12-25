@@ -20,7 +20,8 @@ interface VideoParticipant {
     isCameraOn: boolean;
     isScreenSharing: boolean;
     isLocal: boolean;
-    videoTrack?: Track | null;
+    cameraTrack?: Track | null;
+    screenShareTrack?: Track | null;
 }
 
 interface VideoRoomViewProps {
@@ -55,9 +56,42 @@ export function VideoRoomView({
         ? [localParticipant, ...participants.filter(p => !p.isLocal)]
         : participants;
 
-    const gridCols = allParticipants.length <= 1 ? 1
-        : allParticipants.length <= 4 ? 2
-            : allParticipants.length <= 9 ? 3
+    const tiles: VideoTileItem[] = allParticipants.flatMap((p) => {
+        const base: Omit<VideoTileItem, "tileId" | "tileKind" | "track" | "hasVideo"> = {
+            sid: p.sid,
+            identity: p.identity,
+            isSpeaking: p.isSpeaking,
+            isMuted: p.isMuted,
+            isCameraOn: p.isCameraOn,
+            isScreenSharing: p.isScreenSharing,
+            isLocal: p.isLocal,
+        };
+
+        const cameraTile: VideoTileItem = {
+            ...base,
+            tileId: `${p.sid}:camera`,
+            tileKind: "camera",
+            track: p.cameraTrack ?? null,
+            hasVideo: !!(p.isCameraOn && p.cameraTrack),
+        };
+
+        const screenTile: VideoTileItem | null =
+            p.isScreenSharing && p.screenShareTrack
+                ? {
+                    ...base,
+                    tileId: `${p.sid}:screen`,
+                    tileKind: "screen",
+                    track: p.screenShareTrack ?? null,
+                    hasVideo: true,
+                }
+                : null;
+
+        return screenTile ? [screenTile, cameraTile] : [cameraTile];
+    });
+
+    const gridCols = tiles.length <= 1 ? 1
+        : tiles.length <= 4 ? 2
+            : tiles.length <= 9 ? 3
                 : 4;
 
     return (
@@ -93,19 +127,19 @@ export function VideoRoomView({
                         gridAutoRows: "1fr",
                     }}
                 >
-                    {allParticipants.map((participant) => (
+                    {tiles.map((participant) => (
                         <VideoTile
-                            key={participant.sid}
+                            key={participant.tileId}
                             participant={participant}
-                            isFocused={focusedParticipant === participant.sid}
+                            isFocused={focusedParticipant === participant.tileId}
                             onClick={() => setFocusedParticipant(
-                                focusedParticipant === participant.sid ? null : participant.sid
+                                focusedParticipant === participant.tileId ? null : participant.tileId
                             )}
                         />
                     ))}
 
                     {/* Empty state */}
-                    {allParticipants.length === 0 && (
+                    {tiles.length === 0 && (
                         <div className="flex items-center justify-center text-zinc-500 col-span-full">
                             <div className="text-center">
                                 <VideoIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -161,8 +195,22 @@ export function VideoRoomView({
 
 // Sub-components
 
+interface VideoTileItem {
+    tileId: string;
+    tileKind: "camera" | "screen";
+    sid: string;
+    identity: string;
+    isSpeaking: boolean;
+    isMuted: boolean;
+    isCameraOn: boolean;
+    isScreenSharing: boolean;
+    isLocal: boolean;
+    track: Track | null;
+    hasVideo: boolean;
+}
+
 interface VideoTileProps {
-    participant: VideoParticipant;
+    participant: VideoTileItem;
     isFocused: boolean;
     onClick: () => void;
 }
@@ -171,7 +219,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
-        const track = participant.videoTrack;
+        const track = participant.track;
         const el = videoRef.current;
 
         if (track && el) {
@@ -181,7 +229,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
                 (track as any).detach(el);
             };
         }
-    }, [participant.videoTrack]);
+    }, [participant.track]);
 
     return (
         <div
@@ -190,7 +238,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
                 }`}
         >
             {/* Video element */}
-            {participant.isCameraOn && participant.videoTrack ? (
+            {participant.hasVideo && participant.track ? (
                 <video
                     ref={videoRef}
                     autoPlay
@@ -212,7 +260,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
             )}
 
             {/* Screen share indicator */}
-            {participant.isScreenSharing && (
+            {participant.tileKind === "screen" && (
                 <div className="absolute top-3 left-3 px-2 py-1 rounded-md bg-green-500/20 text-green-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 backdrop-blur-md border border-green-500/30">
                     <ScreenShareIcon className="w-3 h-3" />
                     Live
@@ -227,6 +275,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
                             <span className="text-sm font-semibold text-white truncate drop-shadow-md">
                                 {participant.identity}
                                 {participant.isLocal && " (Sen)"}
+                                {participant.tileKind === "screen" && " • Screen"}
                             </span>
                             {participant.isSpeaking && (
                                 <div className="flex gap-0.5 items-center h-3">
@@ -237,7 +286,7 @@ function VideoTile({ participant, isFocused, onClick }: VideoTileProps) {
                             )}
                         </div>
                     </div>
-                    {participant.isMuted && (
+                    {participant.isMuted && participant.tileKind !== "screen" && (
                         <div className="p-1 rounded-md bg-red-500/20 border border-red-500/30">
                             <MicOffIcon className="w-3.5 h-3.5 text-red-400" />
                         </div>
