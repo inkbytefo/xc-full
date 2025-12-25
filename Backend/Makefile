@@ -8,6 +8,12 @@ GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 BINARY_NAME=xcord-api
 BINARY_PATH=bin/$(BINARY_NAME)
+GOOS := $(shell go env GOOS)
+RACE_FLAG := -race
+
+ifeq ($(GOOS),windows)
+RACE_FLAG :=
+endif
 
 # Docker
 DOCKER_COMPOSE=docker compose
@@ -40,10 +46,10 @@ build-all: build
 # ===== Testing =====
 
 test:
-	$(GOTEST) -v -race -cover ./...
+	$(GOTEST) -v $(RACE_FLAG) -cover ./...
 
 test-coverage:
-	$(GOTEST) -v -race -coverprofile=coverage.out ./...
+	$(GOTEST) -v $(RACE_FLAG) -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
 
@@ -53,7 +59,7 @@ test-integration:
 # ===== Linting =====
 
 lint:
-	golangci-lint run ./...
+	$(GOCMD) run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8 run ./...
 
 fmt:
 	$(GOCMD) fmt ./...

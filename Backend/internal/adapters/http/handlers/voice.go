@@ -161,7 +161,9 @@ func (h *VoiceHandler) DeleteVoiceChannel(c *fiber.Ctx) error {
 
 	// Delete LiveKit room if exists
 	if h.livekit != nil && channel.LiveKitRoom != "" {
-		h.livekit.DeleteRoom(c.Context(), channel.LiveKitRoom)
+		if err := h.livekit.DeleteRoom(c.Context(), channel.LiveKitRoom); err != nil {
+			slog.Warn("delete livekit room error", slog.Any("error", err))
+		}
 	}
 
 	if err := h.channelRepo.Delete(c.Context(), channelID); err != nil {

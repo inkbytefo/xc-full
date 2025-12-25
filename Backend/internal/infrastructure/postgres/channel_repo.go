@@ -254,7 +254,9 @@ func (r *ChannelRepository) ReorderChannels(ctx context.Context, serverID string
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE channels SET position = $2 WHERE id = $1 AND server_id = $3`
 

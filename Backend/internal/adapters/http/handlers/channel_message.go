@@ -11,14 +11,16 @@ import (
 	"xcord/internal/adapters/http/dto"
 	"xcord/internal/domain/channel"
 	"xcord/internal/domain/server"
+	"xcord/internal/domain/ws"
 )
 
 // ChannelMessageHandler handles channel message requests.
 type ChannelMessageHandler struct {
-	messageRepo channel.MessageRepository
-	channelRepo channel.Repository
-	memberRepo  server.MemberRepository
-	serverRepo  server.Repository
+	messageRepo      channel.MessageRepository
+	channelRepo      channel.Repository
+	memberRepo       server.MemberRepository
+	serverRepo       server.Repository
+	websocketHandler *WebSocketHandler
 }
 
 // NewChannelMessageHandler creates a new ChannelMessageHandler.
@@ -27,12 +29,14 @@ func NewChannelMessageHandler(
 	channelRepo channel.Repository,
 	memberRepo server.MemberRepository,
 	serverRepo server.Repository,
+	websocketHandler *WebSocketHandler,
 ) *ChannelMessageHandler {
 	return &ChannelMessageHandler{
-		messageRepo: messageRepo,
-		channelRepo: channelRepo,
-		memberRepo:  memberRepo,
-		serverRepo:  serverRepo,
+		messageRepo:      messageRepo,
+		channelRepo:      channelRepo,
+		memberRepo:       memberRepo,
+		serverRepo:       serverRepo,
+		websocketHandler: websocketHandler,
 	}
 }
 
@@ -147,6 +151,10 @@ func (h *ChannelMessageHandler) SendMessage(c *fiber.Ctx) error {
 		))
 	}
 
+	if h.websocketHandler != nil {
+		h.websocketHandler.BroadcastChannelMessage(serverID, channelID, ws.EventChannelMessage, channelMessageToDTO(msg))
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"data": channelMessageToDTO(msg),
 	})
@@ -156,11 +164,28 @@ func (h *ChannelMessageHandler) SendMessage(c *fiber.Ctx) error {
 // PATCH /servers/:id/channels/:chId/messages/:msgId
 func (h *ChannelMessageHandler) EditMessage(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	channelID := c.Params("chId")
 	messageID := c.Params("msgId")
+
+	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
+	if err != nil || member == nil {
+		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
+			"FORBIDDEN",
+			"Not a member of this server",
+		))
+	}
 
 	msg, err := h.messageRepo.FindByID(c.Context(), messageID)
 	if err != nil {
 		return h.handleError(c, err)
+	}
+
+	if msg.ServerID != serverID || msg.ChannelID != channelID {
+		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+			"NOT_FOUND",
+			"Message not found",
+		))
 	}
 
 	if msg.AuthorID != userID {
@@ -196,6 +221,10 @@ func (h *ChannelMessageHandler) EditMessage(c *fiber.Ctx) error {
 		))
 	}
 
+	if h.websocketHandler != nil {
+		h.websocketHandler.BroadcastChannelMessage(serverID, channelID, ws.EventChannelMessageEdited, channelMessageToDTO(msg))
+	}
+
 	return c.JSON(fiber.Map{
 		"data": channelMessageToDTO(msg),
 	})
@@ -206,11 +235,27 @@ func (h *ChannelMessageHandler) EditMessage(c *fiber.Ctx) error {
 func (h *ChannelMessageHandler) DeleteMessage(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 	serverID := c.Params("id")
+	channelID := c.Params("chId")
 	messageID := c.Params("msgId")
+
+	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
+	if err != nil || member == nil {
+		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
+			"FORBIDDEN",
+			"Not a member of this server",
+		))
+	}
 
 	msg, err := h.messageRepo.FindByID(c.Context(), messageID)
 	if err != nil {
 		return h.handleError(c, err)
+	}
+
+	if msg.ServerID != serverID || msg.ChannelID != channelID {
+		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+			"NOT_FOUND",
+			"Message not found",
+		))
 	}
 
 	// Check if user is author or has manage messages permission
@@ -229,6 +274,10 @@ func (h *ChannelMessageHandler) DeleteMessage(c *fiber.Ctx) error {
 			"INTERNAL_ERROR",
 			"Failed to delete message",
 		))
+	}
+
+	if h.websocketHandler != nil {
+		h.websocketHandler.BroadcastChannelMessage(serverID, channelID, ws.EventChannelMessageDeleted, fiber.Map{"id": messageID})
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)

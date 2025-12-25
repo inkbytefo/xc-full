@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -95,7 +96,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 
 	// Assign the @everyone role to the owner
 	if err := s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID); err != nil {
-		// Non-fatal, but log
+		slog.Warn("assign @everyone role failed", slog.Any("error", err))
 	}
 
 	// Create default "general" channel
@@ -111,7 +112,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 	}
 
 	if err := s.channelRepo.Create(ctx, ch); err != nil {
-		// Non-fatal, server still created
+		slog.Warn("create default channel failed", slog.Any("error", err))
 	}
 
 	return srv, nil

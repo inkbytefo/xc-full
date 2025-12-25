@@ -320,17 +320,3 @@ func serverToDTO(s *server.Server) dto.ServerResponse {
 		CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
 	}
 }
-
-func serverToDTOWithRole(s *server.Server, role string) dto.ServerResponse {
-	return dto.ServerResponse{
-		ID:           s.ID,
-		Name:         s.Name,
-		Description:  s.Description,
-		IconGradient: s.IconGradient,
-		MemberCount:  s.MemberCount,
-		OwnerID:      s.OwnerID,
-		IsPublic:     s.IsPublic,
-		MyRole:       role,
-		CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
-	}
-}

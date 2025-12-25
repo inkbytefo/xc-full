@@ -70,7 +70,7 @@ func Recovery(logger *slog.Logger) fiber.Handler {
 					slog.String("method", c.Method()),
 				)
 
-				c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				_ = c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 					"error": fiber.Map{
 						"code":    "INTERNAL_ERROR",
 						"message": "An internal error occurred",

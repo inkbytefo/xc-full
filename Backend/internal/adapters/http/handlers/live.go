@@ -204,7 +204,9 @@ func (h *LiveHandler) GoLive(c *fiber.Ctx) error {
 
 	// Update category stream count
 	if stream.CategoryID != nil {
-		h.categoryRepo.UpdateStreamCount(c.Context(), *stream.CategoryID, 1)
+		if err := h.categoryRepo.UpdateStreamCount(c.Context(), *stream.CategoryID, 1); err != nil {
+			slog.Warn("update category stream count error", slog.Any("error", err))
+		}
 	}
 
 	return c.JSON(fiber.Map{"message": "Stream is now live"})
@@ -238,7 +240,9 @@ func (h *LiveHandler) EndStream(c *fiber.Ctx) error {
 
 	// Update category stream count
 	if stream.CategoryID != nil {
-		h.categoryRepo.UpdateStreamCount(c.Context(), *stream.CategoryID, -1)
+		if err := h.categoryRepo.UpdateStreamCount(c.Context(), *stream.CategoryID, -1); err != nil {
+			slog.Warn("update category stream count error", slog.Any("error", err))
+		}
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -372,6 +376,8 @@ func generateStreamID() string {
 
 func generateStreamKey() string {
 	b := make([]byte, 32)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return uuid.New().String()
+	}
 	return hex.EncodeToString(b)
 }

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"xcord/internal/config"
 	"xcord/internal/domain/user"
@@ -235,6 +236,8 @@ func savePublicKey(path string, key *rsa.PublicKey) error {
 
 func generateTokenID() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return uuid.NewString()
+	}
 	return base64.RawURLEncoding.EncodeToString(b)
 }

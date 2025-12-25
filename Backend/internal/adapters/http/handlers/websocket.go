@@ -100,7 +100,7 @@ func (h *WebSocketHandler) writePump(client *wsInfra.Client) {
 		case message, ok := <-client.Send:
 			if !ok {
 				// Channel closed
-				client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
+				_ = client.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
 			}
 
@@ -244,6 +244,6 @@ func (h *WebSocketHandler) BroadcastToUser(userID string, eventType ws.EventType
 func toMap(v interface{}) map[string]interface{} {
 	data, _ := json.Marshal(v)
 	var result map[string]interface{}
-	json.Unmarshal(data, &result)
+	_ = json.Unmarshal(data, &result)
 	return result
 }

@@ -122,6 +122,8 @@ func main() {
 	go wsHub.Run()
 	logger.Info("WebSocket hub started")
 
+	wsHandler := handlers.NewWebSocketHandler(wsHub)
+
 	// Initialize channel message repository
 	channelMessageRepo := postgres.NewChannelMessageRepository(dbPool)
 
@@ -135,7 +137,7 @@ func main() {
 	serverHandler := handlers.NewServerHandler(serverService, userRepo)
 	serverWallHandler := handlers.NewServerWallHandler(wallPostRepo, memberRepo, serverRepo)
 	channelHandler := handlers.NewChannelHandler(channelService)
-	channelMessageHandler := handlers.NewChannelMessageHandler(channelMessageRepo, channelRepo, memberRepo, serverRepo)
+	channelMessageHandler := handlers.NewChannelMessageHandler(channelMessageRepo, channelRepo, memberRepo, serverRepo, wsHandler)
 	feedHandler := handlers.NewFeedHandler(feedService)
 	dmHandler := handlers.NewDMHandler(dmService, wsHub, userRepo)
 	liveHandler := handlers.NewLiveHandler(streamRepo, categoryRepo)
@@ -174,7 +176,6 @@ func main() {
 	baseURL := "http://localhost:" + cfg.HTTP.Port
 	mediaHandler := handlers.NewMediaHandler(mediaRepo, uploadDir, baseURL)
 	privacyHandler := handlers.NewPrivacyHandler(privacyService)
-	wsHandler := handlers.NewWebSocketHandler(wsHub)
 	healthHandler := handlers.NewHealthHandler(dbPool, redisClient)
 
 	// Initialize middleware

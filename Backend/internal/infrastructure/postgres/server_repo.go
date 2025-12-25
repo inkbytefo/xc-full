@@ -605,7 +605,9 @@ func (r *RoleRepository) UpdatePositions(ctx context.Context, serverID string, p
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	query := `UPDATE roles SET position = $2, updated_at = NOW() WHERE id = $1 AND server_id = $3`
 

@@ -150,7 +150,9 @@ func (r *ConversationRepository) Create(ctx context.Context, conv *dm.Conversati
 	if err != nil {
 		return fmt.Errorf("begin transaction: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	// Create conversation
 	query := `INSERT INTO conversations (id, created_at, updated_at) VALUES ($1, $2, $3)`

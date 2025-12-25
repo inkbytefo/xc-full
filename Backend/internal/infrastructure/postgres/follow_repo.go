@@ -43,7 +43,9 @@ func (r *FollowRepository) Create(ctx context.Context, follow *user.Follow) erro
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	// Insert follow relationship
 	insertQuery := `
@@ -84,7 +86,9 @@ func (r *FollowRepository) Delete(ctx context.Context, followerID, followedID st
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	// Check if follow was active before deleting
 	var status string
@@ -123,7 +127,9 @@ func (r *FollowRepository) UpdateStatus(ctx context.Context, followerID, followe
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	// Get current status
 	var oldStatus string

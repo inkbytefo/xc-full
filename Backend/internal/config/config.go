@@ -181,12 +181,3 @@ func getSlice(key, separator string) []string {
 	}
 	return result
 }
-
-func getBool(key string, defaultValue bool) bool {
-	if value := os.Getenv(key); value != "" {
-		if b, err := strconv.ParseBool(value); err == nil {
-			return b
-		}
-	}
-	return defaultValue
-}
