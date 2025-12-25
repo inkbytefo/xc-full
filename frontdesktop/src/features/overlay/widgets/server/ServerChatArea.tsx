@@ -1,5 +1,6 @@
 import { ChatView } from '../ChatView';
 import type { Channel, ChannelMessage } from '../../../../api/types';
+import { useMemo } from 'react';
 
 // SVG Icons
 const HashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -16,6 +17,26 @@ interface ServerChatAreaProps {
 }
 
 export function ServerChatArea({ selectedChannel, messages, loadingMessages, onSendMessage }: ServerChatAreaProps) {
+    const chatMessages = useMemo(() => {
+        if (!selectedChannel) return [];
+        return messages.map((m) => ({
+            id: m.id,
+            conversationId: selectedChannel.id,
+            senderId: m.authorId,
+            content: m.content,
+            isEdited: m.isEdited,
+            createdAt: m.createdAt,
+            sender: m.author
+                ? {
+                    id: m.author.id,
+                    handle: m.author.handle,
+                    displayName: m.author.displayName,
+                    avatarGradient: m.author.avatarGradient,
+                }
+                : undefined,
+        }));
+    }, [messages, selectedChannel]);
+
     return (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
             {/* Channel Header */}
@@ -50,7 +71,7 @@ export function ServerChatArea({ selectedChannel, messages, loadingMessages, onS
             <div style={{ flex: 1, padding: '0 12px 12px', overflow: 'hidden' }}>
                 {selectedChannel ? (
                     <ChatView
-                        messages={messages as any}
+                        messages={chatMessages}
                         loading={loadingMessages}
                         onSendMessage={onSendMessage}
                         placeholder={`#${selectedChannel?.name} kanalına mesaj gönder`}

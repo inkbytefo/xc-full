@@ -181,7 +181,7 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
                         type="button"
                         onClick={handleMinimize}
                         className="w-11 h-11 rounded-[16px] flex items-center justify-center text-zinc-400 bg-white/[0.01] border border-white/0 hover:text-rose-300 hover:bg-rose-500/10 hover:border-rose-400/20 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
-                        title="Gizle"
+                        title="Oyuna Dön"
                     >
                         <CloseIcon className="w-5 h-5" />
                     </button>

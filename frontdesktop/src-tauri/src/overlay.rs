@@ -8,10 +8,7 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 pub struct OverlayShortcutState(pub Mutex<Option<Shortcut>>);
-pub struct GhostModeShortcutState(pub Mutex<Option<Shortcut>>);
-pub struct ManageModeShortcutState(pub Mutex<Option<Shortcut>>);
-pub struct OverlayManageModeState(pub Mutex<bool>);
-pub struct OverlayGhostModeState(pub Mutex<bool>);
+pub struct OverlayPinnedViewState(pub Mutex<bool>);
 
 fn parse_modifiers(modifiers: Vec<String>) -> Modifiers {
     let mut mods = Modifiers::empty();
@@ -57,33 +54,16 @@ fn parse_key_code(key: &str) -> Result<Code, String> {
     Err(format!("Invalid key code: {}", key))
 }
 
-fn set_manage_mode_state(app: &AppHandle, enabled: bool) {
-    if let Some(state) = app.try_state::<OverlayManageModeState>() {
+fn set_pinned_view_state(app: &AppHandle, enabled: bool) {
+    if let Some(state) = app.try_state::<OverlayPinnedViewState>() {
         if let Ok(mut s) = state.0.lock() {
             *s = enabled;
         }
     }
 }
 
-fn get_manage_mode_state(app: &AppHandle) -> bool {
-    if let Some(state) = app.try_state::<OverlayManageModeState>() {
-        if let Ok(s) = state.0.lock() {
-            return *s;
-        }
-    }
-    false
-}
-
-fn set_ghost_mode_state(app: &AppHandle, enabled: bool) {
-    if let Some(state) = app.try_state::<OverlayGhostModeState>() {
-        if let Ok(mut s) = state.0.lock() {
-            *s = enabled;
-        }
-    }
-}
-
-fn get_ghost_mode_state(app: &AppHandle) -> bool {
-    if let Some(state) = app.try_state::<OverlayGhostModeState>() {
+fn get_pinned_view_state(app: &AppHandle) -> bool {
+    if let Some(state) = app.try_state::<OverlayPinnedViewState>() {
         if let Ok(s) = state.0.lock() {
             return *s;
         }
@@ -126,68 +106,6 @@ pub fn update_overlay_shortcut(
     Ok(())
 }
 
-#[tauri::command]
-pub fn update_ghost_mode_shortcut(
-    app: AppHandle,
-    state: State<'_, GhostModeShortcutState>,
-    key: String,
-    modifiers: Vec<String>,
-) -> Result<(), String> {
-    let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
-
-    if let Some(old) = *current_shortcut {
-        let _ = app.global_shortcut().unregister(old);
-    }
-
-    let mods = parse_modifiers(modifiers);
-    let key_code = parse_key_code(&key)?;
-    let new_shortcut = Shortcut::new(Some(mods), key_code);
-
-    let app_handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut(new_shortcut, move |_app, _shortcut, event| {
-            if event.state() == ShortcutState::Pressed {
-                toggle_ghost_mode(app_handle.clone());
-            }
-        })
-        .map_err(|e| e.to_string())?;
-
-    *current_shortcut = Some(new_shortcut);
-
-    Ok(())
-}
-
-#[tauri::command]
-pub fn update_manage_mode_shortcut(
-    app: AppHandle,
-    state: State<'_, ManageModeShortcutState>,
-    key: String,
-    modifiers: Vec<String>,
-) -> Result<(), String> {
-    let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
-
-    if let Some(old) = *current_shortcut {
-        let _ = app.global_shortcut().unregister(old);
-    }
-
-    let mods = parse_modifiers(modifiers);
-    let key_code = parse_key_code(&key)?;
-    let new_shortcut = Shortcut::new(Some(mods), key_code);
-
-    let app_handle = app.clone();
-    app.global_shortcut()
-        .on_shortcut(new_shortcut, move |_app, _shortcut, event| {
-            if event.state() == ShortcutState::Pressed {
-                toggle_manage_mode(app_handle.clone());
-            }
-        })
-        .map_err(|e| e.to_string())?;
-
-    *current_shortcut = Some(new_shortcut);
-
-    Ok(())
-}
-
 // Known game processes for auto-detection
 const KNOWN_GAMES: &[&str] = &[
     "valorant",
@@ -208,10 +126,11 @@ const KNOWN_GAMES: &[&str] = &[
     "dota2",
 ];
 
-/// Toggle overlay visibility.
+/// Toggle overlay visibility / pinned view.
 /// Logic:
-/// - If hidden: Show (Active Mode)
-/// - If visible: Hide
+/// - If hidden: Show interactive overlay
+/// - If visible & interactive: Enter pinned view (click-through)
+/// - If visible & pinned view: Hide overlay
 #[tauri::command]
 pub fn toggle_overlay(app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
@@ -223,123 +142,34 @@ pub fn toggle_overlay(app: AppHandle) {
                 #[cfg(target_os = "windows")]
                 set_click_through(&overlay, false);
 
-                set_manage_mode_state(&app, false);
-                set_ghost_mode_state(&app, false);
-                let _ = overlay.eval("window.__XC_GHOST_MODE = false; window.__XC_MANAGE_MODE = false; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
+                set_pinned_view_state(&app, false);
+                let _ = overlay.eval(
+                    "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                );
             }
             Ok(true) => {
-                #[cfg(target_os = "windows")]
-                set_click_through(&overlay, false);
+                let pinned_view = get_pinned_view_state(&app);
 
-                set_manage_mode_state(&app, false);
-                set_ghost_mode_state(&app, false);
-                let _ = overlay.eval("window.__XC_GHOST_MODE = false; window.__XC_MANAGE_MODE = false; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
+                if !pinned_view {
+                    set_pinned_view_state(&app, true);
+                    let _ = overlay.eval(
+                        "window.__XC_PINNED_VIEW = true; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                    );
 
-                let _ = overlay.hide();
-            }
-            Err(_) => {}
-        }
-    }
-}
-
-/// Enter ghost mode - click-through enabled, overlay stays visible but transparent
-#[tauri::command]
-pub fn enter_ghost_mode(app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        // Notify frontend to switch to ghost mode
-        set_manage_mode_state(&app, false);
-        set_ghost_mode_state(&app, true);
-        let _ = overlay.eval("window.__XC_GHOST_MODE = true; window.__XC_MANAGE_MODE = false; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
-
-        // Set click-through on Windows
-        #[cfg(target_os = "windows")]
-        set_click_through(&overlay, true);
-    }
-}
-
-/// Exit ghost mode - restore normal overlay interaction
-#[tauri::command]
-pub fn exit_ghost_mode(app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        // Notify frontend to exit ghost mode
-        set_manage_mode_state(&app, false);
-        set_ghost_mode_state(&app, false);
-        let _ = overlay.eval("window.__XC_GHOST_MODE = false; window.__XC_MANAGE_MODE = false; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
-
-        // Disable click-through on Windows
-        #[cfg(target_os = "windows")]
-        set_click_through(&overlay, false);
-
-        let _ = overlay.set_focus();
-    }
-}
-
-#[tauri::command]
-pub fn toggle_ghost_mode(app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        match overlay.is_visible() {
-            Ok(false) => {
-                let _ = overlay.show();
-                let _ = overlay.set_focus();
-                enter_ghost_mode(app);
-            }
-            Ok(true) => {
-                if get_manage_mode_state(&app) {
-                    exit_manage_mode(app);
-                    return;
-                }
-
-                if get_ghost_mode_state(&app) {
-                    exit_ghost_mode(app);
+                    #[cfg(target_os = "windows")]
+                    set_click_through(&overlay, true);
                 } else {
-                    enter_ghost_mode(app);
+                    #[cfg(target_os = "windows")]
+                    set_click_through(&overlay, false);
+
+                    set_pinned_view_state(&app, false);
+                    let _ = overlay.eval(
+                        "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                    );
+                    let _ = overlay.hide();
                 }
             }
             Err(_) => {}
-        }
-    }
-}
-
-fn enter_manage_mode(app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let _ = overlay.show();
-        let _ = overlay.set_focus();
-
-        set_manage_mode_state(&app, true);
-        set_ghost_mode_state(&app, true);
-        let _ = overlay.eval("window.__XC_GHOST_MODE = true; window.__XC_MANAGE_MODE = true; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
-
-        #[cfg(target_os = "windows")]
-        set_click_through(&overlay, false);
-    }
-}
-
-fn exit_manage_mode(app: AppHandle) {
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        set_manage_mode_state(&app, false);
-        set_ghost_mode_state(&app, true);
-        let _ = overlay.eval("window.__XC_GHOST_MODE = true; window.__XC_MANAGE_MODE = false; window.dispatchEvent(new Event('ghostModeChanged')); window.dispatchEvent(new Event('manageModeChanged'));");
-
-        #[cfg(target_os = "windows")]
-        set_click_through(&overlay, true);
-    }
-}
-
-#[tauri::command]
-pub fn toggle_manage_mode(app: AppHandle) {
-    let manage_mode = get_manage_mode_state(&app);
-
-    if let Some(overlay) = app.get_webview_window("overlay") {
-        let visible = overlay.is_visible().unwrap_or(false);
-        if !visible {
-            enter_manage_mode(app);
-            return;
-        }
-
-        if manage_mode {
-            exit_manage_mode(app);
-        } else {
-            enter_manage_mode(app);
         }
     }
 }

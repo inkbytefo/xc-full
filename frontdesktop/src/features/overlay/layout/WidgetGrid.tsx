@@ -3,11 +3,11 @@ import { ReactNode } from 'react';
 interface WidgetGridProps {
     children: ReactNode;
     className?: string;
-    ghostMode?: boolean;
+    pinnedView?: boolean;
 }
 
-export function WidgetGrid({ children, className = '', ghostMode = false }: WidgetGridProps) {
-    if (ghostMode) return null; // In ghost mode, we don't render the grid
+export function WidgetGrid({ children, className = '', pinnedView = false }: WidgetGridProps) {
+    if (pinnedView) return null;
 
     return (
         <div className={`widget-grid ${className}`}>

@@ -118,17 +118,10 @@
    Ghost Mode
    -------------------------------------------------------------------------- */
 
-.overlay-app.ghost-mode {
+.overlay-app.pinned-view {
   background: transparent;
   backdrop-filter: none;
   pointer-events: none;
-}
-
-.overlay-app.manage-mode {
-  background: rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(var(--overlay-blur, 30px));
-  -webkit-backdrop-filter: blur(var(--overlay-blur, 30px));
-  pointer-events: auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -182,7 +175,7 @@
   /* Fixed height for consistency */
 }
 
-.overlay-header.ghost-mode {
+.overlay-header.pinned-view {
   display: none;
 }
 
@@ -285,7 +278,7 @@
   width: 100%;
 }
 
-.widget-grid.ghost-mode {
+.widget-grid.pinned-view {
   display: none;
 }
 
@@ -555,7 +548,7 @@
   backdrop-filter: blur(10px);
 }
 
-.overlay-footer.ghost-mode {
+.overlay-footer.pinned-view {
   display: none;
 }
 

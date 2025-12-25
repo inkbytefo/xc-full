@@ -11,7 +11,7 @@ import { useOverlaySettings } from './stores/overlaySettingsStore';
 import { OverlaySettingsModal } from './OverlaySettingsModal';
 
 export function OverlayApp() {
-    const { ghostMode, manageMode } = useOverlayMode();
+    const { pinnedView } = useOverlayMode();
     const {
         showHints,
         keybindings,
@@ -33,18 +33,14 @@ export function OverlayApp() {
         useOverlaySettings.getState().syncShortcuts();
     }, []);
 
-    const appClass = ghostMode
-        ? manageMode
-            ? 'overlay-app ghost-mode manage-mode'
-            : 'overlay-app ghost-mode'
-        : 'overlay-app';
+    const appClass = pinnedView ? 'overlay-app pinned-view' : 'overlay-app';
 
     return (
         <ToastProvider>
             <div className={appClass} style={overlayStyle}>
 
-                {/* Floating draggable Action Bar - Hidden in Ghost Mode */}
-                {(!ghostMode || manageMode) && (
+                {/* Floating draggable Action Bar */}
+                {!pinnedView && (
                     <ActionBar onSettingsClick={() => setSettingsOpen(true)} />
                 )}
 
@@ -56,8 +52,8 @@ export function OverlayApp() {
                 <VoiceWidget />
                 <UniversalVideoWidget />
 
-                {/* Footer - Hidden in Ghost Mode */}
-                {(!ghostMode || manageMode) && showHints && (
+                {/* Footer */}
+                {!pinnedView && showHints && (
                     <footer className="overlay-footer">
                         <kbd>{keybindings.toggleOverlay.display.split(' + ').map((k, i) => (
                             <span key={i}>{i > 0 ? ' + ' : ''}{k}</span>

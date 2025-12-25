@@ -25,37 +25,50 @@ export function ServerWidget() {
         messages,
         loadingMessages,
         loadingServers,
+        loadingChannels,
         handleSendMessage,
         selectedServer,
         selectedChannel
     } = useServerData();
 
-    // Loading State
+    const CenterState = ({ title, subtitle }: { title: string; subtitle?: string }) => (
+        <div style={{
+            padding: 32,
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 12,
+            height: '100%',
+            justifyContent: 'center'
+        }}>
+            <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: 'rgba(255,255,255,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                animation: subtitle ? undefined : 'pulse 2s infinite'
+            }}>
+                <ServerIcon className="w-8 h-8 text-zinc-500" />
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
+                {title}
+            </div>
+            {subtitle && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
+                    {subtitle}
+                </div>
+            )}
+        </div>
+    );
+
     if (loadingServers) {
         return (
             <BaseWidget id="server" title="Sunucular" icon="🏰">
-                <div style={{
-                    padding: 32,
-                    textAlign: 'center',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 12
-                }}>
-                    <div style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        background: 'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        animation: 'pulse 2s infinite'
-                    }}>
-                        <ServerIcon className="w-6 h-6 text-zinc-400" />
-                    </div>
-                    <div style={{ opacity: 0.5, fontSize: 13 }}>Sunucular yükleniyor...</div>
-                </div>
+                <CenterState title="Sunucular yükleniyor..." />
             </BaseWidget>
         );
     }
@@ -64,34 +77,10 @@ export function ServerWidget() {
     if (servers.length === 0) {
         return (
             <BaseWidget id="server" title="Sunucular" icon="🏰">
-                <div style={{
-                    padding: 32,
-                    textAlign: 'center',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 12,
-                    height: '100%',
-                    justifyContent: 'center'
-                }}>
-                    <div style={{
-                        width: 64,
-                        height: 64,
-                        borderRadius: 16,
-                        background: 'rgba(255,255,255,0.05)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        <ServerIcon className="w-8 h-8 text-zinc-500" />
-                    </div>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: 'rgba(255,255,255,0.7)' }}>
-                        Henüz bir sunucuya üye değilsiniz
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>
-                        Ana uygulamadan bir sunucuya katılın
-                    </div>
-                </div>
+                <CenterState
+                    title="Henüz bir sunucuya üye değilsiniz"
+                    subtitle="Ana uygulamadan bir sunucuya katılın"
+                />
             </BaseWidget>
         );
     }
@@ -118,12 +107,18 @@ export function ServerWidget() {
                     onChannelSelect={setSelectedChannelId}
                 />
 
-                <ServerChatArea
-                    selectedChannel={selectedChannel}
-                    messages={messages}
-                    loadingMessages={loadingMessages}
-                    onSendMessage={handleSendMessage}
-                />
+                {loadingChannels ? (
+                    <div style={{ flex: 1 }}>
+                        <CenterState title="Kanallar yükleniyor..." />
+                    </div>
+                ) : (
+                    <ServerChatArea
+                        selectedChannel={selectedChannel}
+                        messages={messages}
+                        loadingMessages={loadingMessages}
+                        onSendMessage={handleSendMessage}
+                    />
+                )}
             </div>
         </BaseWidget>
     );

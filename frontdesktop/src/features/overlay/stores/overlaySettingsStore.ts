@@ -18,8 +18,6 @@ export interface OverlaySettings {
     // Keybindings
     keybindings: {
         toggleOverlay: KeyBinding;
-        toggleGhostMode: KeyBinding;
-        toggleManageMode: KeyBinding;
     };
 
     // Appearance
@@ -69,18 +67,6 @@ const defaultSettings: OverlaySettings = {
             modifiers: ['Shift'],
             display: 'Shift + Tab'
         },
-        toggleGhostMode: {
-            key: 'G',
-            code: 'KeyG',
-            modifiers: ['Shift'],
-            display: 'Shift + G'
-        },
-        toggleManageMode: {
-            key: 'M',
-            code: 'KeyM',
-            modifiers: ['Shift'],
-            display: 'Shift + M'
-        }
     },
     overlayOpacity: 1.0,           // Widgets are fully opaque by default in active mode
     overlayBackdropOpacity: 0.85,  // Default dark/opaque background (as requested)
@@ -142,8 +128,6 @@ function normalizeKeybindings(value: unknown): OverlaySettings['keybindings'] {
     const v = isRecord(value) ? value : {};
     return {
         toggleOverlay: normalizeKeyBinding(v.toggleOverlay, defaultSettings.keybindings.toggleOverlay),
-        toggleGhostMode: normalizeKeyBinding(v.toggleGhostMode, defaultSettings.keybindings.toggleGhostMode),
-        toggleManageMode: normalizeKeyBinding(v.toggleManageMode, defaultSettings.keybindings.toggleManageMode),
     };
 }
 
@@ -204,18 +188,7 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         [action]: binding
                     }
                 }));
-                const cmd =
-                    action === 'toggleOverlay'
-                        ? 'update_overlay_shortcut'
-                        : action === 'toggleGhostMode'
-                            ? 'update_ghost_mode_shortcut'
-                            : action === 'toggleManageMode'
-                                ? 'update_manage_mode_shortcut'
-                                : null;
-
-                if (!cmd) return;
-
-                invoke(cmd, {
+                invoke('update_overlay_shortcut', {
                     key: binding.code,
                     modifiers: binding.modifiers
                 }).catch(console.error);
@@ -261,18 +234,6 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                     key: overlayBinding.code,
                     modifiers: overlayBinding.modifiers
                 }).catch(console.error);
-
-                const ghostBinding = defaultSettings.keybindings.toggleGhostMode;
-                invoke('update_ghost_mode_shortcut', {
-                    key: ghostBinding.code,
-                    modifiers: ghostBinding.modifiers
-                }).catch(console.error);
-
-                const manageBinding = defaultSettings.keybindings.toggleManageMode;
-                invoke('update_manage_mode_shortcut', {
-                    key: manageBinding.code,
-                    modifiers: manageBinding.modifiers
-                }).catch(console.error);
             },
 
             syncShortcuts: async () => {
@@ -282,14 +243,6 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         key: state.keybindings.toggleOverlay.code,
                         modifiers: state.keybindings.toggleOverlay.modifiers
                     });
-                    await invoke('update_ghost_mode_shortcut', {
-                        key: state.keybindings.toggleGhostMode.code,
-                        modifiers: state.keybindings.toggleGhostMode.modifiers
-                    });
-                    await invoke('update_manage_mode_shortcut', {
-                        key: state.keybindings.toggleManageMode.code,
-                        modifiers: state.keybindings.toggleManageMode.modifiers
-                    });
                 } catch (e) {
                     console.error('Failed to sync shortcuts:', e);
                 }
@@ -297,7 +250,7 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
         }),
         {
             name: 'xc-overlay-settings',
-            version: 2,
+            version: 3,
             merge: (persistedState, currentState) => ({
                 ...currentState,
                 ...normalizePersistedSettings(persistedState),

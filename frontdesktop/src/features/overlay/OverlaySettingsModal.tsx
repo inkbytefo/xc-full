@@ -389,20 +389,6 @@ export function OverlaySettingsModal({ isOpen, onClose }: Props) {
                                     onSave={(binding) => settings.setKeybinding('toggleOverlay', binding)}
                                 />
 
-                                <KeybindingEditor
-                                    label="Ghost Modu"
-                                    description="Oyun üzerinden tıklamayı etkinleştir"
-                                    binding={settings.keybindings.toggleGhostMode}
-                                    onSave={(binding) => settings.setKeybinding('toggleGhostMode', binding)}
-                                />
-
-                                <KeybindingEditor
-                                    label="Manage Modu"
-                                    description="Pinned widget'ları düzenle (sürükle/boyutlandır)"
-                                    binding={settings.keybindings.toggleManageMode}
-                                    onSave={(binding) => settings.setKeybinding('toggleManageMode', binding)}
-                                />
-
                                 <div style={{
                                     marginTop: 24,
                                     padding: 16,

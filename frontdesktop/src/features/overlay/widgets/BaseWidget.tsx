@@ -25,7 +25,7 @@ export function BaseWidget({
     headerActions,
     compact: compactOverride
 }: BaseWidgetProps) {
-    const { ghostMode, manageMode } = useOverlayMode();
+    const { pinnedView } = useOverlayMode();
     const { compactMode, widgetAnimations, pinnedWidgetOpacity } = useOverlaySettings();
     const {
         registerWidget,
@@ -78,8 +78,7 @@ export function BaseWidget({
     // If not registered yet, or closed, don't render (unless we want to support "closed but in logic", usually we stop rendering)
     if (!widgetState || !widgetState.isOpen) return null;
 
-    // Ghost Mode Logic: If ghost mode is ON, and widget is NOT pinned, hide it.
-    if (ghostMode && !manageMode && !widgetState.isPinned) return null;
+    if (pinnedView && !widgetState.isPinned) return null;
 
     const isCompact = compactOverride ?? compactMode;
     const { position, size, zIndex, isPinned } = widgetState;
@@ -119,9 +118,9 @@ export function BaseWidget({
             dragHandleClassName="widget-drag-handle"
             bounds="window"
             style={{ zIndex }}
-            className={`widget-wrapper ${isPinned && ghostMode ? 'ghost-pinned' : ''}`}
-            enableResizing={!ghostMode || manageMode}
-            disableDragging={ghostMode && !manageMode}
+            className={`widget-wrapper ${isPinned && pinnedView ? 'ghost-pinned' : ''}`}
+            enableResizing={!pinnedView}
+            disableDragging={pinnedView}
         >
             <div
                 className={`widget ${isCompact ? 'compact' : ''}`}
@@ -130,8 +129,7 @@ export function BaseWidget({
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
-                    // Logic for transparency in ghost mode
-                    ...(ghostMode && isPinned ? {
+                    ...(pinnedView && isPinned ? {
                         background: 'rgba(0,0,0,var(--pinned-widget-bg-opacity, 0))',
                         boxShadow: 'none',
                         backdropFilter: pinnedWidgetOpacity > 0 ? 'blur(4px)' : 'none',
@@ -143,12 +141,12 @@ export function BaseWidget({
                 <div
                     className="widget-header widget-drag-handle"
                     style={{
-                        cursor: ghostMode && !manageMode ? 'default' : 'grab',
-                        opacity: ghostMode && !manageMode ? 0 : 1,
-                        pointerEvents: ghostMode && !manageMode ? 'none' : 'auto',
-                        height: ghostMode && !manageMode ? 0 : 52,
-                        minHeight: ghostMode && !manageMode ? 0 : 52,
-                        padding: ghostMode && !manageMode ? 0 : undefined,
+                        cursor: pinnedView ? 'default' : 'grab',
+                        opacity: pinnedView ? 0 : 1,
+                        pointerEvents: pinnedView ? 'none' : 'auto',
+                        height: pinnedView ? 0 : 52,
+                        minHeight: pinnedView ? 0 : 52,
+                        padding: pinnedView ? 0 : undefined,
                         overflow: 'hidden'
                     }}
                 >
