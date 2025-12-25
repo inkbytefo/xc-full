@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand colors */
+  --velvet: #94465b;
+  --velvet-2: #bd6a72;
+  --void: #0a0a0c;
+
+  /* Background layers (from most opaque to most transparent) */
+  --bg-solid: #050505;
+  --bg-base: rgba(5, 5, 5, 0.85);
+  --bg-elevated: rgba(10, 10, 12, 0.6);
+  --bg-surface: rgba(255, 255, 255, 0.03);
+  --bg-surface-hover: rgba(255, 255, 255, 0.06);
+  --bg-overlay: rgba(0, 0, 0, 0.4);
+
+  /* Panel backgrounds - semi-transparent to show canvas */
+  --panel-sidebar: rgba(0, 0, 0, 0.02);
+  --panel-main: rgba(0, 0, 0, 0.03);
+  --panel-card: rgba(0, 0, 0, 0.15);
+
+  /* Border colors */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Text colors */
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-solid);
+  color: var(--text-primary);
+}
+
+/* Utility classes for consistent backgrounds */
+.bg-panel-sidebar {
+  background: var(--panel-sidebar);
+}
+
+.bg-panel-main {
+  background: var(--panel-main);
+}
+
+.bg-panel-card {
+  background: var(--panel-card);
+}
+
+/* Glass effect for panels that should show background */
+.glass-panel {
+  background: var(--panel-sidebar);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.glass-card {
+  background: var(--panel-card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Ensure canvas shows through */
+.bg-canvas-visible {
+  background: transparent !important;
+}

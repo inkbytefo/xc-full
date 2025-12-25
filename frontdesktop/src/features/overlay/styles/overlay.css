@@ -1,0 +1,639 @@
+/* ==========================================================================
+   XC Overlay Styles - Modern Refactor
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Root & App Container
+   -------------------------------------------------------------------------- */
+
+#overlay-root {
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  overflow: hidden;
+  pointer-events: none;
+  /* Let clicks pass through by default */
+}
+
+/* --------------------------------------------------------------------------
+   Action Bar (Floating Header)
+   -------------------------------------------------------------------------- */
+
+.action-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 8px 16px;
+  background: rgba(20, 20, 25, 0.85);
+  /* Darker, sleek bg */
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  /* Pill shape */
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+  /* Capture clicks */
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.action-bar:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+
+.action-bar-drag-handle {
+  cursor: grab;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.action-bar-drag-handle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.action-bar-drag-handle:active {
+  cursor: grabbing;
+}
+
+.action-bar-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.time-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.game-badge {
+  margin-left: 4px;
+  padding: 6px 12px;
+  background: rgba(34, 197, 94, 0.1);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 0 10px rgba(34, 197, 94, 0.1);
+}
+
+.overlay-app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Darker default backdrop for better contrast */
+  background: rgba(0, 0, 0, var(--overlay-backdrop-opacity, 0.75));
+  backdrop-filter: blur(var(--overlay-blur, 30px));
+  -webkit-backdrop-filter: blur(var(--overlay-blur, 30px));
+  font-family: 'Inter', system-ui, sans-serif;
+  color: var(--text-primary);
+  pointer-events: auto;
+  /* Capture clicks in active mode */
+
+  /* Entry Animation */
+  animation: overlayEntry 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --------------------------------------------------------------------------
+   Ghost Mode
+   -------------------------------------------------------------------------- */
+
+.overlay-app.ghost-mode {
+  background: transparent;
+  backdrop-filter: none;
+  pointer-events: none;
+}
+
+.overlay-app.manage-mode {
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(var(--overlay-blur, 30px));
+  -webkit-backdrop-filter: blur(var(--overlay-blur, 30px));
+  pointer-events: auto;
+}
+
+/* --------------------------------------------------------------------------
+   Pinned Widgets (Ghost Mode)
+   -------------------------------------------------------------------------- */
+
+.pinned-widgets-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.pinned-widget {
+  pointer-events: auto;
+  position: absolute;
+  transition: opacity 0.2s ease;
+}
+
+/* Ghost styling for inside pinned widgets */
+.overlay-app .pinned-widget.ghost .widget {
+  /* Use dynamic pinned widget opacity (fallback to 0) */
+  background: rgba(0, 0, 0, var(--pinned-widget-bg-opacity, 0));
+  backdrop-filter: blur(4px);
+  border-color: rgba(255, 255, 255, 0.05);
+  box-shadow: none;
+}
+
+.overlay-app .pinned-widget.ghost .widget-header {
+  background: transparent;
+  border-bottom-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Hide scrollbars in ghost mode */
+.overlay-app .pinned-widget.ghost .widget-content::-webkit-scrollbar {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Overlay Header
+   -------------------------------------------------------------------------- */
+
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  height: 72px;
+  /* Fixed height for consistency */
+}
+
+.overlay-header.ghost-mode {
+  display: none;
+}
+
+.overlay-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.overlay-logo-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, var(--velvet) 0%, var(--velvet-2) 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(148, 70, 91, 0.3);
+}
+
+.overlay-actions,
+.header-voice-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* --------------------------------------------------------------------------
+   Buttons & Intearctive Elements
+   -------------------------------------------------------------------------- */
+
+.overlay-btn {
+  height: 36px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  font-size: 13px;
+  transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.overlay-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.overlay-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.overlay-btn-icon-only {
+  width: 36px;
+  padding: 0;
+}
+
+/* Active State for Toggles (Mic/Deafen) */
+.overlay-btn.active-off {
+  background: rgba(220, 38, 38, 0.15);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #ef4444;
+}
+
+.overlay-btn.active-off:hover {
+  background: rgba(220, 38, 38, 0.25);
+}
+
+/* --------------------------------------------------------------------------
+   Widget Grid Layout
+   -------------------------------------------------------------------------- */
+
+.widget-grid {
+  flex: 1;
+  padding: 32px;
+  /* More padding */
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  /* Slightly wider min-width */
+  grid-auto-rows: minmax(300px, auto);
+  /* Taller default rows */
+  gap: 24px;
+  align-content: start;
+  overflow-y: auto;
+  max-width: 1920px;
+  /* Prevent overly stretched layouts on ultra-wide */
+  margin: 0 auto;
+  /* Center grid */
+  width: 100%;
+}
+
+.widget-grid.ghost-mode {
+  display: none;
+}
+
+/* --------------------------------------------------------------------------
+   Widget Cards
+   -------------------------------------------------------------------------- */
+
+.widget {
+  /* Cleaner, more solid background for legibility */
+  background: rgba(20, 20, 25, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+
+  /* Widget Entry Animation */
+  animation: widgetEntry 0.4s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+.widget:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  transform: translateY(-1px);
+  background: rgba(25, 25, 30, 0.85);
+}
+
+/* Dragging state */
+.widget.dragging {
+  cursor: grabbing;
+  opacity: 0.9;
+  z-index: 100;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  transform: scale(1.02);
+}
+
+.widget-header {
+  height: 52px;
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.widget-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: 0.01em;
+}
+
+.widget-content {
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  /* Let children handle padding if needed, or default here */
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Default padding container */
+.widget-inner-content {
+  padding: 20px;
+}
+
+/* Scrollbar Styling */
+.widget-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.widget-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.widget-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+.widget-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   Friends Widget
+   -------------------------------------------------------------------------- */
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 14px;
+  margin: 2px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.friend-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.friend-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.friend-status {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #28282f;
+  /* Match widget bg */
+}
+
+.friend-status.online {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+.friend-status.idle {
+  background: #eab308;
+}
+
+.friend-status.dnd {
+  background: #ef4444;
+}
+
+.friend-status.offline {
+  background: #71717a;
+}
+
+.friend-info {
+  flex: 1;
+}
+
+.friend-name {
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.friend-activity {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   Voice Widget
+   -------------------------------------------------------------------------- */
+
+.voice-participant {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.voice-participant.speaking {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.1);
+}
+
+.voice-participant .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  position: relative;
+}
+
+.voice-participant.speaking .avatar::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid #22c55e;
+  animation: pulse-ring 1.5s infinite;
+}
+
+/* --------------------------------------------------------------------------
+   Chat Widget
+   -------------------------------------------------------------------------- */
+
+.chat-message {
+  display: flex;
+  gap: 12px;
+  padding: 8px 20px;
+  font-size: 14px;
+}
+
+.chat-message:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.chat-message-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.chat-message-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.chat-message-author {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.chat-message-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chat-message-text {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* --------------------------------------------------------------------------
+   Footer / Hints
+   -------------------------------------------------------------------------- */
+
+.overlay-footer {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid var(--border-subtle);
+  backdrop-filter: blur(10px);
+}
+
+.overlay-footer.ghost-mode {
+  display: none;
+}
+
+kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+/* --------------------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------------------- */
+
+@keyframes overlayEntry {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+    backdrop-filter: blur(0);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+    backdrop-filter: blur(var(--overlay-blur, 30px));
+  }
+}
+
+@keyframes widgetEntry {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilities
+   -------------------------------------------------------------------------- */
+
+.pin-btn {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pin-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+
+.pin-btn.pinned {
+  color: var(--velvet-2);
+  background: rgba(148, 70, 91, 0.15);
+}

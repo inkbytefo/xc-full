@@ -1,0 +1,118 @@
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:16-alpine
+    container_name: xcord-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: xcord
+      POSTGRES_PASSWORD: xcord
+      POSTGRES_DB: xcord
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U xcord -d xcord" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    container_name: xcord-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # XCORD API Backend
+  api:
+    build:
+      context: .
+      dockerfile: deployments/docker/Dockerfile
+    container_name: xcord-api
+    ports:
+      - "8080:8080"
+    environment:
+      ENV: production
+      HTTP_PORT: 8080
+      DATABASE_URL: postgres://xcord:xcord@postgres:5432/xcord?sslmode=disable
+      REDIS_URL: redis://redis:6379
+      JWT_PRIVATE_KEY_PATH: /app/keys/jwt_private.pem
+      JWT_PUBLIC_KEY_PATH: /app/keys/jwt_public.pem
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:1420,http://localhost:3000,http://127.0.0.1:5173
+      LOG_LEVEL: info
+      LOG_FORMAT: json
+      LIVEKIT_HOST: ws://livekit:7880
+      LIVEKIT_API_KEY: devkey
+      LIVEKIT_API_SECRET: xcord_dev_secret_key_32_chars_min
+    volumes:
+      - ./keys:/app/keys:ro
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+  # LiveKit Server (Voice/Video)
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: xcord-livekit
+    command: --config /etc/livekit.yaml
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882/udp"
+      - "50000-50200:50000-50200/udp"
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml
+    environment:
+      # LIVEKIT_KEYS is now in livekit.yaml
+      LIVEKIT_KEYS: "devkey: xcord_dev_secret_key_32_chars_min"
+    restart: unless-stopped
+
+  # Redis Commander (GUI) - Development only
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: xcord-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # pgAdmin (GUI) - Development only
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: xcord-pgadmin
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@xcord.dev
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:

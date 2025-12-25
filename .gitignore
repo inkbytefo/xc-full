@@ -1,0 +1,41 @@
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Environment / secrets ---
+.env
+.env.*
+**/.env
+**/.env.*
+*.pem
+*.key
+
+# --- Logs ---
+*.log
+logs/
+**/logs/
+
+# --- Go / backend ---
+Backend/bin/
+Backend/tmp/
+Backend/temp/
+Backend/keys/
+Backend/*.exe
+Backend/api.exe
+Backend/backend_debug.log
+Backend/coverage.html
+
+# --- Node / frontend ---
+**/node_modules/
+frontdesktop/dist/
+frontdesktop/dist-ssr/
+frontdesktop/*.local
+
+# --- Rust / Tauri ---
+frontdesktop/src-tauri/target/
+frontdesktop/src-tauri/gen/schemas/
