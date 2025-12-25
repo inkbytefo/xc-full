@@ -100,10 +100,72 @@ const defaultSettings: OverlaySettings = {
     }
 };
 
-// Start of Helper functions replacment
 export function createKeyBindingDisplay(key: string, modifiers: string[]): string {
     const parts = [...modifiers, key];
     return parts.join(' + ');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function safeBoolean(value: unknown, fallback: boolean): boolean {
+    return typeof value === 'boolean' ? value : fallback;
+}
+
+function safeNumber(value: unknown, fallback: number): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function safeString(value: unknown, fallback: string): string {
+    return typeof value === 'string' ? value : fallback;
+}
+
+function safeStringArray(value: unknown, fallback: string[]): string[] {
+    if (!Array.isArray(value)) return fallback;
+    const strings = value.filter((v): v is string => typeof v === 'string');
+    return strings.length ? strings : fallback;
+}
+
+function normalizeKeyBinding(value: unknown, fallback: KeyBinding): KeyBinding {
+    if (!isRecord(value)) return fallback;
+
+    const key = safeString(value.key, fallback.key);
+    const code = safeString(value.code, fallback.code);
+    const modifiers = safeStringArray(value.modifiers, fallback.modifiers);
+    const display = safeString(value.display, createKeyBindingDisplay(key, modifiers));
+
+    return { key, code, modifiers, display };
+}
+
+function normalizeKeybindings(value: unknown): OverlaySettings['keybindings'] {
+    const v = isRecord(value) ? value : {};
+    return {
+        toggleOverlay: normalizeKeyBinding(v.toggleOverlay, defaultSettings.keybindings.toggleOverlay),
+        toggleGhostMode: normalizeKeyBinding(v.toggleGhostMode, defaultSettings.keybindings.toggleGhostMode),
+        toggleManageMode: normalizeKeyBinding(v.toggleManageMode, defaultSettings.keybindings.toggleManageMode),
+    };
+}
+
+function normalizePersistedSettings(value: unknown): Partial<OverlaySettings> {
+    if (!isRecord(value)) return {};
+
+    const v = isRecord(value.state) ? value.state : value;
+
+    return {
+        keybindings: normalizeKeybindings(v.keybindings),
+        overlayOpacity: safeNumber(v.overlayOpacity, defaultSettings.overlayOpacity),
+        overlayBackdropOpacity: safeNumber(v.overlayBackdropOpacity, defaultSettings.overlayBackdropOpacity),
+        pinnedWidgetOpacity: safeNumber(v.pinnedWidgetOpacity, defaultSettings.pinnedWidgetOpacity),
+        blurStrength: safeNumber(v.blurStrength, defaultSettings.blurStrength),
+        widgetAnimations: safeBoolean(v.widgetAnimations, defaultSettings.widgetAnimations),
+        compactMode: safeBoolean(v.compactMode, defaultSettings.compactMode),
+        autoHideOnGame: safeBoolean(v.autoHideOnGame, defaultSettings.autoHideOnGame),
+        showHints: safeBoolean(v.showHints, defaultSettings.showHints),
+        rememberWidgetPositions: safeBoolean(v.rememberWidgetPositions, defaultSettings.rememberWidgetPositions),
+        pushToTalk: safeBoolean(v.pushToTalk, defaultSettings.pushToTalk),
+        pushToTalkKey: normalizeKeyBinding(v.pushToTalkKey, defaultSettings.pushToTalkKey),
+    };
 }
 
 // Helper to parse keyboard event to KeyBinding
@@ -235,7 +297,12 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
         }),
         {
             name: 'xc-overlay-settings',
-            version: 1
+            version: 2,
+            merge: (persistedState, currentState) => ({
+                ...currentState,
+                ...normalizePersistedSettings(persistedState),
+            }),
+            migrate: (persistedState) => normalizePersistedSettings(persistedState) as OverlaySettingsStore,
         }
     )
 );
