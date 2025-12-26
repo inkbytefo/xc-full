@@ -225,7 +225,7 @@ type RefreshResult struct {
 // RefreshToken refreshes an access token using a refresh token.
 func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*RefreshResult, error) {
 	// Validate refresh token
-	claims, err := s.jwt.ValidateToken(refreshToken)
+	claims, err := s.jwt.ValidateRefreshToken(refreshToken)
 	if err != nil {
 		return nil, err
 	}
@@ -291,7 +291,7 @@ func (s *Service) GetByID(ctx context.Context, id string) (*user.User, error) {
 
 // ValidateToken validates an access token and returns the user ID.
 func (s *Service) ValidateToken(tokenString string) (string, error) {
-	claims, err := s.jwt.ValidateToken(tokenString)
+	claims, err := s.jwt.ValidateAccessToken(tokenString)
 	if err != nil {
 		return "", err
 	}

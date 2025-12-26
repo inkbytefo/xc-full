@@ -20,8 +20,8 @@ import (
 
 // JWT errors
 var (
-	ErrInvalidToken        = errors.New("invalid token")
-	ErrTokenExpired        = errors.New("token expired")
+	ErrInvalidToken         = errors.New("invalid token")
+	ErrTokenExpired         = errors.New("token expired")
 	ErrInvalidSigningMethod = errors.New("invalid signing method")
 )
 
@@ -129,6 +129,38 @@ func (s *JWTService) ValidateToken(tokenString string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
+	if claims.Subject == "" {
+		return nil, ErrInvalidToken
+	}
+	if claims.Issuer != s.issuer {
+		return nil, ErrInvalidToken
+	}
+	if !containsString([]string(claims.Audience), s.audience) {
+		return nil, ErrInvalidToken
+	}
+
+	return claims, nil
+}
+
+func (s *JWTService) ValidateAccessToken(tokenString string) (*Claims, error) {
+	claims, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != AccessToken {
+		return nil, ErrInvalidToken
+	}
+	return claims, nil
+}
+
+func (s *JWTService) ValidateRefreshToken(tokenString string) (*Claims, error) {
+	claims, err := s.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+	if claims.TokenType != RefreshToken {
+		return nil, ErrInvalidToken
+	}
 	return claims, nil
 }
 
@@ -240,4 +272,13 @@ func generateTokenID() string {
 		return uuid.NewString()
 	}
 	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+func containsString(values []string, value string) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+	return false
 }

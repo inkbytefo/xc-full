@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -185,6 +186,8 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 // setTokenCookies sets the access and refresh tokens as HTTP-only cookies.
 func (h *AuthHandler) setTokenCookies(c *fiber.Ctx, accessToken, refreshToken string, accessDuration, refreshDuration int64) {
 	isProd := os.Getenv("ENV") == "production"
+	sameSite := getCookieSameSite(isProd)
+	domain := strings.TrimSpace(os.Getenv("COOKIE_DOMAIN"))
 
 	// Access Token Cookie
 	c.Cookie(&fiber.Cookie{
@@ -193,8 +196,9 @@ func (h *AuthHandler) setTokenCookies(c *fiber.Ctx, accessToken, refreshToken st
 		Expires:  time.Now().Add(time.Duration(accessDuration) * time.Second),
 		HTTPOnly: true,
 		Secure:   isProd,
-		SameSite: "Lax", // Use Lax for better UX with external links, strict might kill session on deep links
+		SameSite: sameSite,
 		Path:     "/",
+		Domain:   domain,
 	})
 
 	// Refresh Token Cookie
@@ -204,14 +208,17 @@ func (h *AuthHandler) setTokenCookies(c *fiber.Ctx, accessToken, refreshToken st
 		Expires:  time.Now().Add(time.Duration(refreshDuration) * time.Second),
 		HTTPOnly: true,
 		Secure:   isProd,
-		SameSite: "Lax",
+		SameSite: sameSite,
 		Path:     "/", // Must be available for refresh endpoint
+		Domain:   domain,
 	})
 }
 
 // clearCookies clears the auth cookies.
 func (h *AuthHandler) clearCookies(c *fiber.Ctx) {
 	isProd := os.Getenv("ENV") == "production"
+	sameSite := getCookieSameSite(isProd)
+	domain := strings.TrimSpace(os.Getenv("COOKIE_DOMAIN"))
 
 	// Expire Access Token
 	c.Cookie(&fiber.Cookie{
@@ -220,8 +227,9 @@ func (h *AuthHandler) clearCookies(c *fiber.Ctx) {
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HTTPOnly: true,
 		Secure:   isProd,
-		SameSite: "Lax",
+		SameSite: sameSite,
 		Path:     "/",
+		Domain:   domain,
 	})
 
 	// Expire Refresh Token
@@ -231,9 +239,31 @@ func (h *AuthHandler) clearCookies(c *fiber.Ctx) {
 		Expires:  time.Now().Add(-1 * time.Hour),
 		HTTPOnly: true,
 		Secure:   isProd,
-		SameSite: "Lax",
+		SameSite: sameSite,
 		Path:     "/",
+		Domain:   domain,
 	})
+}
+
+func getCookieSameSite(isProd bool) string {
+	raw := strings.TrimSpace(os.Getenv("COOKIE_SAMESITE"))
+	if raw == "" {
+		return "Lax"
+	}
+
+	switch strings.ToLower(raw) {
+	case "lax":
+		return "Lax"
+	case "strict":
+		return "Strict"
+	case "none":
+		if !isProd {
+			return "Lax"
+		}
+		return "None"
+	default:
+		return "Lax"
+	}
 }
 
 // handleError maps domain errors to HTTP responses.

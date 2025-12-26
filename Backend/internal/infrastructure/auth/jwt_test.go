@@ -29,7 +29,7 @@ func TestJWTService_GenerateAndValidateAccessToken(t *testing.T) {
 	assert.NotEmpty(t, token)
 
 	// Validate token
-	claims, err := service.ValidateToken(token)
+	claims, err := service.ValidateAccessToken(token)
 	require.NoError(t, err)
 	assert.Equal(t, userID, claims.Subject)
 	assert.Equal(t, AccessToken, claims.TokenType)
@@ -54,10 +54,46 @@ func TestJWTService_GenerateAndValidateRefreshToken(t *testing.T) {
 	assert.NotEmpty(t, token)
 
 	// Validate token
-	claims, err := service.ValidateToken(token)
+	claims, err := service.ValidateRefreshToken(token)
 	require.NoError(t, err)
 	assert.Equal(t, userID, claims.Subject)
 	assert.Equal(t, RefreshToken, claims.TokenType)
+}
+
+func TestJWTService_RejectsRefreshTokenAsAccessToken(t *testing.T) {
+	cfg := &config.JWTConfig{
+		PrivateKeyPath:       "./testdata/jwt_private.pem",
+		PublicKeyPath:        "./testdata/jwt_public.pem",
+		AccessTokenDuration:  15 * time.Minute,
+		RefreshTokenDuration: 168 * time.Hour,
+	}
+
+	service, err := NewJWTService(cfg)
+	require.NoError(t, err)
+
+	token, err := service.GenerateRefreshToken("user_12345678")
+	require.NoError(t, err)
+
+	_, err = service.ValidateAccessToken(token)
+	assert.Error(t, err)
+}
+
+func TestJWTService_RejectsAccessTokenAsRefreshToken(t *testing.T) {
+	cfg := &config.JWTConfig{
+		PrivateKeyPath:       "./testdata/jwt_private.pem",
+		PublicKeyPath:        "./testdata/jwt_public.pem",
+		AccessTokenDuration:  15 * time.Minute,
+		RefreshTokenDuration: 168 * time.Hour,
+	}
+
+	service, err := NewJWTService(cfg)
+	require.NoError(t, err)
+
+	token, err := service.GenerateAccessToken("user_87654321")
+	require.NoError(t, err)
+
+	_, err = service.ValidateRefreshToken(token)
+	assert.Error(t, err)
 }
 
 func TestJWTService_InvalidToken(t *testing.T) {
