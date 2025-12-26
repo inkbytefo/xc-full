@@ -4,8 +4,8 @@
 mod overlay;
 
 use overlay::{
-    detect_running_game, toggle_overlay, update_overlay_shortcut, OverlayPinnedViewState,
-    OverlayShortcutState,
+    detect_running_game, toggle_ghost_mode, toggle_overlay, update_ghost_shortcut,
+    update_overlay_shortcut, GhostShortcutState, OverlayPinnedViewState, OverlayShortcutState,
 };
 use std::sync::Mutex;
 use tauri::Manager;
@@ -17,10 +17,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(OverlayShortcutState(Mutex::new(None)))
+        .manage(GhostShortcutState(Mutex::new(None)))
         .manage(OverlayPinnedViewState(Mutex::new(false)))
         .setup(|app| {
             // Create overlay window on startup (hidden)
             let handle = app.handle().clone();
+            let ghost_handle = app.handle().clone();
 
             // Register global shortcut: Shift+Tab
             let shortcut = Shortcut::new(Some(Modifiers::SHIFT), Code::Tab);
@@ -32,10 +34,23 @@ pub fn run() {
                     }
                 })?;
 
+            let ghost_shortcut = Shortcut::new(Some(Modifiers::SHIFT), Code::KeyP);
+            app.global_shortcut()
+                .on_shortcut(ghost_shortcut, move |_app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        toggle_ghost_mode(ghost_handle.clone());
+                    }
+                })?;
+
             // Store initial shortcut in state
             if let Some(state) = app.try_state::<OverlayShortcutState>() {
                 if let Ok(mut s) = state.0.lock() {
                     *s = Some(shortcut);
+                }
+            }
+            if let Some(state) = app.try_state::<GhostShortcutState>() {
+                if let Ok(mut s) = state.0.lock() {
+                    *s = Some(ghost_shortcut);
                 }
             }
 
@@ -43,7 +58,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             toggle_overlay,
+            toggle_ghost_mode,
             detect_running_game,
+            update_ghost_shortcut,
             update_overlay_shortcut
         ])
         .run(tauri::generate_context!())

@@ -18,6 +18,7 @@ export interface OverlaySettings {
     // Keybindings
     keybindings: {
         toggleOverlay: KeyBinding;
+        toggleGhostMode: KeyBinding;
     };
 
     // Appearance
@@ -66,6 +67,12 @@ const defaultSettings: OverlaySettings = {
             code: 'Tab',
             modifiers: ['Shift'],
             display: 'Shift + Tab'
+        },
+        toggleGhostMode: {
+            key: 'P',
+            code: 'KeyP',
+            modifiers: ['Shift'],
+            display: 'Shift + P'
         },
     },
     overlayOpacity: 1.0,           // Widgets are fully opaque by default in active mode
@@ -128,6 +135,7 @@ function normalizeKeybindings(value: unknown): OverlaySettings['keybindings'] {
     const v = isRecord(value) ? value : {};
     return {
         toggleOverlay: normalizeKeyBinding(v.toggleOverlay, defaultSettings.keybindings.toggleOverlay),
+        toggleGhostMode: normalizeKeyBinding(v.toggleGhostMode, defaultSettings.keybindings.toggleGhostMode),
     };
 }
 
@@ -188,10 +196,8 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         [action]: binding
                     }
                 }));
-                invoke('update_overlay_shortcut', {
-                    key: binding.code,
-                    modifiers: binding.modifiers
-                }).catch(console.error);
+                const command = action === 'toggleGhostMode' ? 'update_ghost_shortcut' : 'update_overlay_shortcut';
+                invoke(command, { key: binding.code, modifiers: binding.modifiers }).catch(console.error);
             },
 
             setPushToTalkKey: (binding) =>
@@ -230,10 +236,9 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
             resetToDefaults: () => {
                 set(defaultSettings);
                 const overlayBinding = defaultSettings.keybindings.toggleOverlay;
-                invoke('update_overlay_shortcut', {
-                    key: overlayBinding.code,
-                    modifiers: overlayBinding.modifiers
-                }).catch(console.error);
+                const ghostBinding = defaultSettings.keybindings.toggleGhostMode;
+                invoke('update_overlay_shortcut', { key: overlayBinding.code, modifiers: overlayBinding.modifiers }).catch(console.error);
+                invoke('update_ghost_shortcut', { key: ghostBinding.code, modifiers: ghostBinding.modifiers }).catch(console.error);
             },
 
             syncShortcuts: async () => {
@@ -243,6 +248,10 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         key: state.keybindings.toggleOverlay.code,
                         modifiers: state.keybindings.toggleOverlay.modifiers
                     });
+                    await invoke('update_ghost_shortcut', {
+                        key: state.keybindings.toggleGhostMode.code,
+                        modifiers: state.keybindings.toggleGhostMode.modifiers
+                    });
                 } catch (e) {
                     console.error('Failed to sync shortcuts:', e);
                 }
@@ -250,7 +259,7 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
         }),
         {
             name: 'xc-overlay-settings',
-            version: 3,
+            version: 4,
             merge: (persistedState, currentState) => ({
                 ...currentState,
                 ...normalizePersistedSettings(persistedState),

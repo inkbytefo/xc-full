@@ -279,6 +279,12 @@ export function OverlaySettingsModal({ isOpen, onClose }: Props) {
                     binding={settings.keybindings.toggleOverlay}
                     onSave={(binding) => settings.setKeybinding("toggleOverlay", binding)}
                   />
+                  <KeybindingEditor
+                    label="Ghost Mode Aç/Kapat"
+                    description="Overlay açıkken tıklanamaz moda geçiş"
+                    binding={settings.keybindings.toggleGhostMode}
+                    onSave={(binding) => settings.setKeybinding("toggleGhostMode", binding)}
+                  />
                 </div>
 
                 <div className="mt-5 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-200 text-sm">

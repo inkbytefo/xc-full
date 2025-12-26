@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager, State};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 pub struct OverlayShortcutState(pub Mutex<Option<Shortcut>>);
+pub struct GhostShortcutState(pub Mutex<Option<Shortcut>>);
 pub struct OverlayPinnedViewState(pub Mutex<bool>);
 
 fn parse_modifiers(modifiers: Vec<String>) -> Modifiers {
@@ -106,6 +107,38 @@ pub fn update_overlay_shortcut(
     Ok(())
 }
 
+#[tauri::command]
+pub fn update_ghost_shortcut(
+    app: AppHandle,
+    state: State<'_, GhostShortcutState>,
+    key: String,
+    modifiers: Vec<String>,
+) -> Result<(), String> {
+    let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
+
+    if let Some(old) = *current_shortcut {
+        let _ = app.global_shortcut().unregister(old);
+    }
+
+    let mods = parse_modifiers(modifiers);
+    let key_code = parse_key_code(&key)?;
+
+    let new_shortcut = Shortcut::new(Some(mods), key_code);
+
+    let app_handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(new_shortcut, move |_app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                toggle_ghost_mode(app_handle.clone());
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
+    *current_shortcut = Some(new_shortcut);
+
+    Ok(())
+}
+
 // Known game processes for auto-detection
 const KNOWN_GAMES: &[&str] = &[
     "valorant",
@@ -127,10 +160,6 @@ const KNOWN_GAMES: &[&str] = &[
 ];
 
 /// Toggle overlay visibility / pinned view.
-/// Logic:
-/// - If hidden: Show interactive overlay
-/// - If visible & interactive: Enter pinned view (click-through)
-/// - If visible & pinned view: Hide overlay
 #[tauri::command]
 pub fn toggle_overlay(app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
@@ -148,28 +177,42 @@ pub fn toggle_overlay(app: AppHandle) {
                 );
             }
             Ok(true) => {
-                let pinned_view = get_pinned_view_state(&app);
+                #[cfg(target_os = "windows")]
+                set_click_through(&overlay, false);
 
-                if !pinned_view {
-                    set_pinned_view_state(&app, true);
-                    let _ = overlay.eval(
-                        "window.__XC_PINNED_VIEW = true; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
-                    );
-
-                    #[cfg(target_os = "windows")]
-                    set_click_through(&overlay, true);
-                } else {
-                    #[cfg(target_os = "windows")]
-                    set_click_through(&overlay, false);
-
-                    set_pinned_view_state(&app, false);
-                    let _ = overlay.eval(
-                        "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
-                    );
-                    let _ = overlay.hide();
-                }
+                set_pinned_view_state(&app, false);
+                let _ = overlay.eval(
+                    "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                );
+                let _ = overlay.hide();
             }
             Err(_) => {}
+        }
+    }
+}
+
+#[tauri::command]
+pub fn toggle_ghost_mode(app: AppHandle) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let was_visible = overlay.is_visible().unwrap_or(false);
+        let pinned_view = get_pinned_view_state(&app);
+        let next_pinned = !pinned_view;
+
+        if !was_visible && next_pinned {
+            let _ = overlay.show();
+        }
+
+        set_pinned_view_state(&app, next_pinned);
+        let _ = overlay.eval(&format!(
+            "window.__XC_PINNED_VIEW = {}; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+            if next_pinned { "true" } else { "false" }
+        ));
+
+        #[cfg(target_os = "windows")]
+        set_click_through(&overlay, next_pinned);
+
+        if was_visible && !next_pinned {
+            let _ = overlay.set_focus();
         }
     }
 }
