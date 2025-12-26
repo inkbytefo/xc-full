@@ -46,6 +46,7 @@ export function OverlayApp() {
 
                 {/* Free-form Widget Area */}
                 {/* Widgets manage their own visibility (open/closed) and pinned state via widgetStore */}
+                {/* Quick chat is handled inside ChatWidget/ChatView */}
                 <ServerWidget />
                 <FriendsWidget />
                 <ChatWidget />

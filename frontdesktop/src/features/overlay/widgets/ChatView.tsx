@@ -3,7 +3,8 @@
 // ============================================================================
 
 import { Message } from '../../../api/types';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useState, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 // SVG Icons
 const SendIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -25,29 +26,79 @@ interface ChatViewProps {
     placeholder?: string;
     loading?: boolean;
     emptyMessage?: string;
+    quickChatMode?: boolean;
+    onQuickChatComplete?: () => void;
 }
 
-export function ChatView({
+export interface ChatViewHandle {
+    focusInput: () => void;
+}
+
+export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(({
     messages,
     onSendMessage,
     placeholder = "Mesaj gönder...",
     loading = false,
-    emptyMessage = "Mesaj yok"
-}: ChatViewProps) {
+    emptyMessage = "Mesaj yok",
+    quickChatMode = false,
+    onQuickChatComplete
+}, ref) => {
     const [inputValue, setInputValue] = useState("");
     const [sending, setSending] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    // Expose focusInput method to parent
+    useImperativeHandle(ref, () => ({
+        focusInput: () => {
+            inputRef.current?.focus();
+        }
+    }));
+
+    // Auto-focus when quick chat mode is enabled
+    useEffect(() => {
+        if (quickChatMode) {
+            const timer = setTimeout(() => {
+                inputRef.current?.focus();
+            }, 50);
+            return () => clearTimeout(timer);
+        }
+    }, [quickChatMode]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!inputValue.trim() || sending) return;
 
         const content = inputValue;
+        const wasQuickChatMode = quickChatMode;
+
         setInputValue("");
         setSending(true);
+
+        // If in quick chat mode, exit first (before sending)
+        if (wasQuickChatMode) {
+            try {
+                await invoke('exit_quick_chat');
+            } catch (err) {
+                console.error('Failed to exit quick chat:', err);
+            }
+            onQuickChatComplete?.();
+        }
+
         try {
             await onSendMessage(content);
+        } catch (err) {
+            console.error('Failed to send message:', err);
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        // In quick chat mode, Escape exits
+        if (quickChatMode && e.key === 'Escape') {
+            e.preventDefault();
+            invoke('exit_quick_chat').catch(console.error);
+            onQuickChatComplete?.();
         }
     };
 
@@ -195,13 +246,14 @@ export function ChatView({
                 onSubmit={handleSubmit}
                 style={{
                     marginTop: 12,
-                    background: 'rgba(0,0,0,0.3)',
+                    background: quickChatMode ? 'rgba(148,70,91,0.2)' : 'rgba(0,0,0,0.3)',
                     borderRadius: 12,
                     padding: '10px 14px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 10,
-                    border: '1px solid rgba(255,255,255,0.08)'
+                    border: quickChatMode ? '1px solid rgba(148,70,91,0.4)' : '1px solid rgba(255,255,255,0.08)',
+                    transition: 'all 0.2s ease'
                 }}
             >
                 <button
@@ -222,10 +274,12 @@ export function ChatView({
                 </button>
 
                 <input
+                    ref={inputRef}
                     type="text"
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
-                    placeholder={placeholder}
+                    onKeyDown={handleKeyDown}
+                    placeholder={quickChatMode ? "Hızlı mesaj yaz, Enter ile gönder..." : placeholder}
                     disabled={sending}
                     style={{
                         background: 'transparent',
@@ -237,6 +291,24 @@ export function ChatView({
                         opacity: sending ? 0.5 : 1
                     }}
                 />
+
+                {quickChatMode && (
+                    <div style={{
+                        fontSize: 10,
+                        color: 'rgba(255,255,255,0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4
+                    }}>
+                        <kbd style={{
+                            background: 'rgba(255,255,255,0.1)',
+                            padding: '2px 4px',
+                            borderRadius: 3,
+                            fontSize: 9
+                        }}>Esc</kbd>
+                        <span>iptal</span>
+                    </div>
+                )}
 
                 <button
                     type="submit"
@@ -260,4 +332,7 @@ export function ChatView({
             </form>
         </div>
     );
-}
+});
+
+ChatView.displayName = 'ChatView';
+

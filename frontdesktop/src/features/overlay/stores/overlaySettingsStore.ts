@@ -4,6 +4,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface KeyBinding {
     key: string;           // Display key (e.g. "A", "Tab")
@@ -12,13 +13,12 @@ export interface KeyBinding {
     display: string;       // Human readable display (e.g., "Shift + Tab")
 }
 
-import { invoke } from '@tauri-apps/api/core';
-
 export interface OverlaySettings {
     // Keybindings
     keybindings: {
         toggleOverlay: KeyBinding;
         toggleGhostMode: KeyBinding;
+        quickChat: KeyBinding;
     };
 
     // Appearance
@@ -37,6 +37,9 @@ export interface OverlaySettings {
     // Voice
     pushToTalk: boolean;
     pushToTalkKey: KeyBinding;
+
+    // Quick Chat
+    quickChatEnabled: boolean;
 }
 
 interface OverlaySettingsStore extends OverlaySettings {
@@ -53,6 +56,7 @@ interface OverlaySettingsStore extends OverlaySettings {
     setShowHints: (enabled: boolean) => void;
     setRememberWidgetPositions: (enabled: boolean) => void;
     setPushToTalk: (enabled: boolean) => void;
+    setQuickChatEnabled: (enabled: boolean) => void;
     resetToDefaults: () => void;
 
     // Sync
@@ -74,11 +78,17 @@ const defaultSettings: OverlaySettings = {
             modifiers: ['Shift'],
             display: 'Shift + P'
         },
+        quickChat: {
+            key: 'Enter',
+            code: 'Enter',
+            modifiers: ['Shift'],
+            display: 'Shift + Enter'
+        },
     },
-    overlayOpacity: 1.0,           // Widgets are fully opaque by default in active mode
-    overlayBackdropOpacity: 0.85,  // Default dark/opaque background (as requested)
-    pinnedWidgetOpacity: 0.0,      // Fully transparent background in ghost mode (only content visible)
-    blurStrength: 8,               // Nice blur default
+    overlayOpacity: 1.0,
+    overlayBackdropOpacity: 0.85,
+    pinnedWidgetOpacity: 0.0,
+    blurStrength: 8,
     widgetAnimations: true,
     compactMode: false,
     autoHideOnGame: false,
@@ -90,7 +100,8 @@ const defaultSettings: OverlaySettings = {
         code: 'KeyV',
         modifiers: [],
         display: 'V'
-    }
+    },
+    quickChatEnabled: true,
 };
 
 export function createKeyBindingDisplay(key: string, modifiers: string[]): string {
@@ -136,6 +147,7 @@ function normalizeKeybindings(value: unknown): OverlaySettings['keybindings'] {
     return {
         toggleOverlay: normalizeKeyBinding(v.toggleOverlay, defaultSettings.keybindings.toggleOverlay),
         toggleGhostMode: normalizeKeyBinding(v.toggleGhostMode, defaultSettings.keybindings.toggleGhostMode),
+        quickChat: normalizeKeyBinding(v.quickChat, defaultSettings.keybindings.quickChat),
     };
 }
 
@@ -157,6 +169,7 @@ function normalizePersistedSettings(value: unknown): Partial<OverlaySettings> {
         rememberWidgetPositions: safeBoolean(v.rememberWidgetPositions, defaultSettings.rememberWidgetPositions),
         pushToTalk: safeBoolean(v.pushToTalk, defaultSettings.pushToTalk),
         pushToTalkKey: normalizeKeyBinding(v.pushToTalkKey, defaultSettings.pushToTalkKey),
+        quickChatEnabled: safeBoolean(v.quickChatEnabled, defaultSettings.quickChatEnabled),
     };
 }
 
@@ -196,7 +209,13 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         [action]: binding
                     }
                 }));
-                const command = action === 'toggleGhostMode' ? 'update_ghost_shortcut' : 'update_overlay_shortcut';
+                // Determine the correct backend command
+                let command = 'update_overlay_shortcut';
+                if (action === 'toggleGhostMode') {
+                    command = 'update_ghost_shortcut';
+                } else if (action === 'quickChat') {
+                    command = 'update_quick_chat_shortcut';
+                }
                 invoke(command, { key: binding.code, modifiers: binding.modifiers }).catch(console.error);
             },
 
@@ -233,12 +252,17 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
             setPushToTalk: (enabled) =>
                 set({ pushToTalk: enabled }),
 
+            setQuickChatEnabled: (enabled) =>
+                set({ quickChatEnabled: enabled }),
+
             resetToDefaults: () => {
                 set(defaultSettings);
                 const overlayBinding = defaultSettings.keybindings.toggleOverlay;
                 const ghostBinding = defaultSettings.keybindings.toggleGhostMode;
+                const quickChatBinding = defaultSettings.keybindings.quickChat;
                 invoke('update_overlay_shortcut', { key: overlayBinding.code, modifiers: overlayBinding.modifiers }).catch(console.error);
                 invoke('update_ghost_shortcut', { key: ghostBinding.code, modifiers: ghostBinding.modifiers }).catch(console.error);
+                invoke('update_quick_chat_shortcut', { key: quickChatBinding.code, modifiers: quickChatBinding.modifiers }).catch(console.error);
             },
 
             syncShortcuts: async () => {
@@ -252,6 +276,10 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
                         key: state.keybindings.toggleGhostMode.code,
                         modifiers: state.keybindings.toggleGhostMode.modifiers
                     });
+                    await invoke('update_quick_chat_shortcut', {
+                        key: state.keybindings.quickChat.code,
+                        modifiers: state.keybindings.quickChat.modifiers
+                    });
                 } catch (e) {
                     console.error('Failed to sync shortcuts:', e);
                 }
@@ -259,7 +287,7 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
         }),
         {
             name: 'xc-overlay-settings',
-            version: 4,
+            version: 6, // Bumped version for Shift+Enter quick chat
             merge: (persistedState, currentState) => ({
                 ...currentState,
                 ...normalizePersistedSettings(persistedState),

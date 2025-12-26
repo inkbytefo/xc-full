@@ -2,11 +2,11 @@
 // Chat Widget - Overlay DM Chat Component (Refactored)
 // ============================================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fetchConversations, fetchMessages, sendMessage } from '../../dm/dmApi';
 import type { Conversation, Message } from '../../../api/types';
 import { BaseWidget } from './BaseWidget';
-import { ChatView } from './ChatView';
+import { ChatView, ChatViewHandle } from './ChatView';
 import { subscribeToEvent, useWebSocketStore } from '../../../lib/websocket/store';
 import type { DMMessageEventData } from '../../../lib/websocket/types';
 
@@ -30,6 +30,31 @@ export function ChatWidget() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingConversations, setLoadingConversations] = useState(true);
+    const [quickChatMode, setQuickChatMode] = useState(false);
+    const chatViewRef = useRef<ChatViewHandle>(null);
+
+    // Listen for quick chat activation
+    useEffect(() => {
+        const handleQuickChatActivated = () => {
+            // Only activate if we have an active conversation
+            if (view === 'chat' && activeConversation) {
+                setQuickChatMode(true);
+                // Focus will be handled by ChatView's useEffect
+            }
+        };
+
+        const handleQuickChatDeactivated = () => {
+            setQuickChatMode(false);
+        };
+
+        window.addEventListener('quickChatActivated', handleQuickChatActivated);
+        window.addEventListener('quickChatDeactivated', handleQuickChatDeactivated);
+
+        return () => {
+            window.removeEventListener('quickChatActivated', handleQuickChatActivated);
+            window.removeEventListener('quickChatDeactivated', handleQuickChatDeactivated);
+        };
+    }, [view, activeConversation]);
 
     // Load Conversations
     useEffect(() => {
@@ -81,6 +106,12 @@ export function ChatWidget() {
         setActiveConversation(convo);
         setView('chat');
         setLoading(true);
+
+        // Store active conversation info for quick chat
+        localStorage.setItem('xc-active-conversation-id', convo.id);
+        const otherUserName = convo.otherUser?.displayName || convo.otherUser?.handle || 'User';
+        localStorage.setItem('xc-active-conversation-name', otherUserName);
+
         try {
             const res = await fetchMessages(convo.id);
             setMessages(res.data.reverse());
@@ -347,11 +378,14 @@ export function ChatWidget() {
             {view === 'chat' && (
                 <div style={{ height: '100%', padding: '0 8px 8px' }}>
                     <ChatView
+                        ref={chatViewRef}
                         messages={messages}
                         loading={loading}
                         onSendMessage={handleSendMessage}
                         placeholder={`@${activeConversation?.otherUser?.displayName || 'User'} kişisine mesaj gönder`}
                         emptyMessage="Henüz mesaj yok. İlk mesajı gönder!"
+                        quickChatMode={quickChatMode}
+                        onQuickChatComplete={() => setQuickChatMode(false)}
                     />
                 </div>
             )}

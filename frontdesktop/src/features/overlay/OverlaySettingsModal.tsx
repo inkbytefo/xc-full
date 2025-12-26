@@ -287,6 +287,35 @@ export function OverlaySettingsModal({ isOpen, onClose }: Props) {
                   />
                 </div>
 
+                {/* Quick Chat Section */}
+                <div className="mt-8">
+                  <div className="text-base font-bold text-zinc-100">Hızlı Mesaj</div>
+                  <div className="text-sm text-zinc-500 mt-1">
+                    Ghost modda oyun oynarken hızlıca mesaj gönderin.
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    <Card className="p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-sm font-semibold text-zinc-100">Hızlı Mesaj Özelliği</div>
+                          <div className="text-xs text-zinc-500 mt-0.5">Ghost modda tuşa basarak mesaj yazın</div>
+                        </div>
+                        <Toggle checked={settings.quickChatEnabled} onChange={settings.setQuickChatEnabled} />
+                      </div>
+                    </Card>
+
+                    {settings.quickChatEnabled && (
+                      <KeybindingEditor
+                        label="Hızlı Mesaj Tuşu"
+                        description="Ghost modda mesaj yazmak için basın"
+                        binding={settings.keybindings.quickChat}
+                        onSave={(binding) => settings.setKeybinding("quickChat", binding)}
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <div className="mt-5 px-4 py-3 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-200 text-sm">
                   Tuş ataması değişiklikleri bazı durumlarda uygulamanın yeniden başlatılmasını gerektirebilir.
                 </div>

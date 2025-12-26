@@ -9,7 +9,9 @@ use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut,
 
 pub struct OverlayShortcutState(pub Mutex<Option<Shortcut>>);
 pub struct GhostShortcutState(pub Mutex<Option<Shortcut>>);
+pub struct QuickChatShortcutState(pub Mutex<Option<Shortcut>>);
 pub struct OverlayPinnedViewState(pub Mutex<bool>);
+pub struct QuickChatActiveState(pub Mutex<bool>);
 
 fn parse_modifiers(modifiers: Vec<String>) -> Modifiers {
     let mut mods = Modifiers::empty();
@@ -246,6 +248,110 @@ pub fn detect_running_game() -> Option<String> {
         }
     }
     None
+}
+
+// ============================================================================
+// Quick Chat Commands
+// ============================================================================
+
+fn set_quick_chat_active(app: &AppHandle, active: bool) {
+    if let Some(state) = app.try_state::<QuickChatActiveState>() {
+        if let Ok(mut s) = state.0.lock() {
+            *s = active;
+        }
+    }
+}
+
+fn get_quick_chat_active(app: &AppHandle) -> bool {
+    if let Some(state) = app.try_state::<QuickChatActiveState>() {
+        if let Ok(s) = state.0.lock() {
+            return *s;
+        }
+    }
+    false
+}
+
+/// Activate quick chat input (Enter key in ghost mode).
+/// Temporarily disables click-through to allow typing.
+#[tauri::command]
+pub fn toggle_quick_chat(app: AppHandle) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let is_visible = overlay.is_visible().unwrap_or(false);
+        let is_pinned = get_pinned_view_state(&app);
+        let is_quick_chat_active = get_quick_chat_active(&app);
+
+        // Only activate in ghost mode (pinned view)
+        if is_visible && is_pinned && !is_quick_chat_active {
+            set_quick_chat_active(&app, true);
+
+            // Trigger quick chat event in frontend
+            let _ = overlay.eval(
+                "window.dispatchEvent(new Event('quickChatActivated'));",
+            );
+
+            // Temporarily disable click-through for input
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, false);
+        }
+    }
+}
+
+/// Exit quick chat mode (called after sending message or pressing Escape).
+/// Re-enables click-through if in ghost mode.
+#[tauri::command]
+pub fn exit_quick_chat(app: AppHandle) {
+    if let Some(overlay) = app.get_webview_window("overlay") {
+        let is_pinned = get_pinned_view_state(&app);
+
+        set_quick_chat_active(&app, false);
+
+        // Notify frontend
+        let _ = overlay.eval(
+            "window.dispatchEvent(new Event('quickChatDeactivated'));",
+        );
+
+        // Re-enable click-through if still in ghost mode
+        if is_pinned {
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, true);
+        }
+    }
+}
+
+/// Update quick chat shortcut key.
+#[tauri::command]
+pub fn update_quick_chat_shortcut(
+    app: AppHandle,
+    state: State<'_, QuickChatShortcutState>,
+    key: String,
+    modifiers: Vec<String>,
+) -> Result<(), String> {
+    let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
+
+    // Unregister old shortcut
+    if let Some(old) = *current_shortcut {
+        let _ = app.global_shortcut().unregister(old);
+    }
+
+    // Parse new shortcut
+    let mods = parse_modifiers(modifiers);
+    let key_code = parse_key_code(&key)?;
+
+    let new_shortcut = Shortcut::new(Some(mods), key_code);
+
+    // Register new shortcut
+    let app_handle = app.clone();
+    app.global_shortcut()
+        .on_shortcut(new_shortcut, move |_app, _shortcut, event| {
+            if event.state() == ShortcutState::Pressed {
+                toggle_quick_chat(app_handle.clone());
+            }
+        })
+        .map_err(|e| e.to_string())?;
+
+    *current_shortcut = Some(new_shortcut);
+
+    Ok(())
 }
 
 /// Windows-specific: Set click-through mode using Win32 API
