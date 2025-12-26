@@ -81,18 +81,20 @@ pub fn update_overlay_shortcut(
 ) -> Result<(), String> {
     let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
 
+    let mods = parse_modifiers(modifiers);
+    let key_code = parse_key_code(&key)?;
+    let new_shortcut = Shortcut::new(Some(mods), key_code);
+
+    if current_shortcut.is_some_and(|s| s == new_shortcut) {
+        return Ok(());
+    }
+
     // 1. Unregister old shortcut
     if let Some(old) = *current_shortcut {
         let _ = app.global_shortcut().unregister(old);
     }
 
-    // 2. Parse new shortcut
-    let mods = parse_modifiers(modifiers);
-    let key_code = parse_key_code(&key)?;
-
-    let new_shortcut = Shortcut::new(Some(mods), key_code);
-
-    // 3. Register new shortcut
+    // 2. Register new shortcut
     let app_handle = app.clone();
     app.global_shortcut()
         .on_shortcut(new_shortcut, move |_app, _shortcut, event| {
@@ -116,14 +118,17 @@ pub fn update_ghost_shortcut(
 ) -> Result<(), String> {
     let mut current_shortcut = state.0.lock().map_err(|e| e.to_string())?;
 
+    let mods = parse_modifiers(modifiers);
+    let key_code = parse_key_code(&key)?;
+    let new_shortcut = Shortcut::new(Some(mods), key_code);
+
+    if current_shortcut.is_some_and(|s| s == new_shortcut) {
+        return Ok(());
+    }
+
     if let Some(old) = *current_shortcut {
         let _ = app.global_shortcut().unregister(old);
     }
-
-    let mods = parse_modifiers(modifiers);
-    let key_code = parse_key_code(&key)?;
-
-    let new_shortcut = Shortcut::new(Some(mods), key_code);
 
     let app_handle = app.clone();
     app.global_shortcut()
@@ -159,61 +164,73 @@ const KNOWN_GAMES: &[&str] = &[
     "dota2",
 ];
 
-/// Toggle overlay visibility / pinned view.
+/// Toggle overlay visibility (Shift+Tab).
+/// - If overlay hidden → Open in ACTIVE mode
+/// - If in ACTIVE mode → Switch to GHOST mode (auto-transition)
+/// - If in GHOST mode → Switch to ACTIVE mode
 #[tauri::command]
 pub fn toggle_overlay(app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
-        match overlay.is_visible() {
-            Ok(false) => {
-                let _ = overlay.show();
-                let _ = overlay.set_focus();
+        let is_visible = overlay.is_visible().unwrap_or(false);
+        let is_pinned = get_pinned_view_state(&app);
 
-                #[cfg(target_os = "windows")]
-                set_click_through(&overlay, false);
+        if !is_visible {
+            // Show overlay in ACTIVE mode
+            let _ = overlay.show();
+            let _ = overlay.set_focus();
 
-                set_pinned_view_state(&app, false);
-                let _ = overlay.eval(
-                    "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
-                );
-            }
-            Ok(true) => {
-                #[cfg(target_os = "windows")]
-                set_click_through(&overlay, false);
+            set_pinned_view_state(&app, false);
+            let _ = overlay.eval(
+                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+            );
 
-                set_pinned_view_state(&app, false);
-                let _ = overlay.eval(
-                    "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
-                );
-                let _ = overlay.hide();
-            }
-            Err(_) => {}
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, false);
+        } else if is_pinned {
+            // Currently in GHOST mode → Switch to ACTIVE mode
+            set_pinned_view_state(&app, false);
+            let _ = overlay.eval(
+                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+            );
+
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, false);
+
+            let _ = overlay.set_focus();
+        } else {
+            // Currently in ACTIVE mode → Switch to GHOST mode (auto-transition)
+            set_pinned_view_state(&app, true);
+            let _ = overlay.eval(
+                "window.__XC_PINNED_VIEW = true; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+            );
+
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, true);
         }
     }
 }
 
+/// Toggle ghost mode OFF (Shift+P).
+/// Hides the overlay completely when in ghost mode.
+/// If overlay is not visible, does nothing.
+/// If overlay is in active mode, switches to ghost mode first then hides.
 #[tauri::command]
 pub fn toggle_ghost_mode(app: AppHandle) {
     if let Some(overlay) = app.get_webview_window("overlay") {
-        let was_visible = overlay.is_visible().unwrap_or(false);
-        let pinned_view = get_pinned_view_state(&app);
-        let next_pinned = !pinned_view;
+        let is_visible = overlay.is_visible().unwrap_or(false);
 
-        if !was_visible && next_pinned {
-            let _ = overlay.show();
+        if is_visible {
+            // Hide overlay completely
+            #[cfg(target_os = "windows")]
+            set_click_through(&overlay, false);
+
+            set_pinned_view_state(&app, false);
+            let _ = overlay.eval(
+                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+            );
+            let _ = overlay.hide();
         }
-
-        set_pinned_view_state(&app, next_pinned);
-        let _ = overlay.eval(&format!(
-            "window.__XC_PINNED_VIEW = {}; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
-            if next_pinned { "true" } else { "false" }
-        ));
-
-        #[cfg(target_os = "windows")]
-        set_click_through(&overlay, next_pinned);
-
-        if was_visible && !next_pinned {
-            let _ = overlay.set_focus();
-        }
+        // If not visible, do nothing (Shift+P only hides, doesn't show)
     }
 }
 
