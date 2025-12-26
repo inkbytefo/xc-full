@@ -8,14 +8,15 @@ import (
 
 // Domain errors
 var (
-	ErrNotFound          = errors.New("server not found")
-	ErrAlreadyMember     = errors.New("already a member")
-	ErrNotMember         = errors.New("not a member")
-	ErrOwnerCannotLeave  = errors.New("owner cannot leave server")
-	ErrNoPermission      = errors.New("no permission")
-	ErrChannelNotFound   = errors.New("channel not found")
-	ErrInvalidServerName = errors.New("invalid server name")
-	ErrRoleNotFound      = errors.New("role not found")
+	ErrNotFound            = errors.New("server not found")
+	ErrAlreadyMember       = errors.New("already a member")
+	ErrNotMember           = errors.New("not a member")
+	ErrOwnerCannotLeave    = errors.New("owner cannot leave server")
+	ErrNoPermission        = errors.New("no permission")
+	ErrChannelNotFound     = errors.New("channel not found")
+	ErrInvalidServerName   = errors.New("invalid server name")
+	ErrRoleNotFound        = errors.New("role not found")
+	ErrJoinRequestNotFound = errors.New("join request not found")
 )
 
 // ============================================================================
@@ -173,4 +174,21 @@ func (r MemberRole) CanManageMembers() bool {
 // Deprecated: Use ownership check instead.
 func (r MemberRole) CanDeleteServer() bool {
 	return r == RoleOwner
+}
+
+type JoinRequestStatus string
+
+const (
+	JoinRequestStatusPending  JoinRequestStatus = "pending"
+	JoinRequestStatusAccepted JoinRequestStatus = "accepted"
+	JoinRequestStatusRejected JoinRequestStatus = "rejected"
+)
+
+type JoinRequest struct {
+	ServerID  string
+	UserID    string
+	Status    JoinRequestStatus
+	Message   string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

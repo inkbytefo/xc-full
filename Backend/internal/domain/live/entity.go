@@ -8,21 +8,21 @@ import (
 
 // Domain errors
 var (
-	ErrStreamNotFound    = errors.New("stream not found")
-	ErrCategoryNotFound  = errors.New("category not found")
-	ErrStreamNotLive     = errors.New("stream is not live")
-	ErrNoPermission      = errors.New("no permission")
-	ErrAlreadyStreaming  = errors.New("user is already streaming")
-	ErrInvalidStreamKey  = errors.New("invalid stream key")
+	ErrStreamNotFound   = errors.New("stream not found")
+	ErrCategoryNotFound = errors.New("category not found")
+	ErrStreamNotLive    = errors.New("stream is not live")
+	ErrNoPermission     = errors.New("no permission")
+	ErrAlreadyStreaming = errors.New("user is already streaming")
+	ErrInvalidStreamKey = errors.New("invalid stream key")
 )
 
 // StreamStatus represents the status of a stream.
 type StreamStatus string
 
 const (
-	StatusOffline    StreamStatus = "offline"
-	StatusLive       StreamStatus = "live"
-	StatusEnding     StreamStatus = "ending"
+	StatusOffline StreamStatus = "offline"
+	StatusLive    StreamStatus = "live"
+	StatusEnding  StreamStatus = "ending"
 )
 
 // Stream represents a live stream.
@@ -70,7 +70,7 @@ type Category struct {
 
 // Viewer represents a stream viewer.
 type Viewer struct {
-	StreamID  string
-	UserID    string
-	JoinedAt  time.Time
+	StreamID string
+	UserID   string
+	JoinedAt time.Time
 }

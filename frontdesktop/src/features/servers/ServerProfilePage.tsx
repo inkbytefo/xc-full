@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { getServer, getServerMembers, joinServer } from "./serversApi";
 import type { Server, ServerMember } from "../../api/types";
+import { serverKeys } from "../../lib/query";
 import { useAuthStore } from "../../store/authStore";
 
 export function ServerProfilePage() {
     const { serverId } = useParams<{ serverId: string }>();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const currentUser = useAuthStore((s) => s.user);
 
     const [server, setServer] = useState<Server | null>(null);
@@ -15,6 +18,7 @@ export function ServerProfilePage() {
     const [joining, setJoining] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isMember, setIsMember] = useState(false);
+    const [joinRequestPending, setJoinRequestPending] = useState(false);
 
     useEffect(() => {
         if (!serverId) return;
@@ -46,8 +50,14 @@ export function ServerProfilePage() {
     const handleJoin = async () => {
         if (!serverId) return;
         setJoining(true);
+        setJoinRequestPending(false);
         try {
-            await joinServer(serverId);
+            const result = await joinServer(serverId);
+            await queryClient.invalidateQueries({ queryKey: serverKeys.all });
+            if (result.pending) {
+                setJoinRequestPending(true);
+                return;
+            }
             setIsMember(true);
             navigate(`/servers/${serverId}`);
         } catch (e) {
@@ -156,10 +166,10 @@ export function ServerProfilePage() {
                             ) : (
                                 <button
                                     onClick={handleJoin}
-                                    disabled={joining}
+                                    disabled={joining || joinRequestPending}
                                     className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all"
                                 >
-                                    {joining ? "Joining..." : "Join Server"}
+                                    {joining ? "Joining..." : joinRequestPending ? "Request Sent" : "Join Server"}
                                 </button>
                             )}
                             <button
@@ -170,6 +180,12 @@ export function ServerProfilePage() {
                             </button>
                         </div>
                     </div>
+
+                    {joinRequestPending && (
+                        <div className="mb-6 px-4 py-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-sm">
+                            Katılma isteği gönderildi. Onay bekleniyor.
+                        </div>
+                    )}
 
                     {/* Description */}
                     {server.description && (

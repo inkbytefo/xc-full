@@ -8,34 +8,34 @@ import (
 
 // Domain errors
 var (
-	ErrNotFound      = errors.New("notification not found")
-	ErrNoPermission  = errors.New("no permission to access notification")
+	ErrNotFound     = errors.New("notification not found")
+	ErrNoPermission = errors.New("no permission to access notification")
 )
 
 // NotificationType represents the type of notification.
 type NotificationType string
 
 const (
-	TypeFollow        NotificationType = "follow"
-	TypeLike          NotificationType = "like"
-	TypeRepost        NotificationType = "repost"
-	TypeReply         NotificationType = "reply"
-	TypeMention       NotificationType = "mention"
-	TypeDM            NotificationType = "dm"
-	TypeServerInvite  NotificationType = "server_invite"
-	TypeServerJoin    NotificationType = "server_join"
-	TypeStreamLive    NotificationType = "stream_live"
-	TypeSystem        NotificationType = "system"
+	TypeFollow       NotificationType = "follow"
+	TypeLike         NotificationType = "like"
+	TypeRepost       NotificationType = "repost"
+	TypeReply        NotificationType = "reply"
+	TypeMention      NotificationType = "mention"
+	TypeDM           NotificationType = "dm"
+	TypeServerInvite NotificationType = "server_invite"
+	TypeServerJoin   NotificationType = "server_join"
+	TypeStreamLive   NotificationType = "stream_live"
+	TypeSystem       NotificationType = "system"
 )
 
 // Notification represents a notification entity.
 type Notification struct {
 	ID         string
-	UserID     string           // The user who receives the notification
+	UserID     string // The user who receives the notification
 	Type       NotificationType
-	ActorID    *string          // The user who triggered the notification
-	TargetType *string          // Type of target (post, server, stream, etc.)
-	TargetID   *string          // ID of the target
+	ActorID    *string // The user who triggered the notification
+	TargetType *string // Type of target (post, server, stream, etc.)
+	TargetID   *string // ID of the target
 	Message    string
 	IsRead     bool
 	CreatedAt  time.Time

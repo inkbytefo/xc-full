@@ -3,6 +3,7 @@ package server
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -14,10 +15,11 @@ import (
 
 // Service provides server-related operations.
 type Service struct {
-	serverRepo  server.Repository
-	memberRepo  server.MemberRepository
-	roleRepo    server.RoleRepository
-	channelRepo channelDomain.Repository
+	serverRepo      server.Repository
+	memberRepo      server.MemberRepository
+	roleRepo        server.RoleRepository
+	channelRepo     channelDomain.Repository
+	joinRequestRepo server.JoinRequestRepository
 }
 
 // NewService creates a new server service.
@@ -26,12 +28,14 @@ func NewService(
 	memberRepo server.MemberRepository,
 	roleRepo server.RoleRepository,
 	channelRepo channelDomain.Repository,
+	joinRequestRepo server.JoinRequestRepository,
 ) *Service {
 	return &Service{
-		serverRepo:  serverRepo,
-		memberRepo:  memberRepo,
-		roleRepo:    roleRepo,
-		channelRepo: channelRepo,
+		serverRepo:      serverRepo,
+		memberRepo:      memberRepo,
+		roleRepo:        roleRepo,
+		channelRepo:     channelRepo,
+		joinRequestRepo: joinRequestRepo,
 	}
 }
 
@@ -153,6 +157,11 @@ type UpdateCommand struct {
 	UserID      string
 }
 
+type JoinResult struct {
+	Joined  bool
+	Pending bool
+}
+
 // Update updates a server.
 func (s *Service) Update(ctx context.Context, cmd UpdateCommand) (*server.Server, error) {
 	srv, err := s.serverRepo.FindByID(ctx, cmd.ID)
@@ -192,14 +201,45 @@ func (s *Service) Delete(ctx context.Context, id, userID string) error {
 }
 
 // Join allows a user to join a server.
-func (s *Service) Join(ctx context.Context, serverID, userID string) error {
+func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult, error) {
+	isMember, err := s.memberRepo.IsMember(ctx, serverID, userID)
+	if err != nil {
+		return JoinResult{}, err
+	}
+	if isMember {
+		member, err := s.memberRepo.FindByServerAndUser(ctx, serverID, userID)
+		if err == nil && member != nil {
+			everyoneRole, err := s.roleRepo.FindDefaultRole(ctx, serverID)
+			if err == nil && everyoneRole != nil {
+				_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
+			}
+		}
+		return JoinResult{Joined: true}, nil
+	}
+
 	srv, err := s.serverRepo.FindByID(ctx, serverID)
 	if err != nil {
-		return err
+		return JoinResult{}, err
 	}
 
 	if !srv.IsPublic {
-		return server.ErrNoPermission
+		if s.joinRequestRepo == nil {
+			return JoinResult{}, server.ErrNoPermission
+		}
+
+		req := &server.JoinRequest{
+			ServerID:   serverID,
+			UserID:     userID,
+			Status:     server.JoinRequestStatusPending,
+			Message:    "",
+			CreatedAt:  time.Now(),
+			UpdatedAt:  time.Now(),
+		}
+		if err := s.joinRequestRepo.Create(ctx, req); err != nil {
+			return JoinResult{}, err
+		}
+
+		return JoinResult{Pending: true}, nil
 	}
 
 	member := &server.Member{
@@ -210,7 +250,17 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) error {
 	}
 
 	if err := s.memberRepo.Create(ctx, member); err != nil {
-		return err
+		if errors.Is(err, server.ErrAlreadyMember) {
+			existing, findErr := s.memberRepo.FindByServerAndUser(ctx, serverID, userID)
+			if findErr == nil && existing != nil {
+				everyoneRole, roleErr := s.roleRepo.FindDefaultRole(ctx, serverID)
+				if roleErr == nil && everyoneRole != nil {
+					_ = s.memberRepo.AssignRole(ctx, existing.ID, everyoneRole.ID)
+				}
+			}
+			return JoinResult{Joined: true}, nil
+		}
+		return JoinResult{}, err
 	}
 
 	// Assign @everyone role
@@ -219,11 +269,23 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) error {
 		_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
 	}
 
-	return s.serverRepo.IncrementMemberCount(ctx, serverID, 1)
+	if err := s.serverRepo.IncrementMemberCount(ctx, serverID, 1); err != nil {
+		return JoinResult{}, err
+	}
+
+	return JoinResult{Joined: true}, nil
 }
 
 // Leave allows a user to leave a server.
 func (s *Service) Leave(ctx context.Context, serverID, userID string) error {
+	isMember, err := s.memberRepo.IsMember(ctx, serverID, userID)
+	if err != nil {
+		return err
+	}
+	if !isMember {
+		return nil
+	}
+
 	srv, err := s.serverRepo.FindByID(ctx, serverID)
 	if err != nil {
 		return err
@@ -235,6 +297,9 @@ func (s *Service) Leave(ctx context.Context, serverID, userID string) error {
 	}
 
 	if err := s.memberRepo.Delete(ctx, serverID, userID); err != nil {
+		if errors.Is(err, server.ErrNotMember) {
+			return nil
+		}
 		return err
 	}
 
@@ -296,6 +361,99 @@ func (s *Service) ListRoles(ctx context.Context, serverID, userID string) ([]*se
 	return s.roleRepo.FindByServerID(ctx, serverID)
 }
 
+func (s *Service) ListJoinRequests(ctx context.Context, serverID, actorUserID string) ([]*server.JoinRequest, error) {
+	if s.joinRequestRepo == nil {
+		return nil, server.ErrNoPermission
+	}
+
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.canManageJoinRequests(ctx, srv, actorUserID) {
+		return nil, server.ErrNoPermission
+	}
+
+	return s.joinRequestRepo.FindPendingByServerID(ctx, serverID)
+}
+
+func (s *Service) AcceptJoinRequest(ctx context.Context, serverID, targetUserID, actorUserID string) error {
+	if s.joinRequestRepo == nil {
+		return server.ErrNoPermission
+	}
+
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canManageJoinRequests(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	req, err := s.joinRequestRepo.FindByServerAndUser(ctx, serverID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if req == nil || req.Status != server.JoinRequestStatusPending {
+		return server.ErrJoinRequestNotFound
+	}
+
+	isMember, err := s.memberRepo.IsMember(ctx, serverID, targetUserID)
+	if err != nil {
+		return err
+	}
+	if isMember {
+		return s.joinRequestRepo.UpdateStatus(ctx, serverID, targetUserID, server.JoinRequestStatusAccepted)
+	}
+
+	member := &server.Member{
+		ID:       generateID("memb"),
+		ServerID: serverID,
+		UserID:   targetUserID,
+		JoinedAt: time.Now(),
+	}
+
+	if err := s.memberRepo.Create(ctx, member); err != nil {
+		if !errors.Is(err, server.ErrAlreadyMember) {
+			return err
+		}
+		existing, findErr := s.memberRepo.FindByServerAndUser(ctx, serverID, targetUserID)
+		if findErr == nil && existing != nil {
+			member = existing
+		}
+	}
+
+	everyoneRole, err := s.roleRepo.FindDefaultRole(ctx, serverID)
+	if err == nil && everyoneRole != nil && member != nil {
+		_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
+	}
+
+	if err := s.serverRepo.IncrementMemberCount(ctx, serverID, 1); err != nil {
+		return err
+	}
+
+	return s.joinRequestRepo.UpdateStatus(ctx, serverID, targetUserID, server.JoinRequestStatusAccepted)
+}
+
+func (s *Service) RejectJoinRequest(ctx context.Context, serverID, targetUserID, actorUserID string) error {
+	if s.joinRequestRepo == nil {
+		return server.ErrNoPermission
+	}
+
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canManageJoinRequests(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	return s.joinRequestRepo.UpdateStatus(ctx, serverID, targetUserID, server.JoinRequestStatusRejected)
+}
+
 // ============================================================================
 // PERMISSION HELPERS
 // ============================================================================
@@ -328,6 +486,19 @@ func (s *Service) canKickMembers(ctx context.Context, srv *server.Server, userID
 	}
 
 	return member.HasPermission(server.PermissionKickMembers)
+}
+
+func (s *Service) canManageJoinRequests(ctx context.Context, srv *server.Server, userID string) bool {
+	if srv.OwnerID == userID {
+		return true
+	}
+
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, userID)
+	if err != nil {
+		return false
+	}
+
+	return member.HasPermission(server.PermissionManageServer) || member.HasPermission(server.PermissionKickMembers)
 }
 
 // CanManageChannels checks if a user can manage channels - exported for use by other services.

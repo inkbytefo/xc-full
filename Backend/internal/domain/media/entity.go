@@ -9,11 +9,11 @@ import (
 
 // Domain errors
 var (
-	ErrNotFound       = errors.New("media not found")
-	ErrNoPermission   = errors.New("no permission to access media")
-	ErrInvalidFile    = errors.New("invalid file")
-	ErrFileTooLarge   = errors.New("file too large")
-	ErrInvalidType    = errors.New("invalid file type")
+	ErrNotFound     = errors.New("media not found")
+	ErrNoPermission = errors.New("no permission to access media")
+	ErrInvalidFile  = errors.New("invalid file")
+	ErrFileTooLarge = errors.New("file too large")
+	ErrInvalidType  = errors.New("invalid file type")
 )
 
 // MediaType represents the type of media.

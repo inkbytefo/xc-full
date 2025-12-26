@@ -230,6 +230,15 @@ type RoleResponse struct {
 	IsDefault   bool   `json:"isDefault"`
 }
 
+type JoinRequestResponse struct {
+	ServerID  string `json:"serverId"`
+	UserID    string `json:"userId"`
+	Status    string `json:"status"`
+	Message   string `json:"message,omitempty"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
 // === Channel DTOs ===
 
 // CreateChannelRequest represents a channel creation request.

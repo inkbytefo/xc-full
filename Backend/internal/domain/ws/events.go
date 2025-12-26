@@ -21,8 +21,8 @@ const (
 	EventSubscribed  EventType = "subscribed"
 
 	// Presence events
-	EventUserOnline  EventType = "user_online"
-	EventUserOffline EventType = "user_offline"
+	EventUserOnline   EventType = "user_online"
+	EventUserOffline  EventType = "user_offline"
 	EventPresenceSync EventType = "presence_sync"
 
 	// Typing events
@@ -41,10 +41,10 @@ const (
 	EventChannelMessageDeleted EventType = "channel_message_deleted"
 
 	// Server events
-	EventServerJoin    EventType = "server_join"
-	EventServerLeave   EventType = "server_leave"
-	EventMemberJoin    EventType = "member_join"
-	EventMemberLeave   EventType = "member_leave"
+	EventServerJoin  EventType = "server_join"
+	EventServerLeave EventType = "server_leave"
+	EventMemberJoin  EventType = "member_join"
+	EventMemberLeave EventType = "member_leave"
 
 	// Notification events
 	EventNotification EventType = "notification"

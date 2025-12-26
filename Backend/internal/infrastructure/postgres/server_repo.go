@@ -620,3 +620,107 @@ func (r *RoleRepository) UpdatePositions(ctx context.Context, serverID string, p
 
 	return tx.Commit(ctx)
 }
+
+type JoinRequestRepository struct {
+	pool *pgxpool.Pool
+}
+
+func NewJoinRequestRepository(pool *pgxpool.Pool) *JoinRequestRepository {
+	return &JoinRequestRepository{pool: pool}
+}
+
+func (r *JoinRequestRepository) Create(ctx context.Context, req *server.JoinRequest) error {
+	query := `
+		INSERT INTO server_join_requests (server_id, user_id, status, message, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, NOW(), NOW())
+		ON CONFLICT (server_id, user_id)
+		DO UPDATE SET status = EXCLUDED.status, message = EXCLUDED.message, created_at = NOW(), updated_at = NOW()
+	`
+
+	_, err := r.pool.Exec(ctx, query, req.ServerID, req.UserID, req.Status, req.Message)
+	if err != nil {
+		return fmt.Errorf("create join request: %w", err)
+	}
+	return nil
+}
+
+func (r *JoinRequestRepository) UpdateStatus(ctx context.Context, serverID, userID string, status server.JoinRequestStatus) error {
+	query := `
+		UPDATE server_join_requests
+		SET status = $3, updated_at = NOW()
+		WHERE server_id = $1 AND user_id = $2 AND status = 'pending'
+	`
+
+	res, err := r.pool.Exec(ctx, query, serverID, userID, status)
+	if err != nil {
+		return fmt.Errorf("update join request status: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return server.ErrJoinRequestNotFound
+	}
+	return nil
+}
+
+func (r *JoinRequestRepository) Delete(ctx context.Context, serverID, userID string) error {
+	query := `DELETE FROM server_join_requests WHERE server_id = $1 AND user_id = $2`
+
+	res, err := r.pool.Exec(ctx, query, serverID, userID)
+	if err != nil {
+		return fmt.Errorf("delete join request: %w", err)
+	}
+	if res.RowsAffected() == 0 {
+		return server.ErrJoinRequestNotFound
+	}
+	return nil
+}
+
+func (r *JoinRequestRepository) FindByServerAndUser(ctx context.Context, serverID, userID string) (*server.JoinRequest, error) {
+	query := `
+		SELECT server_id, user_id, status, message, created_at, updated_at
+		FROM server_join_requests
+		WHERE server_id = $1 AND user_id = $2
+		LIMIT 1
+	`
+
+	var jr server.JoinRequest
+	err := r.pool.QueryRow(ctx, query, serverID, userID).Scan(
+		&jr.ServerID, &jr.UserID, &jr.Status, &jr.Message, &jr.CreatedAt, &jr.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, server.ErrJoinRequestNotFound
+		}
+		return nil, fmt.Errorf("find join request: %w", err)
+	}
+
+	return &jr, nil
+}
+
+func (r *JoinRequestRepository) FindPendingByServerID(ctx context.Context, serverID string) ([]*server.JoinRequest, error) {
+	query := `
+		SELECT server_id, user_id, status, message, created_at, updated_at
+		FROM server_join_requests
+		WHERE server_id = $1 AND status = 'pending'
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query, serverID)
+	if err != nil {
+		return nil, fmt.Errorf("find pending join requests: %w", err)
+	}
+	defer rows.Close()
+
+	var out []*server.JoinRequest
+	for rows.Next() {
+		var jr server.JoinRequest
+		if err := rows.Scan(&jr.ServerID, &jr.UserID, &jr.Status, &jr.Message, &jr.CreatedAt, &jr.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan join request: %w", err)
+		}
+		out = append(out, &jr)
+	}
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("iterate join requests: %w", rows.Err())
+	}
+
+	return out, nil
+}

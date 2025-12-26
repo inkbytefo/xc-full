@@ -153,7 +153,72 @@ func (h *ServerHandler) Join(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 	serverID := c.Params("id")
 
-	if err := h.serverService.Join(c.Context(), serverID, userID); err != nil {
+	result, err := h.serverService.Join(c.Context(), serverID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	if result.Pending {
+		return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+			"data": fiber.Map{
+				"pending": true,
+			},
+		})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// ListJoinRequests lists pending join requests for a server.
+// GET /servers/:id/join-requests
+func (h *ServerHandler) ListJoinRequests(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	requests, err := h.serverService.ListJoinRequests(c.Context(), serverID, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp := make([]dto.JoinRequestResponse, len(requests))
+	for i, r := range requests {
+		resp[i] = dto.JoinRequestResponse{
+			ServerID:   r.ServerID,
+			UserID:     r.UserID,
+			Status:     string(r.Status),
+			Message:    r.Message,
+			CreatedAt:  r.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
+			UpdatedAt:  r.UpdatedAt.Format("2006-01-02T15:04:05.000Z"),
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"data": resp,
+	})
+}
+
+// AcceptJoinRequest accepts a pending join request.
+// POST /servers/:id/join-requests/:userId/accept
+func (h *ServerHandler) AcceptJoinRequest(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	if err := h.serverService.AcceptJoinRequest(c.Context(), serverID, targetUserID, actorID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// RejectJoinRequest rejects a pending join request.
+// POST /servers/:id/join-requests/:userId/reject
+func (h *ServerHandler) RejectJoinRequest(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	if err := h.serverService.RejectJoinRequest(c.Context(), serverID, targetUserID, actorID); err != nil {
 		return h.handleError(c, err)
 	}
 
@@ -297,6 +362,12 @@ func (h *ServerHandler) handleError(c *fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"OWNER_CANNOT_LEAVE",
 			"Server owner cannot leave. Transfer ownership or delete the server.",
+		))
+
+	case errors.Is(err, server.ErrJoinRequestNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+			"JOIN_REQUEST_NOT_FOUND",
+			"Join request not found",
 		))
 
 	default:

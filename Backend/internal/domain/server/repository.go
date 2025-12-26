@@ -76,3 +76,11 @@ type RoleRepository interface {
 	// UpdatePositions updates the positions of multiple roles (for reordering).
 	UpdatePositions(ctx context.Context, serverID string, positions map[string]int) error
 }
+
+type JoinRequestRepository interface {
+	Create(ctx context.Context, req *JoinRequest) error
+	UpdateStatus(ctx context.Context, serverID, userID string, status JoinRequestStatus) error
+	Delete(ctx context.Context, serverID, userID string) error
+	FindByServerAndUser(ctx context.Context, serverID, userID string) (*JoinRequest, error)
+	FindPendingByServerID(ctx context.Context, serverID string) ([]*JoinRequest, error)
+}

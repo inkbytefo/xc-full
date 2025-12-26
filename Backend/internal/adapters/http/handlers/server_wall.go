@@ -33,12 +33,44 @@ func NewServerWallHandler(
 // GetWallPosts returns wall posts for a server.
 // GET /servers/:id/wall
 func (h *ServerWallHandler) GetWallPosts(c *fiber.Ctx) error {
+	userID, ok := c.Locals("userID").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.NewErrorResponse(
+			"UNAUTHORIZED",
+			"Authentication required",
+		))
+	}
+
 	serverID := c.Params("id")
 	if serverID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"INVALID_SERVER_ID",
 			"Server ID is required",
 		))
+	}
+
+	srv, err := h.serverRepo.FindByID(c.Context(), serverID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+			"SERVER_NOT_FOUND",
+			"Server not found",
+		))
+	}
+
+	if !srv.IsPublic {
+		isMember, err := h.memberRepo.IsMember(c.Context(), serverID, userID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+				"FETCH_FAILED",
+				"Failed to fetch wall posts",
+			))
+		}
+		if !isMember {
+			return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+				"SERVER_NOT_FOUND",
+				"Server not found",
+			))
+		}
 	}
 
 	cursor := c.Query("cursor")
@@ -97,12 +129,10 @@ func (h *ServerWallHandler) CreateWallPost(c *fiber.Ctx) error {
 		))
 	}
 
-	// Check if user is a member
-	_, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil {
+	if !h.canPostToWall(c, serverID, userID) {
 		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"NOT_A_MEMBER",
-			"You must be a member of this server",
+			"NOT_AUTHORIZED",
+			"Only owners, admins and moderators can create wall posts",
 		))
 	}
 
@@ -228,7 +258,7 @@ func (h *ServerWallHandler) PinWallPost(c *fiber.Ctx) error {
 	if !h.canManageWall(c, serverID, userID) {
 		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
 			"NOT_AUTHORIZED",
-			"Only owners and admins can pin posts",
+			"Only owners, admins and moderators can pin posts",
 		))
 	}
 
@@ -270,7 +300,7 @@ func (h *ServerWallHandler) UnpinWallPost(c *fiber.Ctx) error {
 	if !h.canManageWall(c, serverID, userID) {
 		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
 			"NOT_AUTHORIZED",
-			"Only owners and admins can unpin posts",
+			"Only owners, admins and moderators can unpin posts",
 		))
 	}
 
@@ -302,8 +332,21 @@ func (h *ServerWallHandler) canManageWall(c *fiber.Ctx, serverID, userID string)
 		return false
 	}
 
-	// Users with ManageServer permission can manage wall
-	return member.HasPermission(server.PermissionManageServer)
+	return member.HasPermission(server.PermissionKickMembers) || member.HasPermission(server.PermissionManageServer)
+}
+
+func (h *ServerWallHandler) canPostToWall(c *fiber.Ctx, serverID, userID string) bool {
+	srv, err := h.serverRepo.FindByID(c.Context(), serverID)
+	if err == nil && srv.OwnerID == userID {
+		return true
+	}
+
+	member, err := h.memberRepo.FindByServerAndUserWithRoles(c.Context(), serverID, userID)
+	if err != nil {
+		return false
+	}
+
+	return member.HasPermission(server.PermissionKickMembers) || member.HasPermission(server.PermissionManageServer)
 }
 
 func generateWallPostID() string {

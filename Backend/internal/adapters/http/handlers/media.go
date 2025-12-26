@@ -19,9 +19,9 @@ import (
 
 // MediaHandler handles media upload requests.
 type MediaHandler struct {
-	mediaRepo  media.Repository
-	uploadDir  string
-	baseURL    string
+	mediaRepo media.Repository
+	uploadDir string
+	baseURL   string
 }
 
 // NewMediaHandler creates a new MediaHandler.

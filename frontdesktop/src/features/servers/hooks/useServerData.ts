@@ -222,8 +222,10 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     }, [refreshServers]);
 
     const handleJoinServer = useCallback(async (serverId: string) => {
-        await joinServerMutation.mutateAsync(serverId);
-        setSelectedServer(serverId);
+        const result = await joinServerMutation.mutateAsync(serverId);
+        if (!result.pending) {
+            setSelectedServer(serverId);
+        }
     }, [joinServerMutation]);
 
     const handleLeaveServer = useCallback(async () => {

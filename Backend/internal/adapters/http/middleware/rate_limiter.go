@@ -10,11 +10,11 @@ import (
 
 // RateLimiterConfig holds rate limiter configuration.
 type RateLimiterConfig struct {
-	Redis       *redis.Client
-	Max         int           // Maximum requests per window
-	Window      time.Duration // Time window
-	KeyPrefix   string        // Redis key prefix
-	SkipPaths   []string      // Paths to skip rate limiting
+	Redis     *redis.Client
+	Max       int           // Maximum requests per window
+	Window    time.Duration // Time window
+	KeyPrefix string        // Redis key prefix
+	SkipPaths []string      // Paths to skip rate limiting
 }
 
 // RateLimiter creates a Redis-based rate limiting middleware.

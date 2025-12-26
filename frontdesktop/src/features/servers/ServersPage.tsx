@@ -307,7 +307,9 @@ export function ServersPage() {
               }}
               onLeave={() => {
                 if (confirm(`"${serverData.currentServer!.name}" sunucusundan ayrılmak istediğinize emin misiniz?`)) {
-                  serverData.handleLeaveServer();
+                  serverData.handleLeaveServer().catch((e) => {
+                    setError(e instanceof Error ? e.message : "Sunucudan ayrılınamadı");
+                  });
                 }
                 setShowServerMenu(false);
               }}
@@ -674,8 +676,7 @@ export function ServersPage() {
         isOpen={showExploreModal}
         onClose={() => setShowExploreModal(false)}
         onJoin={(serverId: string) => {
-          setShowExploreModal(false);
-          serverData.handleSelectServer(serverId);
+          handleJoinServer(serverId);
         }}
       />
 

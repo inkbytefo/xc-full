@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Server } from "../../api/types";
+import { serverKeys } from "../../lib/query";
 import { updateServer, deleteServer } from "./serversApi";
 
 interface ServerSettingsModalProps {
@@ -19,6 +21,7 @@ export function ServerSettingsModal({
     onServerUpdated,
     onServerDeleted,
 }: ServerSettingsModalProps) {
+    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<SettingsTab>("overview");
     const [name, setName] = useState(server.name);
     const [description, setDescription] = useState(server.description || "");
@@ -57,6 +60,9 @@ export function ServerSettingsModal({
         setError(null);
         try {
             await deleteServer(server.id);
+            queryClient.removeQueries({ queryKey: serverKeys.detail(server.id) });
+            queryClient.removeQueries({ queryKey: serverKeys.channels(server.id) });
+            queryClient.invalidateQueries({ queryKey: serverKeys.all });
             onServerDeleted?.();
             onClose();
         } catch (e) {

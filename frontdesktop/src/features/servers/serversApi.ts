@@ -9,6 +9,19 @@ import type { Server, Channel, ChannelMessage, ServerMember, ListResponse, Role 
 // Server Endpoints
 // ============================================================================
 
+export interface JoinServerResult {
+    pending: boolean;
+}
+
+export interface ServerJoinRequest {
+    serverId: string;
+    userId: string;
+    status: "pending" | "accepted" | "rejected" | string;
+    message?: string;
+    createdAt: string;
+    updatedAt: string;
+}
+
 // Fetch user's servers
 export async function fetchServers(): Promise<Server[]> {
     const res = await api.get<{ data: Server[] }>("/api/v1/servers");
@@ -54,8 +67,10 @@ export async function deleteServer(id: string): Promise<void> {
 }
 
 // Join a server
-export async function joinServer(id: string): Promise<void> {
-    await api.post(`/api/v1/servers/${id}/join`);
+export async function joinServer(id: string): Promise<JoinServerResult> {
+    const res = await api.post<{ data?: { pending?: boolean } } | null>(`/api/v1/servers/${id}/join`);
+    const pending = (res as { data?: { pending?: boolean } } | null)?.data?.pending === true;
+    return { pending };
 }
 
 // Leave a server
@@ -72,6 +87,19 @@ export async function getServerMembers(serverId: string): Promise<ServerMember[]
 // Remove a member from server
 export async function removeMember(serverId: string, userId: string): Promise<void> {
     await api.delete(`/api/v1/servers/${serverId}/members/${userId}`);
+}
+
+export async function getServerJoinRequests(serverId: string): Promise<ServerJoinRequest[]> {
+    const res = await api.get<{ data: ServerJoinRequest[] }>(`/api/v1/servers/${serverId}/join-requests`);
+    return res.data;
+}
+
+export async function acceptServerJoinRequest(serverId: string, userId: string): Promise<void> {
+    await api.post(`/api/v1/servers/${serverId}/join-requests/${userId}/accept`);
+}
+
+export async function rejectServerJoinRequest(serverId: string, userId: string): Promise<void> {
+    await api.post(`/api/v1/servers/${serverId}/join-requests/${userId}/reject`);
 }
 
 // Fetch server roles (RBAC 2.0)
