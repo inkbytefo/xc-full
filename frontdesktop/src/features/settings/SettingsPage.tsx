@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useUIStore } from "../../store/uiStore";
+import { AudioDeviceSettings } from "../voice/components/VoiceSettings";
 import {
   getPrivacySettings,
   updatePrivacySettings,
@@ -12,7 +13,7 @@ import {
   type PrivacySettings,
 } from "./privacyApi";
 
-type SettingsTab = "account" | "appearance" | "notifications" | "privacy" | "about";
+type SettingsTab = "account" | "appearance" | "audio" | "notifications" | "privacy" | "about";
 
 // Toggle switch component
 function Toggle({
@@ -133,6 +134,7 @@ export function SettingsPage() {
   const tabs: { id: SettingsTab; label: string; icon: string }[] = [
     { id: "account", label: "Hesap", icon: "👤" },
     { id: "appearance", label: "Görünüm", icon: "🎨" },
+    { id: "audio", label: "Ses", icon: "🎙️" },
     { id: "notifications", label: "Bildirimler", icon: "🔔" },
     { id: "privacy", label: "Gizlilik", icon: "🔒" },
     { id: "about", label: "Hakkında", icon: "ℹ️" },
@@ -322,6 +324,13 @@ export function SettingsPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {activeTab === "audio" && (
+          <div className="max-w-2xl">
+            <h2 className="text-2xl font-bold text-white mb-6">Ses</h2>
+            <AudioDeviceSettings />
           </div>
         )}
 

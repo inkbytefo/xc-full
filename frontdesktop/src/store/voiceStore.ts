@@ -10,6 +10,7 @@ import {
 } from "livekit-client";
 import { getVoiceToken, type VoiceChannel } from "../features/voice/voiceApi";
 import { newClientId } from "../lib/clientId";
+import { useUIStore } from "./uiStore";
 
 export interface ParticipantInfo {
     identity: string;
@@ -31,7 +32,13 @@ type VoiceCommandType =
     | "toggleMute"
     | "toggleDeafen"
     | "toggleCamera"
-    | "toggleScreenShare";
+    | "toggleScreenShare"
+    | "setDevices";
+
+export interface AudioDevicePreferences {
+    audioInputId: string | null;
+    audioOutputId: string | null;
+}
 
 interface VoiceStateSnapshot {
     isConnected: boolean;
@@ -46,6 +53,7 @@ interface VoiceStateSnapshot {
     localParticipant: Omit<ParticipantInfo, "cameraTrack" | "screenShareTrack"> | null;
     activeChannelId: string | null;
     activeChannel: VoiceChannel | null;
+    devices: AudioDevicePreferences;
 }
 
 type VoiceBusMessage =
@@ -67,7 +75,7 @@ type VoiceBusMessage =
         from: string;
         ts: number;
         id: string;
-        payload: { type: VoiceCommandType; channel?: VoiceChannel };
+        payload: { type: VoiceCommandType; channel?: VoiceChannel; devices?: AudioDevicePreferences };
     };
 
 interface VoiceState {
@@ -98,6 +106,7 @@ interface VoiceState {
     toggleDeafen: () => void;
     toggleCamera: () => Promise<void>;
     toggleScreenShare: () => Promise<void>;
+    setAudioDevices: (devices: AudioDevicePreferences) => Promise<void>;
     updateParticipants: () => void;
 }
 
@@ -141,6 +150,7 @@ function isOwnerAlive(ownerLastSeenAt: number | null): boolean {
 }
 
 function toSnapshot(state: VoiceState): VoiceStateSnapshot {
+    const ui = useUIStore.getState();
     const participants = state.participants.map((p) => ({
         identity: p.identity,
         sid: p.sid,
@@ -176,6 +186,10 @@ function toSnapshot(state: VoiceState): VoiceStateSnapshot {
         localParticipant,
         activeChannelId: state.activeChannelId,
         activeChannel: state.activeChannel,
+        devices: {
+            audioInputId: ui.audioInputDeviceId,
+            audioOutputId: ui.audioOutputDeviceId,
+        },
     };
 }
 
@@ -260,15 +274,43 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
         return false;
     };
 
-    const sendCommand = (type: VoiceCommandType, channel?: VoiceChannel) => {
+    const sendCommand = (type: VoiceCommandType, channel?: VoiceChannel, devices?: AudioDevicePreferences) => {
         if (!voiceBusInstanceId) return;
         postBusMessage({
             kind: "voice/command",
             from: voiceBusInstanceId,
             ts: nowMs(),
             id: newClientId(),
-            payload: { type, channel },
+            payload: { type, channel, devices },
         });
+    };
+
+    const applyDevicesForOwner = async (devices: AudioDevicePreferences) => {
+        const room = get().room;
+        if (!room) return;
+
+        const roomWithSwitch = room as unknown as {
+            switchActiveDevice?: (kind: "audioinput" | "audiooutput", deviceId: string) => Promise<void>;
+        };
+
+        const audioInputId = devices.audioInputId ?? "default";
+        const audioOutputId = devices.audioOutputId ?? "default";
+
+        try {
+            if (roomWithSwitch.switchActiveDevice) {
+                await roomWithSwitch.switchActiveDevice("audioinput", audioInputId);
+            }
+        } catch (err) {
+            console.error("Failed to switch audio input device:", err);
+        }
+
+        try {
+            if (roomWithSwitch.switchActiveDevice) {
+                await roomWithSwitch.switchActiveDevice("audiooutput", audioOutputId);
+            }
+        } catch (err) {
+            console.error("Failed to switch audio output device:", err);
+        }
     };
 
     const processedCommandIds = new Set<string>();
@@ -363,6 +405,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                     get().toggleScreenShare().catch(() => { });
                     return;
                 }
+                if (type === "setDevices" && data.payload.devices) {
+                    get().setAudioDevices(data.payload.devices).catch(() => { });
+                    return;
+                }
                 return;
             }
 
@@ -396,6 +442,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                     ownerLastSeenAt: data.ts,
                     ownerAvailable: isOwnerAlive(data.ts),
                 });
+                const ui = useUIStore.getState();
+                ui.setAudioInputDeviceId(snap.devices?.audioInputId ?? null);
+                ui.setAudioOutputDeviceId(snap.devices?.audioOutputId ?? null);
             }
         };
 
@@ -634,6 +683,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                 await room.localParticipant.setMicrophoneEnabled(true);
 
                 set({ room, connectionState: "connected" });
+                const uiState = useUIStore.getState();
+                await applyDevicesForOwner({
+                    audioInputId: uiState.audioInputDeviceId,
+                    audioOutputId: uiState.audioOutputDeviceId,
+                });
                 publishSnapshot();
 
             } catch (err) {
@@ -726,6 +780,28 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
             await room.localParticipant.setMicrophoneEnabled(!newMuted);
             set({ isMuted: newMuted });
             get().updateParticipants();
+            publishSnapshot();
+        },
+
+        setAudioDevices: async (devices) => {
+            if (!voiceBusRole) initRuntime(get().runtimeRole);
+
+            const normalized: AudioDevicePreferences = {
+                audioInputId: devices.audioInputId ?? null,
+                audioOutputId: devices.audioOutputId ?? null,
+            };
+
+            const ui = useUIStore.getState();
+            ui.setAudioInputDeviceId(normalized.audioInputId);
+            ui.setAudioOutputDeviceId(normalized.audioOutputId);
+
+            if (get().runtimeRole === "follower") {
+                if (!ensureOwnerAvailableOrSetError()) return;
+                sendCommand("setDevices", undefined, normalized);
+                return;
+            }
+
+            await applyDevicesForOwner(normalized);
             publishSnapshot();
         },
 
