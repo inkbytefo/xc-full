@@ -45,11 +45,11 @@ export function ChannelSidebar({
 
     return (
         <div style={{
-            width: 160,
+            flex: 1,
+            minWidth: 0,
             background: 'rgba(0,0,0,0.2)',
             display: 'flex',
-            flexDirection: 'column',
-            borderRight: '1px solid rgba(255,255,255,0.05)'
+            flexDirection: 'column'
         }}>
             {/* Server Header */}
             <div style={{
