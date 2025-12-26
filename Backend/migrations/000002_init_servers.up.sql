@@ -98,20 +98,6 @@ CREATE TABLE permission_overwrites (
 );
 
 -- ============================================================================
--- CHANNEL MESSAGES TABLE
--- ============================================================================
-CREATE TABLE channel_messages (
-    id          VARCHAR(26) PRIMARY KEY,
-    channel_id  VARCHAR(26) NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
-    author_id   VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    content     TEXT NOT NULL,
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    
-    CONSTRAINT message_content_length CHECK (char_length(content) >= 1 AND char_length(content) <= 4000)
-);
-
--- ============================================================================
 -- INDEXES
 -- ============================================================================
 CREATE INDEX idx_servers_owner_id ON servers(owner_id);
@@ -135,10 +121,6 @@ CREATE INDEX idx_channels_position ON channels(server_id, position);
 CREATE INDEX idx_permission_overwrites_channel_id ON permission_overwrites(channel_id);
 CREATE INDEX idx_permission_overwrites_target ON permission_overwrites(target_type, target_id);
 
-CREATE INDEX idx_channel_messages_channel_id ON channel_messages(channel_id);
-CREATE INDEX idx_channel_messages_author_id ON channel_messages(author_id);
-CREATE INDEX idx_channel_messages_created_at ON channel_messages(channel_id, created_at DESC);
-
 -- ============================================================================
 -- TRIGGERS
 -- ============================================================================
@@ -154,11 +136,6 @@ CREATE TRIGGER update_roles_updated_at
 
 CREATE TRIGGER update_channels_updated_at
     BEFORE UPDATE ON channels
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_channel_messages_updated_at
-    BEFORE UPDATE ON channel_messages
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
