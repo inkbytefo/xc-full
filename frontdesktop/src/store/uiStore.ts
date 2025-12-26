@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
-export type BackgroundTheme = "dotwave" | "topo";
+export type BackgroundTheme = "dotwave" | "topo" | "neongrid";
 
 interface UIState {
     backgroundTheme: BackgroundTheme;

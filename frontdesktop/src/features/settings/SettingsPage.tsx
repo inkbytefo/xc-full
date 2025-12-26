@@ -260,7 +260,7 @@ export function SettingsPage() {
 
             <div className="bg-[#050505]/60 backdrop-blur-md rounded-xl p-6 border border-white/10 mt-6">
               <h3 className="font-medium text-white mb-4">Arkaplan Teması</h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <button
                   onClick={() => setBackgroundTheme("dotwave")}
                   className={`p-4 rounded-lg border-2 transition-all text-center ${backgroundTheme === "dotwave"
@@ -283,6 +283,18 @@ export function SettingsPage() {
                   <div className="text-2xl mb-2">🏔️</div>
                   <div className="text-white font-medium">Topo</div>
                   <div className="text-xs text-zinc-500 mt-1">Topografik isoline akışı</div>
+                </button>
+
+                <button
+                  onClick={() => setBackgroundTheme("neongrid")}
+                  className={`p-4 rounded-lg border-2 transition-all text-center ${backgroundTheme === "neongrid"
+                    ? "bg-purple-500/10 border-purple-500 shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+                    : "bg-white/5 border-white/10 hover:border-white/20"
+                    }`}
+                >
+                  <div className="text-2xl mb-2">⚡</div>
+                  <div className="text-white font-medium">NeonGrid</div>
+                  <div className="text-xs text-zinc-500 mt-1">Neon grid + sweep</div>
                 </button>
               </div>
             </div>

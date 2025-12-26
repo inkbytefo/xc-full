@@ -1,5 +1,6 @@
 import { useUIStore } from "../store/uiStore";
 import { DotWaveCanvas } from "./DotWaveCanvas";
+import { NeonGridBackground } from "./NeonGridBackground";
 import { TopoBackground } from "./TopoBackground";
 
 export function BackgroundLayer() {
@@ -9,6 +10,7 @@ export function BackgroundLayer() {
         <>
             {backgroundTheme === "dotwave" && <DotWaveCanvas />}
             {backgroundTheme === "topo" && <TopoBackground />}
+            {backgroundTheme === "neongrid" && <NeonGridBackground />}
         </>
     );
 }
