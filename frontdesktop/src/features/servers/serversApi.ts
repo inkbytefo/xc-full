@@ -32,6 +32,7 @@ export async function createServer(data: {
     name: string;
     description?: string;
     isPublic?: boolean;
+    accent?: string;
 }): Promise<Server> {
     const res = await api.post<{ data: Server }>("/api/v1/servers", data);
     return res.data;

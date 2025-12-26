@@ -12,6 +12,9 @@ interface NewConversationModalProps {
     searchResults: UserProfile[];
     searching: boolean;
     onSelectUser: (userId: string) => void;
+    // Friends list (following) - shown when search is empty
+    friends?: UserProfile[];
+    friendsLoading?: boolean;
 }
 
 export function NewConversationModal({
@@ -22,8 +25,15 @@ export function NewConversationModal({
     searchResults,
     searching,
     onSelectUser,
+    friends = [],
+    friendsLoading = false,
 }: NewConversationModalProps) {
     if (!isOpen) return null;
+
+    // Determine which list to show
+    const isSearching = searchQuery.trim().length > 0;
+    const displayUsers = isSearching ? searchResults : friends;
+    const isLoading = isSearching ? searching : friendsLoading;
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -53,18 +63,34 @@ export function NewConversationModal({
                     />
                 </div>
 
+                {/* Section Label */}
+                {!isSearching && friends.length > 0 && (
+                    <div className="px-4 pb-2">
+                        <span className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
+                            Arkadaşların
+                        </span>
+                    </div>
+                )}
+
                 {/* Results */}
                 <div className="max-h-64 overflow-y-auto px-2 pb-4">
-                    {searching ? (
+                    {isLoading ? (
                         <div className="flex justify-center py-8">
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-purple-500" />
                         </div>
-                    ) : searchResults.length === 0 && searchQuery ? (
+                    ) : displayUsers.length === 0 ? (
                         <div className="text-center py-8 text-zinc-500">
-                            <p>Kullanıcı bulunamadı</p>
+                            {isSearching ? (
+                                <p>Kullanıcı bulunamadı</p>
+                            ) : (
+                                <div>
+                                    <p>Henüz arkadaşın yok.</p>
+                                    <p className="text-sm mt-1">Kullanıcı aramak için yukarıya yaz.</p>
+                                </div>
+                            )}
                         </div>
                     ) : (
-                        searchResults.map((user) => (
+                        displayUsers.map((user) => (
                             <button
                                 key={user.id}
                                 onClick={() => onSelectUser(user.id)}

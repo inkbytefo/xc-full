@@ -71,6 +71,8 @@ export function DmPage() {
         searchResults={selection.searchResults}
         searching={selection.searching}
         onSelectUser={selection.startConversation}
+        friends={selection.friends}
+        friendsLoading={selection.friendsLoading}
       />
     </div>
   );

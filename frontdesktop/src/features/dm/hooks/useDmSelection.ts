@@ -3,9 +3,9 @@
 // ============================================================================
 // Handles conversation selection, URL sync, and new conversation creation.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useConversations, useStartConversation } from "../../../lib/query";
+import { useConversations, useStartConversation, useFollowing } from "../../../lib/query";
 import { useConversationSubscription } from "../../../lib/websocket/hooks";
 import { searchUsers, type UserProfile } from "../../profile/userApi";
 import { useAuthStore } from "../../../store/authStore";
@@ -30,6 +30,10 @@ interface UseDmSelectionReturn {
     searching: boolean;
     startConversation: (userId: string) => Promise<void>;
 
+    // Friends list (following)
+    friends: UserProfile[];
+    friendsLoading: boolean;
+
     // Error
     error: string | null;
     setError: (error: string | null) => void;
@@ -43,6 +47,15 @@ export function useDmSelection(): UseDmSelectionReturn {
     // React Query
     const { data: conversations = [], isLoading: conversationsLoading } = useConversations();
     const startConversationMutation = useStartConversation();
+
+    // Fetch user's following (friends) for modal suggestions
+    const { data: followingData, isLoading: friendsLoading } = useFollowing(currentUser?.id ?? null);
+
+    // Flatten paginated following data into a simple array
+    const friends = useMemo(() => {
+        if (!followingData?.pages) return [];
+        return followingData.pages.flatMap(page => page.data);
+    }, [followingData]);
 
     // Local state
     const [selectedConvoId, setSelectedConvoId] = useState<string | null>(urlConvoId ?? null);
@@ -130,6 +143,8 @@ export function useDmSelection(): UseDmSelectionReturn {
         searchResults,
         searching,
         startConversation,
+        friends,
+        friendsLoading,
         error,
         setError,
     };
