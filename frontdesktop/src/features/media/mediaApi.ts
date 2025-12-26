@@ -19,25 +19,8 @@ export interface MediaFile {
 export async function uploadFile(file: File): Promise<MediaFile> {
     const formData = new FormData();
     formData.append("file", file);
-
-    const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/v1/media/upload`,
-        {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
-            },
-            body: formData,
-        }
-    );
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error?.message || "Upload failed");
-    }
-
-    const result = await response.json();
-    return result.data;
+    const res = await api.post<{ data: MediaFile }>("/api/v1/media/upload", formData);
+    return res.data;
 }
 
 // Get a media file by ID

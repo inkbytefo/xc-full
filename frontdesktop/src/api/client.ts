@@ -71,9 +71,11 @@ class ApiClient {
       }
     }
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+    const isFormDataBody = typeof FormData !== "undefined" && body instanceof FormData;
+    const headers: Record<string, string> = {};
+    if (body !== undefined && !isFormDataBody) {
+      headers["Content-Type"] = "application/json";
+    }
 
     const performRequest = async (): Promise<T> => {
       try {
@@ -81,15 +83,24 @@ class ApiClient {
           method,
           headers,
           credentials: "include", // essential for cookies
-          body: body ? JSON.stringify(body) : undefined,
+          body: body === undefined ? undefined : isFormDataBody ? (body as FormData) : JSON.stringify(body),
         });
 
         const text = await res.text();
-        const json = text ? JSON.parse(text) : null;
+        let json: unknown = null;
+        if (text) {
+          try {
+            json = JSON.parse(text);
+          } catch {
+            json = null;
+          }
+        }
 
         if (!res.ok) {
-          const err = json as ApiError | null;
-          const message = err?.error?.message ?? `HTTP ${res.status}`;
+          const err = (json as ApiError | null) ?? null;
+          const message =
+            err?.error?.message ??
+            (typeof text === "string" && text.length > 0 ? text : `HTTP ${res.status}`);
           const code = err?.error?.code;
 
           // Handle rate limit

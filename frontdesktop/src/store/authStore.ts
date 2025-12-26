@@ -4,7 +4,7 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { api, setAuthLogoutHandler } from "../api/client";
+import { api, HttpError, setAuthLogoutHandler } from "../api/client";
 import type { User, AuthResponse } from "../api/types";
 
 // Cookies are now managed by the browser
@@ -99,9 +99,9 @@ export const useAuthStore = create<AuthState>()(
             checkAuth: async () => {
                 try {
                     // Direct API check, let client interceptor handle 401/Refresh
-                    const res = await api.get<{ user: User }>("/api/v1/me");
+                    const res = await api.get<{ data: { user: User } }>("/api/v1/me");
                     set({
-                        user: res.user,
+                        user: res.data.user,
                         isAuthenticated: true,
                         isInitialized: true,
                     });
@@ -109,7 +109,7 @@ export const useAuthStore = create<AuthState>()(
                 } catch (e) {
                     // Reset auth state if explicitly unauthorized
                     // But if it's a network error, keep current state (user might be offline)
-                    const isUnauthorized = e instanceof Error && e.message.includes("401");
+                    const isUnauthorized = e instanceof HttpError && e.status === 401;
 
                     if (isUnauthorized) {
                         set({
