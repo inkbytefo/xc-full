@@ -13,6 +13,7 @@ interface BaseWidgetProps {
     defaultSize?: { width: number; height: number };
     headerActions?: ReactNode;
     compact?: boolean;
+    pinnable?: boolean; // Default: true. If false, pin button is hidden
 }
 
 export function BaseWidget({
@@ -23,7 +24,8 @@ export function BaseWidget({
     defaultPosition = { x: 100, y: 100 },
     defaultSize = { width: 300, height: 400 },
     headerActions,
-    compact: compactOverride
+    compact: compactOverride,
+    pinnable = true
 }: BaseWidgetProps) {
     const { pinnedView } = useOverlayMode();
     const { compactMode, widgetAnimations, pinnedWidgetOpacity } = useOverlaySettings();
@@ -158,25 +160,27 @@ export function BaseWidget({
                     <div className="flex items-center gap-2" onMouseDown={(e) => e.stopPropagation()}>
                         {headerActions}
 
-                        {/* Pin Button */}
-                        <button
-                            onClick={(e) => {
-                                handleRipple(e);
-                                const nextPinned = !isPinned;
-                                togglePin(id);
-                                if (nextPinned) {
-                                    updatePosition(id, snapToEdges(position, size));
-                                }
-                            }}
-                            className={`pin-btn ${isPinned ? 'pinned' : ''}`}
-                            title={isPinned ? "Sabitlemeyi Kaldır" : "Sabitle"}
-                        >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M16 2v2M8 2v2M12 2v20M2 12h20" />
-                                {/* Simple pin icon representation or rotation */}
-                                <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" opacity={isPinned ? 1 : 0.5} />
-                            </svg>
-                        </button>
+                        {/* Pin Button - Only show if pinnable */}
+                        {pinnable && (
+                            <button
+                                onClick={(e) => {
+                                    handleRipple(e);
+                                    const nextPinned = !isPinned;
+                                    togglePin(id);
+                                    if (nextPinned) {
+                                        updatePosition(id, snapToEdges(position, size));
+                                    }
+                                }}
+                                className={`pin-btn ${isPinned ? 'pinned' : ''}`}
+                                title={isPinned ? "Sabitlemeyi Kaldır" : "Sabitle"}
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M16 2v2M8 2v2M12 2v20M2 12h20" />
+                                    {/* Simple pin icon representation or rotation */}
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" opacity={isPinned ? 1 : 0.5} />
+                                </svg>
+                            </button>
+                        )}
 
                         {/* Close Button */}
                         <button

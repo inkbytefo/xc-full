@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ActionBar } from './layout/ActionBar';
 import { FriendsWidget } from './widgets/FriendsWidget';
 import { ChatWidget } from './widgets/ChatWidget';
+import { DMListWidget } from './widgets/DMListWidget';
 import { VoiceWidget } from './widgets/VoiceWidget';
 import { UniversalVideoWidget } from './widgets/UniversalVideoWidget';
 import { ServerWidget } from './widgets/ServerWidget';
@@ -49,6 +50,7 @@ export function OverlayApp() {
                 {/* Quick chat is handled inside ChatWidget/ChatView */}
                 <ServerWidget />
                 <FriendsWidget />
+                <DMListWidget />
                 <ChatWidget />
                 <VoiceWidget />
                 <UniversalVideoWidget />

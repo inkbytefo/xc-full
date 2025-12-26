@@ -110,7 +110,7 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
                         </div>
                         <div className="flex flex-col">
                             <span className="text-sm font-extrabold text-zinc-100 tracking-tight leading-none tabular-nums">
-                            {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                             <span className="text-[10px] font-semibold text-zinc-500 tracking-wide leading-none mt-1 max-w-[220px] truncate">
                                 {runningGame ?? 'Dashboard'}
@@ -126,7 +126,7 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
                 <div className="flex items-center gap-1.5 p-1 rounded-[18px] bg-white/[0.02] border border-white/[0.08]">
                     <ControlBtn id="server" icon={ServerIcon} label="Sunucu" />
                     <ControlBtn id="friends" icon={FriendsIcon} label="Kişiler" />
-                    <ControlBtn id="chat" icon={ChatIcon} label="Sohbet" />
+                    <ControlBtn id="dmList" icon={ChatIcon} label="Sohbet" />
                     <ControlBtn id="video" icon={VideoIcon} label="Video" />
                 </div>
 

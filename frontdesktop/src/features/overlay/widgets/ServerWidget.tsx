@@ -1,14 +1,15 @@
 // ============================================================================
 // Server Widget - Overlay Sunucu Görünümü (Refactored)
+// Sadece sunucu ve kanal listesi - sohbet ayrı ChatWidget'ta gösterilir
 // ============================================================================
 
 import { BaseWidget } from './BaseWidget';
 import { ServerRail } from './server/ServerRail';
 import { ChannelSidebar } from './server/ChannelSidebar';
-import { ServerChatArea } from './server/ServerChatArea';
 import { useServerData } from './server/useServerData';
 import { useVoiceStore } from '../../../store/voiceStore';
 import { useWidgetStore } from '../stores/widgetStore';
+import { useActiveChatStore } from '../stores/activeChatStore';
 
 const ServerIcon = ({ className = "w-5 h-5" }: { className?: string }) => (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,19 +26,27 @@ export function ServerWidget() {
         voiceChannels,
         selectedChannelId,
         setSelectedChannelId,
-        messages,
-        loadingMessages,
         loadingServers,
         loadingChannels,
-        handleSendMessage,
-        selectedServer,
-        selectedChannel
+        selectedServer
     } = useServerData();
 
     const connect = useVoiceStore((s) => s.connect);
     const activeVoiceChannelId = useVoiceStore((s) => s.activeChannelId);
     const openWidget = useWidgetStore((s) => s.openWidget);
     const bringToFront = useWidgetStore((s) => s.bringToFront);
+    const openChannelChat = useActiveChatStore((s) => s.openChannelChat);
+
+    // Kanal seçildiğinde ChatWidget'ı aç
+    const handleChannelSelect = (channelId: string) => {
+        setSelectedChannelId(channelId);
+        const channel = channels.find(c => c.id === channelId);
+        if (channel && selectedServerId) {
+            openChannelChat(selectedServerId, channelId, channel.name, selectedServer?.name);
+            openWidget('chat');
+            bringToFront('chat');
+        }
+    };
 
     const CenterState = ({ title, subtitle }: { title: string; subtitle?: string }) => (
         <div style={{
@@ -75,7 +84,7 @@ export function ServerWidget() {
 
     if (loadingServers) {
         return (
-            <BaseWidget id="server" title="Sunucular" icon="🏰">
+            <BaseWidget id="server" title="Sunucular" icon="🏰" pinnable={false}>
                 <CenterState title="Sunucular yükleniyor..." />
             </BaseWidget>
         );
@@ -84,7 +93,7 @@ export function ServerWidget() {
     // Empty State
     if (servers.length === 0) {
         return (
-            <BaseWidget id="server" title="Sunucular" icon="🏰">
+            <BaseWidget id="server" title="Sunucular" icon="🏰" pinnable={false}>
                 <CenterState
                     title="Henüz bir sunucuya üye değilsiniz"
                     subtitle="Ana uygulamadan bir sunucuya katılın"
@@ -96,10 +105,11 @@ export function ServerWidget() {
     return (
         <BaseWidget
             id="server"
-            title={selectedChannel ? `#${selectedChannel.name}` : "Sunucular"}
+            title={selectedServer?.name || "Sunucular"}
             icon="🏰"
             defaultPosition={{ x: 400, y: 150 }}
-            defaultSize={{ width: 800, height: 600 }}
+            defaultSize={{ width: 320, height: 500 }}
+            pinnable={false}
         >
             <div style={{ display: 'flex', width: '100%', height: '100%', overflow: 'hidden' }}>
                 <ServerRail
@@ -108,34 +118,26 @@ export function ServerWidget() {
                     onServerSelect={setSelectedServerId}
                 />
 
-                <ChannelSidebar
-                    server={selectedServer}
-                    channels={channels}
-                    selectedChannelId={selectedChannelId}
-                    onChannelSelect={setSelectedChannelId}
-                    voiceChannels={voiceChannels}
-                    activeVoiceChannelId={activeVoiceChannelId}
-                    onVoiceChannelJoin={async (channel) => {
-                        await connect(channel);
-                        openWidget('voice');
-                        bringToFront('voice');
-                    }}
-                />
-
                 {loadingChannels ? (
-                    <div style={{ flex: 1 }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <CenterState title="Kanallar yükleniyor..." />
                     </div>
                 ) : (
-                    <ServerChatArea
-                        selectedChannel={selectedChannel}
-                        messages={messages}
-                        loadingMessages={loadingMessages}
-                        onSendMessage={handleSendMessage}
+                    <ChannelSidebar
+                        server={selectedServer}
+                        channels={channels}
+                        selectedChannelId={selectedChannelId}
+                        onChannelSelect={handleChannelSelect}
+                        voiceChannels={voiceChannels}
+                        activeVoiceChannelId={activeVoiceChannelId}
+                        onVoiceChannelJoin={async (channel) => {
+                            await connect(channel);
+                            openWidget('voice');
+                            bringToFront('voice');
+                        }}
                     />
                 )}
             </div>
         </BaseWidget>
     );
 }
-
