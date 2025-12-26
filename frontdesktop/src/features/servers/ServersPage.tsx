@@ -194,6 +194,8 @@ export function ServersPage() {
             serverId={serverData.currentServer.id}
             serverName={serverData.currentServer.name}
             ownerId={serverData.currentServer.ownerId}
+            isAdmin={isAdmin}
+            isModerator={isModerator}
           />
         </>
       )}
@@ -646,6 +648,8 @@ export function ServersPage() {
           serverId={serverData.currentServer.id}
           serverName={serverData.currentServer.name}
           ownerId={serverData.currentServer.ownerId}
+          isAdmin={isAdmin}
+          isModerator={isModerator}
         />
       )}
 

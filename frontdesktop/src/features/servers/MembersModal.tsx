@@ -3,8 +3,16 @@
 // ============================================================================
 
 import { useCallback, useEffect, useState } from "react";
-import { getServerMembers, removeMember } from "./serversApi";
+import {
+    acceptServerJoinRequest,
+    getServerJoinRequests,
+    getServerMembers,
+    rejectServerJoinRequest,
+    removeMember,
+    type ServerJoinRequest,
+} from "./serversApi";
 import { useAuthStore } from "../../store/authStore";
+import { getUser, type UserProfile } from "../profile/userApi";
 
 interface MemberWithUser {
     id: string;
@@ -23,6 +31,8 @@ interface MembersModalProps {
     serverId: string;
     serverName: string;
     ownerId?: string; // Server owner ID for permission checks
+    isAdmin?: boolean;
+    isModerator?: boolean;
 }
 
 // Role display configuration
@@ -38,51 +48,101 @@ function getRoleConfig(role: string) {
     return ROLE_CONFIG[role.toLowerCase()] || ROLE_CONFIG.member;
 }
 
+type MembersTab = "members" | "joinRequests";
+
+type JoinRequestWithUser = ServerJoinRequest & {
+    user?: UserProfile;
+};
+
 export function MembersModal({
     isOpen,
     onClose,
     serverId,
     serverName,
     ownerId,
+    isAdmin = false,
+    isModerator = false,
 }: MembersModalProps) {
     const currentUser = useAuthStore((s) => s.user);
+    const [activeTab, setActiveTab] = useState<MembersTab>("members");
     const [members, setMembers] = useState<MemberWithUser[]>([]);
     const [loading, setLoading] = useState(false);
     const [actionLoading, setActionLoading] = useState<Record<string, boolean>>({});
+    const [joinRequests, setJoinRequests] = useState<JoinRequestWithUser[]>([]);
+    const [joinRequestsLoading, setJoinRequestsLoading] = useState(false);
+    const [joinRequestActionLoading, setJoinRequestActionLoading] = useState<Record<string, boolean>>({});
+    const [userCache, setUserCache] = useState<Record<string, UserProfile>>({});
 
     // Permission checks based on server ownership
     const isOwner = currentUser?.id === ownerId;
     const canManageMembers = isOwner; // For now, only owner can kick
+    const canManageJoinRequests = isOwner || isAdmin || isModerator;
 
-    // Load members
+    const loadMembers = useCallback(async () => {
+        setLoading(true);
+        try {
+            const data = await getServerMembers(serverId);
+            const membersWithUser: MemberWithUser[] = data.map((m) => ({
+                id: m.id,
+                memberId: m.id,
+                userId: m.userId,
+                handle: m.user?.handle || "user",
+                displayName: m.user?.displayName || "User",
+                avatarGradient: m.user?.avatarGradient || ["#667eea", "#764ba2"],
+                role: m.role || "member",
+                joinedAt: m.joinedAt,
+            }));
+            setMembers(membersWithUser);
+        } catch (err) {
+            console.error("Failed to load members:", err);
+        } finally {
+            setLoading(false);
+        }
+    }, [serverId]);
+
+    const loadJoinRequests = useCallback(async () => {
+        if (!canManageJoinRequests) return;
+
+        setJoinRequestsLoading(true);
+        try {
+            const requests = await getServerJoinRequests(serverId);
+            const missingUserIds = requests.map((r) => r.userId).filter((id) => userCache[id] === undefined);
+
+            let nextCache = userCache;
+            if (missingUserIds.length > 0) {
+                const results = await Promise.allSettled(missingUserIds.map((id) => getUser(id)));
+                nextCache = { ...userCache };
+                results.forEach((r, idx) => {
+                    if (r.status === "fulfilled") {
+                        nextCache[missingUserIds[idx]] = r.value;
+                    }
+                });
+                setUserCache(nextCache);
+            }
+
+            const nextJoinRequests: JoinRequestWithUser[] = requests.map((r) => ({
+                ...r,
+                user: nextCache[r.userId],
+            }));
+            setJoinRequests(nextJoinRequests);
+        } catch (err) {
+            console.error("Failed to load join requests:", err);
+        } finally {
+            setJoinRequestsLoading(false);
+        }
+    }, [canManageJoinRequests, serverId, userCache]);
+
     useEffect(() => {
         if (!isOpen) return;
-
-        const loadMembers = async () => {
-            setLoading(true);
-            try {
-                const data = await getServerMembers(serverId);
-                // Transform data to MemberWithUser format
-                const membersWithUser: MemberWithUser[] = data.map((m) => ({
-                    id: m.id,
-                    memberId: m.id,
-                    userId: m.userId,
-                    handle: m.user?.handle || "user",
-                    displayName: m.user?.displayName || "User",
-                    avatarGradient: m.user?.avatarGradient || ["#667eea", "#764ba2"],
-                    role: m.role || "member",
-                    joinedAt: m.joinedAt,
-                }));
-                setMembers(membersWithUser);
-            } catch (err) {
-                console.error("Failed to load members:", err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
+        setActiveTab("members");
         loadMembers();
-    }, [isOpen, serverId]);
+    }, [isOpen, loadMembers]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        if (activeTab !== "joinRequests") return;
+        loadJoinRequests();
+    }, [activeTab, isOpen, loadJoinRequests]);
 
     const handleKick = useCallback(async (userId: string) => {
         if (!confirm("Bu üyeyi sunucudan çıkarmak istediğinize emin misiniz?")) return;
@@ -98,6 +158,30 @@ export function MembersModal({
             setActionLoading((prev) => ({ ...prev, [userId]: false }));
         }
     }, [serverId]);
+
+    const handleAcceptJoinRequest = useCallback(async (userId: string) => {
+        setJoinRequestActionLoading((prev) => ({ ...prev, [userId]: true }));
+        try {
+            await acceptServerJoinRequest(serverId, userId);
+            await Promise.all([loadJoinRequests(), loadMembers()]);
+        } catch (err) {
+            console.error("Failed to accept join request:", err);
+        } finally {
+            setJoinRequestActionLoading((prev) => ({ ...prev, [userId]: false }));
+        }
+    }, [loadJoinRequests, loadMembers, serverId]);
+
+    const handleRejectJoinRequest = useCallback(async (userId: string) => {
+        setJoinRequestActionLoading((prev) => ({ ...prev, [userId]: true }));
+        try {
+            await rejectServerJoinRequest(serverId, userId);
+            await loadJoinRequests();
+        } catch (err) {
+            console.error("Failed to reject join request:", err);
+        } finally {
+            setJoinRequestActionLoading((prev) => ({ ...prev, [userId]: false }));
+        }
+    }, [loadJoinRequests, serverId]);
 
     if (!isOpen) return null;
 
@@ -118,7 +202,9 @@ export function MembersModal({
                 <div className="p-4 border-b border-white/10 flex items-center justify-between">
                     <div>
                         <h3 className="text-lg font-bold text-white">{serverName}</h3>
-                        <p className="text-sm text-zinc-500">{members.length} üye</p>
+                        <p className="text-sm text-zinc-500">
+                            {activeTab === "members" ? `${members.length} üye` : `${joinRequests.length} istek`}
+                        </p>
                     </div>
                     <button
                         onClick={onClose}
@@ -130,17 +216,40 @@ export function MembersModal({
                     </button>
                 </div>
 
-                {/* Members List */}
+                {canManageJoinRequests && (
+                    <div className="px-4 py-3 border-b border-white/10 bg-[#0a0a10] flex items-center gap-2">
+                        <button
+                            onClick={() => setActiveTab("members")}
+                            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeTab === "members"
+                                ? "bg-white/10 text-zinc-100"
+                                : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                }`}
+                        >
+                            Üyeler
+                        </button>
+                        <button
+                            onClick={() => setActiveTab("joinRequests")}
+                            className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${activeTab === "joinRequests"
+                                ? "bg-white/10 text-zinc-100"
+                                : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                }`}
+                        >
+                            Katılma İstekleri
+                        </button>
+                    </div>
+                )}
+
+                {/* Body */}
                 <div className="max-h-96 overflow-y-auto">
-                    {loading ? (
+                    {activeTab === "members" && loading ? (
                         <div className="flex justify-center py-8">
                             <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-purple-500" />
                         </div>
-                    ) : sortedMembers.length === 0 ? (
+                    ) : activeTab === "members" && sortedMembers.length === 0 ? (
                         <div className="p-8 text-center text-zinc-500">
                             <p className="font-medium">Üye bulunamadı</p>
                         </div>
-                    ) : (
+                    ) : activeTab === "members" ? (
                         sortedMembers.map((member) => {
                             const isMe = member.userId === currentUser?.id;
                             const isMemberOwner = member.userId === ownerId;
@@ -197,15 +306,79 @@ export function MembersModal({
                                 </div>
                             );
                         })
+                    ) : joinRequestsLoading ? (
+                        <div className="flex justify-center py-8">
+                            <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-600 border-t-purple-500" />
+                        </div>
+                    ) : joinRequests.length === 0 ? (
+                        <div className="p-8 text-center text-zinc-500">
+                            <p className="font-medium">Bekleyen istek yok</p>
+                        </div>
+                    ) : (
+                        joinRequests.map((req) => {
+                            const user = req.user;
+                            const displayName = user?.displayName ?? req.userId;
+                            const handle = user?.handle ?? "user";
+                            const avatarGradient = user?.avatarGradient ?? ["#667eea", "#764ba2"];
+                            const disabled = joinRequestActionLoading[req.userId] === true;
+
+                            return (
+                                <div
+                                    key={req.userId}
+                                    className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors"
+                                >
+                                    <div
+                                        className="w-10 h-10 rounded-full shrink-0"
+                                        style={{
+                                            backgroundImage: `linear-gradient(135deg, ${avatarGradient[0]}, ${avatarGradient[1]})`,
+                                        }}
+                                    />
+
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-medium text-white truncate">{displayName}</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-sm text-zinc-500">
+                                            <span className="truncate">@{handle}</span>
+                                            <span className="text-zinc-600">•</span>
+                                            <span className="text-zinc-600">
+                                                {new Date(req.createdAt).toLocaleString("tr-TR")}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleRejectJoinRequest(req.userId)}
+                                            disabled={disabled}
+                                            className="px-3 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-sm transition-colors disabled:opacity-50"
+                                        >
+                                            Reddet
+                                        </button>
+                                        <button
+                                            onClick={() => handleAcceptJoinRequest(req.userId)}
+                                            disabled={disabled}
+                                            className="px-3 py-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 text-green-300 text-sm transition-colors disabled:opacity-50"
+                                        >
+                                            Kabul Et
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })
                     )}
                 </div>
 
                 {/* Footer */}
                 <div className="p-4 border-t border-white/10 bg-[#0a0a10]">
                     <p className="text-xs text-zinc-500 text-center">
-                        {canManageMembers
-                            ? "Üyeleri yönetebilirsiniz"
-                            : "Üye listesini görüntülüyorsunuz"}
+                        {activeTab === "joinRequests"
+                            ? canManageJoinRequests
+                                ? "Katılma isteklerini yönetebilirsiniz"
+                                : "Bu alanı görüntüleme yetkiniz yok"
+                            : canManageMembers
+                                ? "Üyeleri yönetebilirsiniz"
+                                : "Üye listesini görüntülüyorsunuz"}
                     </p>
                 </div>
             </div>
