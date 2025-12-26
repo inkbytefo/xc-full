@@ -109,7 +109,7 @@ export const ChatView = forwardRef<ChatViewHandle, ChatViewProps>(({
                 className="chat-messages"
                 style={{
                     display: 'flex',
-                    flexDirection: 'column-reverse',
+                    flexDirection: 'column',
                     gap: '4px',
                     flex: 1,
                     overflowY: 'auto',
