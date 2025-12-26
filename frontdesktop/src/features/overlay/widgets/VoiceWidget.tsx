@@ -1,10 +1,14 @@
 // ============================================================================
-// Voice Widget - Overlay Ses Kontrol Paneli
+// Voice Widget - Overlay Ses Kontrol Çubuğu (Compact Bar Design)
+// Sesli sohbete bağlıyken otomatik açılır, ayrılınca kapanır
+// Sadece overlay açıkken görünür
 // ============================================================================
 
+import { useEffect, useState, useRef } from 'react';
 import { useVoiceStore } from '../../../store/voiceStore';
-import { BaseWidget } from './BaseWidget';
+import { useWidgetStore } from '../stores/widgetStore';
 import { useOverlayMode } from '../hooks/useOverlayMode';
+import { Rnd } from 'react-rnd';
 import {
     HeadphonesIcon,
     HeadphonesOffIcon,
@@ -12,260 +16,462 @@ import {
     MicOffIcon,
     PhoneOffIcon,
     ScreenShareIcon,
-    VideoIcon,
-    VideoOffIcon,
-    VolumeIcon
+    SettingsIcon
 } from '../../servers/components/Icons';
-import { ControlButton } from '../../servers/components/ControlButton';
+
+// Signal bars icon
+const SignalIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+        <rect x="2" y="16" width="4" height="6" rx="1" />
+        <rect x="8" y="12" width="4" height="10" rx="1" />
+        <rect x="14" y="8" width="4" height="14" rx="1" />
+        <rect x="20" y="4" width="4" height="18" rx="1" opacity="0.3" />
+    </svg>
+);
+
+// Chevron icons
+const ChevronDownIcon = ({ className = "w-3 h-3" }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
+interface AudioDevice {
+    deviceId: string;
+    label: string;
+}
 
 export function VoiceWidget() {
     const { pinnedView } = useOverlayMode();
     const {
         isConnected,
-        isConnecting,
         isMuted,
         isDeafened,
-        isCameraOn,
         isScreenSharing,
         toggleMute,
         toggleDeafen,
-        toggleCamera,
         toggleScreenShare,
         disconnect,
         participants,
         activeChannel,
-        error,
         ownerAvailable
     } = useVoiceStore();
 
-    const sortedParticipants = [...participants].sort((a, b) => {
-        if (a.isSpeaking !== b.isSpeaking) return a.isSpeaking ? -1 : 1;
-        if (a.isMuted !== b.isMuted) return a.isMuted ? 1 : -1;
-        if (a.isLocal !== b.isLocal) return a.isLocal ? -1 : 1;
-        return a.identity.localeCompare(b.identity);
-    });
-    const controlsDisabled = !ownerAvailable || (!isConnected && !isConnecting);
-    const supportsVideo = activeChannel?.type === "video";
+    const { widgets, openWidget, closeWidget, updatePosition, registerWidget } = useWidgetStore();
+    const widgetState = widgets['voice'];
+
+    // Settings dropdown state
+    const [showSettings, setShowSettings] = useState(false);
+    const [inputDevices, setInputDevices] = useState<AudioDevice[]>([]);
+    const [outputDevices, setOutputDevices] = useState<AudioDevice[]>([]);
+    const [selectedInput, setSelectedInput] = useState<string>('default');
+    const [selectedOutput, setSelectedOutput] = useState<string>('default');
+    const settingsRef = useRef<HTMLDivElement>(null);
+
+    // Register widget with default position
+    useEffect(() => {
+        registerWidget('voice', { x: window.innerWidth / 2 - 200, y: window.innerHeight - 120 }, { width: 400, height: 100 });
+    }, [registerWidget]);
+
+    // Auto open/close based on connection state
+    useEffect(() => {
+        if (isConnected && !widgetState?.isOpen) {
+            openWidget('voice');
+        } else if (!isConnected && widgetState?.isOpen) {
+            closeWidget('voice');
+        }
+    }, [isConnected, widgetState?.isOpen, openWidget, closeWidget]);
+
+    // Load audio devices
+    useEffect(() => {
+        const loadDevices = async () => {
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const inputs = devices
+                    .filter(d => d.kind === 'audioinput')
+                    .map(d => ({ deviceId: d.deviceId, label: d.label || `Mikrofon ${d.deviceId.slice(0, 5)}` }));
+                const outputs = devices
+                    .filter(d => d.kind === 'audiooutput')
+                    .map(d => ({ deviceId: d.deviceId, label: d.label || `Hoparlör ${d.deviceId.slice(0, 5)}` }));
+
+                setInputDevices(inputs);
+                setOutputDevices(outputs);
+            } catch (e) {
+                console.error('Failed to load audio devices:', e);
+            }
+        };
+
+        if (showSettings) {
+            loadDevices();
+        }
+    }, [showSettings]);
+
+    // Close settings dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+                setShowSettings(false);
+            }
+        };
+
+        if (showSettings) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showSettings]);
+
+    // Don't render if overlay is in ghost/pinned mode
+    if (pinnedView) {
+        return null;
+    }
+
+    // Don't render if not connected or widget is closed
+    if (!isConnected || !widgetState?.isOpen) {
+        return null;
+    }
+
+    const controlsDisabled = !ownerAvailable;
+    const currentUser = participants.find(p => p.isLocal);
+    const position = widgetState?.position || { x: window.innerWidth / 2 - 200, y: window.innerHeight - 120 };
 
     return (
-        <BaseWidget
-            id="voice"
-            title="Ses Kontrol"
-            icon="🔊"
-            defaultPosition={{ x: 100, y: 550 }}
-            defaultSize={{ width: 320, height: 280 }}
+        <Rnd
+            position={position}
+            size={{ width: 400, height: 'auto' }}
+            onDragStop={(_e, d) => {
+                updatePosition('voice', { x: d.x, y: d.y });
+            }}
+            dragHandleClassName="voice-bar-handle"
+            bounds="window"
+            enableResizing={false}
+            style={{ zIndex: 9998 }}
         >
-            <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-                <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center border border-white/10 ${isConnected ? "bg-green-500/15 text-green-400" : "bg-white/5 text-zinc-400"
-                        }`}
-                >
-                    <VolumeIcon className="w-5 h-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                    {isConnected && activeChannel ? (
-                        <>
-                            <div className="text-sm font-semibold text-green-300 truncate">
-                                {activeChannel.name}
+            <div
+                className="voice-bar-handle"
+                style={{
+                    background: 'linear-gradient(180deg, rgba(30, 30, 35, 0.95) 0%, rgba(20, 20, 25, 0.98) 100%)',
+                    backdropFilter: 'blur(20px)',
+                    borderRadius: 16,
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                    overflow: 'visible',
+                    cursor: 'grab',
+                    position: 'relative'
+                }}
+            >
+                {/* Top Section - Connection Status */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px',
+                    borderBottom: '1px solid rgba(255,255,255,0.06)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <SignalIcon className="w-4 h-4 text-green-400" />
+                        <div>
+                            <div style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: '#4ade80',
+                                lineHeight: 1.2
+                            }}>
+                                Voice Connected
                             </div>
-                            <div className="text-xs text-zinc-400">
-                                {isConnecting ? "Bağlanıyor" : "Ses Bağlantısı"} • {participants.length} kişi
+                            <div style={{
+                                fontSize: 11,
+                                color: 'rgba(255,255,255,0.5)',
+                                lineHeight: 1.2
+                            }}>
+                                {activeChannel?.name || 'Voice Channel'}
                             </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="text-sm font-medium text-zinc-200">
-                                Bağlı Değil
-                            </div>
-                            <div className="text-xs text-zinc-500">
-                                {ownerAvailable ? "Bir ses kanalına katılın" : "Ana uygulama aktif değil"}
-                            </div>
-                        </>
-                    )}
-                </div>
-            </div>
+                        </div>
+                    </div>
 
-            {error && (
-                <div className="px-4 py-2 text-xs text-red-300 border-b border-white/10 bg-red-500/10">
-                    {error}
-                </div>
-            )}
-
-            {isConnected && sortedParticipants.length > 0 && !pinnedView && (
-                <div className="px-4 py-3 flex flex-wrap gap-2 border-b border-white/10">
-                    {sortedParticipants.slice(0, 8).map((p) => (
-                        <div
-                            key={p.sid}
-                            title={p.identity + (p.isLocal ? " (Sen)" : "")}
-                            className={`relative w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold text-white border border-white/10 ${p.isSpeaking
-                                ? "bg-green-500/30 ring-2 ring-green-400/40 shadow-[0_0_12px_rgba(34,197,94,0.25)]"
-                                : "bg-gradient-to-br from-indigo-500 to-purple-600"
-                                }`}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Screen Share Button */}
+                        <button
+                            onClick={() => void toggleScreenShare()}
+                            disabled={controlsDisabled}
+                            style={{
+                                background: isScreenSharing ? 'rgba(34, 197, 94, 0.15)' : 'transparent',
+                                border: '1px solid',
+                                borderColor: isScreenSharing ? 'rgba(34, 197, 94, 0.3)' : 'rgba(255,255,255,0.1)',
+                                borderRadius: 8,
+                                padding: 8,
+                                cursor: controlsDisabled ? 'not-allowed' : 'pointer',
+                                color: isScreenSharing ? '#4ade80' : 'rgba(255,255,255,0.6)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                opacity: controlsDisabled ? 0.5 : 1
+                            }}
+                            title={isScreenSharing ? "Paylaşımı Durdur" : "Ekran Paylaş"}
                         >
-                            {p.identity[0]?.toUpperCase() || "?"}
-                            {p.isMuted && (
-                                <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-red-500 flex items-center justify-center border-2 border-black/50">
-                                    <MicOffIcon className="w-2.5 h-2.5 text-white" />
+                            <ScreenShareIcon className="w-4 h-4" />
+                        </button>
+
+                        {/* Disconnect Button */}
+                        <button
+                            onClick={disconnect}
+                            style={{
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                borderRadius: 8,
+                                padding: 8,
+                                cursor: 'pointer',
+                                color: '#f87171',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease'
+                            }}
+                            title="Bağlantıyı Kes"
+                        >
+                            <PhoneOffIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Bottom Section - User & Controls */}
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '10px 14px'
+                }}>
+                    {/* Current User */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: '#fff',
+                            position: 'relative'
+                        }}>
+                            {currentUser?.identity?.[0]?.toUpperCase() || '?'}
+
+                            {/* Online indicator */}
+                            <div style={{
+                                position: 'absolute',
+                                bottom: 0,
+                                right: 0,
+                                width: 10,
+                                height: 10,
+                                borderRadius: '50%',
+                                background: '#22c55e',
+                                border: '2px solid rgba(20, 20, 25, 1)'
+                            }} />
+                        </div>
+                        <div style={{
+                            fontSize: 12,
+                            fontWeight: 500,
+                            color: 'rgba(255,255,255,0.8)'
+                        }}>
+                            {currentUser?.identity || 'You'}
+                        </div>
+                    </div>
+
+                    {/* Control Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {/* Mute Button */}
+                        <button
+                            onClick={() => void toggleMute()}
+                            disabled={controlsDisabled}
+                            style={{
+                                background: isMuted ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.05)',
+                                border: '1px solid',
+                                borderColor: isMuted ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
+                                borderRadius: 10,
+                                padding: 10,
+                                cursor: controlsDisabled ? 'not-allowed' : 'pointer',
+                                color: isMuted ? '#f87171' : 'rgba(255,255,255,0.7)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                opacity: controlsDisabled ? 0.5 : 1
+                            }}
+                            title={isMuted ? "Mikrofonu Aç" : "Sessiz"}
+                        >
+                            {isMuted ? <MicOffIcon className="w-5 h-5" /> : <MicIcon className="w-5 h-5" />}
+                        </button>
+
+                        {/* Deafen Button */}
+                        <button
+                            onClick={toggleDeafen}
+                            disabled={controlsDisabled}
+                            style={{
+                                background: isDeafened ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255,255,255,0.05)',
+                                border: '1px solid',
+                                borderColor: isDeafened ? 'rgba(239, 68, 68, 0.3)' : 'rgba(255,255,255,0.1)',
+                                borderRadius: 10,
+                                padding: 10,
+                                cursor: controlsDisabled ? 'not-allowed' : 'pointer',
+                                color: isDeafened ? '#f87171' : 'rgba(255,255,255,0.7)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                transition: 'all 0.15s ease',
+                                opacity: controlsDisabled ? 0.5 : 1
+                            }}
+                            title={isDeafened ? "Sesi Aç" : "Kulaklık"}
+                        >
+                            {isDeafened ? <HeadphonesOffIcon className="w-5 h-5" /> : <HeadphonesIcon className="w-5 h-5" />}
+                        </button>
+
+                        {/* Settings Button with Dropdown */}
+                        <div ref={settingsRef} style={{ position: 'relative' }}>
+                            <button
+                                onClick={() => setShowSettings(!showSettings)}
+                                style={{
+                                    background: showSettings ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.05)',
+                                    border: '1px solid rgba(255,255,255,0.1)',
+                                    borderRadius: 10,
+                                    padding: 10,
+                                    cursor: 'pointer',
+                                    color: showSettings ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.5)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title="Ses Ayarları"
+                            >
+                                <SettingsIcon className="w-5 h-5" />
+                            </button>
+
+                            {/* Settings Dropdown */}
+                            {showSettings && (
+                                <div
+                                    style={{
+                                        position: 'absolute',
+                                        bottom: '100%',
+                                        right: 0,
+                                        marginBottom: 8,
+                                        width: 280,
+                                        background: 'linear-gradient(180deg, rgba(35, 35, 40, 0.98) 0%, rgba(25, 25, 30, 0.99) 100%)',
+                                        backdropFilter: 'blur(20px)',
+                                        borderRadius: 12,
+                                        border: '1px solid rgba(255,255,255,0.1)',
+                                        boxShadow: '0 12px 40px rgba(0,0,0,0.5)',
+                                        padding: 12,
+                                        zIndex: 10000
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                >
+                                    <div style={{
+                                        fontSize: 11,
+                                        fontWeight: 600,
+                                        color: 'rgba(255,255,255,0.5)',
+                                        textTransform: 'uppercase',
+                                        marginBottom: 8,
+                                        letterSpacing: '0.5px'
+                                    }}>
+                                        Ses Ayarları
+                                    </div>
+
+                                    {/* Input Device */}
+                                    <div style={{ marginBottom: 12 }}>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: 12,
+                                            color: 'rgba(255,255,255,0.7)',
+                                            marginBottom: 6
+                                        }}>
+                                            <MicIcon className="w-3 h-3 inline mr-2" />
+                                            Giriş Aygıtı
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <select
+                                                value={selectedInput}
+                                                onChange={(e) => setSelectedInput(e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px 28px 8px 10px',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: 8,
+                                                    color: 'rgba(255,255,255,0.9)',
+                                                    fontSize: 12,
+                                                    outline: 'none',
+                                                    cursor: 'pointer',
+                                                    appearance: 'none'
+                                                }}
+                                            >
+                                                {inputDevices.map(d => (
+                                                    <option key={d.deviceId} value={d.deviceId}>
+                                                        {d.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDownIcon className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+
+                                    {/* Output Device */}
+                                    <div>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: 12,
+                                            color: 'rgba(255,255,255,0.7)',
+                                            marginBottom: 6
+                                        }}>
+                                            <HeadphonesIcon className="w-3 h-3 inline mr-2" />
+                                            Çıkış Aygıtı
+                                        </label>
+                                        <div style={{ position: 'relative' }}>
+                                            <select
+                                                value={selectedOutput}
+                                                onChange={(e) => setSelectedOutput(e.target.value)}
+                                                style={{
+                                                    width: '100%',
+                                                    padding: '8px 28px 8px 10px',
+                                                    background: 'rgba(0,0,0,0.3)',
+                                                    border: '1px solid rgba(255,255,255,0.1)',
+                                                    borderRadius: 8,
+                                                    color: 'rgba(255,255,255,0.9)',
+                                                    fontSize: 12,
+                                                    outline: 'none',
+                                                    cursor: 'pointer',
+                                                    appearance: 'none'
+                                                }}
+                                            >
+                                                {outputDevices.map(d => (
+                                                    <option key={d.deviceId} value={d.deviceId}>
+                                                        {d.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <ChevronDownIcon className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                                        </div>
+                                    </div>
+
+                                    {/* Note */}
+                                    <div style={{
+                                        marginTop: 12,
+                                        padding: '8px 10px',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        borderRadius: 6,
+                                        fontSize: 10,
+                                        color: 'rgba(147, 197, 253, 0.8)',
+                                        lineHeight: 1.4
+                                    }}>
+                                        💡 Değişiklikler anlık olarak uygulanır
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    ))}
-                    {sortedParticipants.length > 8 && (
-                        <div className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-xs text-zinc-300">
-                            +{sortedParticipants.length - 8}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {isConnected && sortedParticipants.length > 0 && pinnedView && (
-                <div className="p-3">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-semibold text-zinc-200 truncate">
-                            {activeChannel?.name ?? "Ses Kanalı"}
-                        </div>
-                        <div className="text-[11px] text-zinc-400">
-                            {sortedParticipants.length}
-                        </div>
-                    </div>
-
-                    <div className="flex flex-col gap-1.5">
-                        {sortedParticipants.slice(0, 12).map((p) => (
-                            <div
-                                key={p.sid}
-                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${p.isSpeaking
-                                    ? "bg-green-500/10 border-green-500/25"
-                                    : "bg-black/10 border-white/10"
-                                    }`}
-                            >
-                                <div
-                                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${p.isSpeaking
-                                        ? "bg-green-500/40 ring-2 ring-green-400/30"
-                                        : "bg-gradient-to-br from-indigo-500 to-purple-600"
-                                        }`}
-                                >
-                                    {p.identity[0]?.toUpperCase() || "?"}
-                                </div>
-                                <div className="flex-1 min-w-0 text-xs font-semibold text-zinc-100 truncate">
-                                    {p.identity}{p.isLocal ? " (Sen)" : ""}
-                                </div>
-                                {p.isMuted && (
-                                    <div className="text-red-300">
-                                        <MicOffIcon className="w-4 h-4" />
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                        {sortedParticipants.length > 12 && (
-                            <div className="text-[11px] text-zinc-400 px-2 pt-1">
-                                +{sortedParticipants.length - 12} kişi daha
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="mt-2 flex items-center justify-center gap-3 text-[11px] text-zinc-300">
-                        <div className={`flex items-center gap-1.5 ${isMuted ? "text-red-300" : "text-zinc-300"}`}>
-                            {isMuted ? <MicOffIcon className="w-4 h-4" /> : <MicIcon className="w-4 h-4" />}
-                            {isMuted ? "Sessiz" : "Açık"}
-                        </div>
-                        <div className={`flex items-center gap-1.5 ${isDeafened ? "text-red-300" : "text-zinc-300"}`}>
-                            {isDeafened ? <HeadphonesOffIcon className="w-4 h-4" /> : <HeadphonesIcon className="w-4 h-4" />}
-                            {isDeafened ? "Kapalı" : "Açık"}
-                        </div>
-                        {supportsVideo && (
-                            <>
-                                <div className={`flex items-center gap-1.5 ${!isCameraOn ? "text-red-300" : "text-zinc-300"}`}>
-                                    {!isCameraOn ? <VideoOffIcon className="w-4 h-4" /> : <VideoIcon className="w-4 h-4" />}
-                                    {isCameraOn ? "Kamera" : "Kapalı"}
-                                </div>
-                                <div className={`flex items-center gap-1.5 ${isScreenSharing ? "text-green-300" : "text-zinc-300"}`}>
-                                    <ScreenShareIcon className="w-4 h-4" />
-                                    {isScreenSharing ? "Ekran" : "Yok"}
-                                </div>
-                            </>
-                        )}
                     </div>
                 </div>
-            )}
-
-            {!pinnedView && (
-                <div className="p-4 flex items-center justify-center gap-3">
-                    <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
-                        <ControlButton
-                            icon={MicIcon}
-                            activeIcon={MicOffIcon}
-                            isActive={isMuted}
-                            danger={isMuted}
-                            label={isMuted ? "Mikrofonu Aç" : "Sessiz"}
-                            onClick={() => {
-                                void toggleMute();
-                            }}
-                            className="!rounded-xl !p-3"
-                        />
-                    </div>
-
-                    <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
-                        <ControlButton
-                            icon={HeadphonesIcon}
-                            activeIcon={HeadphonesOffIcon}
-                            isActive={isDeafened}
-                            danger={isDeafened}
-                            label={isDeafened ? "Sesi Aç" : "Kulaklık"}
-                            onClick={toggleDeafen}
-                            className="!rounded-xl !p-3"
-                        />
-                    </div>
-
-                    {supportsVideo && (
-                        <>
-                            <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
-                                <ControlButton
-                                    icon={VideoIcon}
-                                    activeIcon={VideoOffIcon}
-                                    isActive={!isCameraOn}
-                                    danger={!isCameraOn}
-                                    label={isCameraOn ? "Kamerayı Kapat" : "Kamera Aç"}
-                                    onClick={() => {
-                                        void toggleCamera();
-                                    }}
-                                    className="!rounded-xl !p-3"
-                                />
-                            </div>
-                            <div className={controlsDisabled ? "opacity-50 pointer-events-none" : ""}>
-                                <ControlButton
-                                    icon={ScreenShareIcon}
-                                    isActive={isScreenSharing}
-                                    label={isScreenSharing ? "Paylaşımı Durdur" : "Ekran Paylaş"}
-                                    onClick={() => {
-                                        void toggleScreenShare();
-                                    }}
-                                    className="!rounded-xl !p-3"
-                                />
-                            </div>
-                        </>
-                    )}
-
-                    {isConnected && (
-                        <>
-                            <div className="w-px h-8 bg-white/10" />
-                            <ControlButton
-                                icon={PhoneOffIcon}
-                                isActive
-                                danger
-                                label="Bağlantıyı Kes"
-                                onClick={disconnect}
-                                className="!rounded-xl !p-3"
-                            />
-                        </>
-                    )}
-                </div>
-            )}
-
-            {!isConnected && (
-                <div className="px-4 pb-4 text-center text-xs text-zinc-500">
-                    Ses kontrollerini kullanmak için bir sunucudan ses kanalına katılın
-                </div>
-            )}
-        </BaseWidget>
+            </div>
+        </Rnd>
     );
 }
