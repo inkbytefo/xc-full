@@ -24,7 +24,6 @@ export function DMListWidget() {
 
     const openDMChat = useActiveChatStore((s) => s.openDMChat);
     const openWidget = useWidgetStore((s) => s.openWidget);
-    const closeWidget = useWidgetStore((s) => s.closeWidget);
     const bringToFront = useWidgetStore((s) => s.bringToFront);
 
     // Load Conversations
@@ -87,9 +86,6 @@ export function DMListWidget() {
         // Open and bring ChatWidget to front
         openWidget('chat');
         bringToFront('chat');
-
-        // Close this widget after selection
-        closeWidget('dmList');
     };
 
     const getOtherUser = (c: Conversation) => c.otherUser?.displayName || c.otherUser?.handle || 'Unknown';
