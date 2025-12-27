@@ -103,6 +103,7 @@ export function ServersPage() {
     (channelId: string) => {
       serverData.handleSelectChannel(channelId);
       setIsViewingVoiceRoom(false);
+      setShowServerProfile(false); // Close server profile when selecting a channel
     },
     [serverData]
   );

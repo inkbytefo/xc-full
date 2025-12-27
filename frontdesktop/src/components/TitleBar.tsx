@@ -14,12 +14,24 @@ export function WindowControls() {
 
     return (
         <>
-            {/* Invisible drag region at very top */}
+            {/* Invisible drag region at very top - only covers the top bar area */}
+            {/* Uses pointer-events-none to allow clicks through, except for the actual drag area */}
             <div
-                data-tauri-drag-region
-                className="fixed top-0 left-0 right-0 h-8 z-[9999] cursor-move"
-                style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
-            />
+                className="fixed top-0 left-0 right-0 h-8 z-[9999] flex items-stretch pointer-events-none"
+            >
+                {/* Left drag area - skips sidebar width (240px = w-60) */}
+                <div className="w-60 shrink-0" />
+
+                {/* Center drag area - draggable */}
+                <div
+                    data-tauri-drag-region
+                    className="flex-1 cursor-move pointer-events-auto"
+                    style={{ WebkitAppRegion: 'drag' } as React.CSSProperties}
+                />
+
+                {/* Right side - window controls take their own space */}
+                <div className="w-[120px] shrink-0" />
+            </div>
 
             {/* Floating window controls - top right */}
             <div className="fixed top-0 right-0 z-[9999] flex items-center">
