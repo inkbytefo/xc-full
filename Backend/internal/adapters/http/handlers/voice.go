@@ -125,6 +125,7 @@ func (h *VoiceHandler) CreateVoiceChannel(c *fiber.Ctx) error {
 		UserLimit:   req.UserLimit,
 		Bitrate:     64,
 		LiveKitRoom: roomName,
+		ParentID:    req.ParentID,
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}

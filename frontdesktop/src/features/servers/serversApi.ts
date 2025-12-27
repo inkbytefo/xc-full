@@ -164,7 +164,7 @@ export async function fetchChannels(serverId: string): Promise<Channel[]> {
 // Create a channel
 export async function createChannel(serverId: string, data: {
     name: string;
-    type?: "text" | "voice" | "video" | "announcement" | "stage" | "hybrid";
+    type?: "text" | "voice" | "video" | "announcement" | "stage" | "hybrid" | "category";
     description?: string;
     userLimit?: number;
     bitrate?: number;

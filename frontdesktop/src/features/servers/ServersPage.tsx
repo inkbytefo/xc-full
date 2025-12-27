@@ -662,7 +662,8 @@ export function ServersPage() {
           isOpen={showCreateChannelModal}
           onClose={() => setShowCreateChannelModal(false)}
           serverId={serverData.currentServer.id}
-          onChannelCreated={() => {
+          onChannelCreated={async () => {
+            await serverData.refreshChannels();
             setShowCreateChannelModal(false);
           }}
         />

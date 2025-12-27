@@ -254,27 +254,43 @@ type JoinRequestResponse struct {
 
 // CreateChannelRequest represents a channel creation request.
 type CreateChannelRequest struct {
-	Name        string `json:"name" validate:"required,min=1,max=100"`
-	Description string `json:"description" validate:"max=500"`
-	Type        string `json:"type" validate:"omitempty,oneof=text voice announcement"`
+	Name        string  `json:"name" validate:"required,min=1,max=100"`
+	Description string  `json:"description" validate:"max=500"`
+	Type        string  `json:"type" validate:"omitempty,oneof=text voice announcement category video stage hybrid"`
+	ParentID    *string `json:"parentId,omitempty"`
 }
 
 // UpdateChannelRequest represents a channel update request.
 type UpdateChannelRequest struct {
-	Name        string `json:"name" validate:"min=1,max=100"`
-	Description string `json:"description" validate:"max=500"`
+	Name        string  `json:"name" validate:"min=1,max=100"`
+	Description string  `json:"description" validate:"max=500"`
+	Position    *int    `json:"position,omitempty"`
+	ParentID    *string `json:"parentId,omitempty"` // Category ID for hierarchy
+}
+
+// ChannelPositionUpdate represents a single channel position update for bulk reordering.
+type ChannelPositionUpdate struct {
+	ID       string  `json:"id" validate:"required"`
+	Position int     `json:"position"`
+	ParentID *string `json:"parentId,omitempty"`
+}
+
+// ReorderChannelsRequest represents a bulk channel reorder request.
+type ReorderChannelsRequest struct {
+	Updates []ChannelPositionUpdate `json:"updates" validate:"required,min=1"`
 }
 
 // ChannelResponse represents a channel in API responses.
 type ChannelResponse struct {
-	ID          string `json:"id"`
-	ServerID    string `json:"serverId"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Type        string `json:"type"`
-	Position    int    `json:"position"`
-	IsPrivate   bool   `json:"isPrivate"`
-	CreatedAt   string `json:"createdAt,omitempty"`
+	ID          string  `json:"id"`
+	ServerID    string  `json:"serverId"`
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
+	Type        string  `json:"type"`
+	Position    int     `json:"position"`
+	ParentID    *string `json:"parentId,omitempty"`
+	IsPrivate   bool    `json:"isPrivate"`
+	CreatedAt   string  `json:"createdAt,omitempty"`
 }
 
 // === Feed DTOs ===
@@ -517,10 +533,11 @@ type SearchPostResult struct {
 
 // CreateVoiceChannelRequest represents a request to create a voice channel.
 type CreateVoiceChannelRequest struct {
-	Name      string `json:"name" validate:"required,min=1,max=100"`
-	Type      string `json:"type"` // voice, video, stage
-	Position  int    `json:"position"`
-	UserLimit int    `json:"userLimit"` // 0 = unlimited
+	Name      string  `json:"name" validate:"required,min=1,max=100"`
+	Type      string  `json:"type"` // voice, video, stage
+	Position  int     `json:"position"`
+	UserLimit int     `json:"userLimit"` // 0 = unlimited
+	ParentID  *string `json:"parentId,omitempty"`
 }
 
 // VoiceChannelResponse represents a voice channel in API responses.

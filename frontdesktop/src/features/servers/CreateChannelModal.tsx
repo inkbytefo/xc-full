@@ -13,7 +13,7 @@ interface CreateChannelModalProps {
     onChannelCreated: () => void;
 }
 
-type ChannelType = "text" | "voice" | "announcement";
+type ChannelType = "text" | "voice" | "announcement" | "category";
 
 const CHANNEL_TYPES: { type: ChannelType; label: string; icon: string; description: string }[] = [
     {
@@ -33,6 +33,12 @@ const CHANNEL_TYPES: { type: ChannelType; label: string; icon: string; descripti
         label: "Duyuru Kanalı",
         icon: "📢",
         description: "Sadece yöneticiler mesaj gönderebilir",
+    },
+    {
+        type: "category",
+        label: "Kategori",
+        icon: "📁",
+        description: "Kanalları gruplamak için başlık",
     },
 ];
 
@@ -64,7 +70,11 @@ export function CreateChannelModal({
         setLoading(true);
         setError(null);
 
-        const channelName = name.trim().toLowerCase().replace(/\s+/g, "-");
+        let channelName = name.trim();
+        // Text/Voice channels usually use kebab-case, Categories can be free-text
+        if (type !== "category") {
+            channelName = channelName.toLowerCase().replace(/\s+/g, "-");
+        }
 
         try {
             // Voice channels use a different API endpoint and table
@@ -164,7 +174,7 @@ export function CreateChannelModal({
                         </label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-lg">
-                                {type === "text" ? "#" : type === "voice" ? "🔊" : "📢"}
+                                {type === "text" ? "#" : type === "voice" ? "🔊" : type === "announcement" ? "📢" : "📁"}
                             </span>
                             <input
                                 id="channel-name"
@@ -177,7 +187,7 @@ export function CreateChannelModal({
                             />
                         </div>
                         <p className="text-xs text-zinc-500 mt-1">
-                            Boşluklar tire (-) ile değiştirilir, küçük harfe çevrilir
+                            {type !== "category" ? "Boşluklar tire (-) ile değiştirilir, küçük harfe çevrilir" : "Kategori isimleri serbest formatta olabilir"}
                         </p>
                     </div>
 

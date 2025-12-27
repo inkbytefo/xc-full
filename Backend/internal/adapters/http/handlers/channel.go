@@ -75,6 +75,7 @@ func (h *ChannelHandler) Create(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		Type:        channel.ChannelType(channelType),
+		ParentID:    req.ParentID,
 		UserID:      userID,
 	})
 
@@ -108,6 +109,8 @@ func (h *ChannelHandler) Update(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		UserID:      userID,
+		Position:    req.Position,
+		ParentID:    req.ParentID,
 	})
 
 	if err != nil {
@@ -131,6 +134,49 @@ func (h *ChannelHandler) Delete(c *fiber.Ctx) error {
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// Reorder reorders channels.
+// PATCH /servers/:id/channels/reorder
+func (h *ChannelHandler) Reorder(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	var req dto.ReorderChannelsRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if err := dto.Validate(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"VALIDATION_ERROR",
+			err.Error(),
+		))
+	}
+
+	updates := make([]channelApp.ChannelPositionUpdate, len(req.Updates))
+	for i, u := range req.Updates {
+		updates[i] = channelApp.ChannelPositionUpdate{
+			ID:       u.ID,
+			Position: u.Position,
+			ParentID: u.ParentID,
+		}
+	}
+
+	err := h.channelService.Reorder(c.Context(), channelApp.ReorderCommand{
+		ServerID: serverID,
+		UserID:   userID,
+		Updates:  updates,
+	})
+
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusOK)
 }
 
 type AckRequest struct {
@@ -202,6 +248,7 @@ func channelToDTO(ch *channel.Channel) dto.ChannelResponse {
 		Description: ch.Description,
 		Type:        string(ch.Type),
 		Position:    ch.Position,
+		ParentID:    ch.ParentID,
 		IsPrivate:   ch.IsPrivate,
 		CreatedAt:   ch.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
 	}

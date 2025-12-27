@@ -125,6 +125,7 @@ func Setup(app *fiber.App, cfg *Config) {
 	// Channel routes
 	servers.Get("/:id/channels", cfg.ChannelHandler.List)
 	servers.Post("/:id/channels", cfg.ChannelHandler.Create)
+	servers.Patch("/:id/channels/reorder", cfg.ChannelHandler.Reorder)
 	servers.Patch("/:id/channels/:chId", cfg.ChannelHandler.Update)
 	servers.Delete("/:id/channels/:chId", cfg.ChannelHandler.Delete)
 	servers.Post("/:id/channels/:chId/ack", cfg.ChannelHandler.Ack)

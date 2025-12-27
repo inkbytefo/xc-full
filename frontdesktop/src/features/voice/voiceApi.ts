@@ -42,7 +42,7 @@ export async function getVoiceChannels(serverId: string): Promise<Channel[]> {
 // Create a voice channel
 export async function createVoiceChannel(
     serverId: string,
-    data: { name: string; type?: "voice" | "video" | "stage"; position?: number; userLimit?: number }
+    data: { name: string; type?: "voice" | "video" | "stage"; position?: number; userLimit?: number; parentId?: string }
 ): Promise<Channel> {
     const res = await api.post<{ data: Channel }>(
         `/api/v1/servers/${serverId}/voice-channels`,
