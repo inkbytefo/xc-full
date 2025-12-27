@@ -13,8 +13,8 @@ interface CreateChannelModalProps {
     parentId?: string; // Pre-selected category
 }
 
-// All channel types supported by backend
-type ChannelType = "text" | "voice" | "video" | "announcement" | "category" | "stage" | "hybrid";
+// Simplified channel types: text, announcement, hybrid, category
+type ChannelType = "text" | "announcement" | "hybrid" | "category";
 
 interface ChannelTypeOption {
     type: ChannelType;
@@ -28,31 +28,13 @@ const CHANNEL_TYPES: ChannelTypeOption[] = [
         type: "text",
         label: "Metin Kanalı",
         icon: "#",
-        description: "Metin tabanlı sohbet kanalı",
-    },
-    {
-        type: "voice",
-        label: "Ses Kanalı",
-        icon: "🔊",
-        description: "Sesli iletişim kanalı",
-    },
-    {
-        type: "video",
-        label: "Video Kanalı",
-        icon: "📹",
-        description: "Görüntülü görüşme kanalı",
+        description: "Sadece metin tabanlı sohbet",
     },
     {
         type: "announcement",
         label: "Duyuru Kanalı",
         icon: "📢",
         description: "Sadece yöneticiler mesaj gönderebilir",
-    },
-    {
-        type: "stage",
-        label: "Sahne Kanalı",
-        icon: "🎭",
-        description: "Konuşmacı ve dinleyici modlu webinar",
     },
     {
         type: "hybrid",
@@ -178,8 +160,8 @@ export function CreateChannelModal({
                                     type="button"
                                     onClick={() => setType(ct.type)}
                                     className={`p-2.5 rounded-lg border text-left transition-all ${type === ct.type
-                                            ? "border-purple-500 bg-purple-500/10"
-                                            : "border-white/10 bg-white/5 hover:bg-white/10"
+                                        ? "border-purple-500 bg-purple-500/10"
+                                        : "border-white/10 bg-white/5 hover:bg-white/10"
                                         }`}
                                 >
                                     <div className="flex items-center gap-2">

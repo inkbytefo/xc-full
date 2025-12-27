@@ -214,20 +214,22 @@ export function ChannelSidebar({
         });
     };
 
-    // Get uncategorized channels
+    // Get uncategorized channels (text and hybrid - both show chat)
     const uncategorizedChannels = useMemo(() => {
         return groupedChannels.get(null) || [];
     }, [groupedChannels]);
 
+    // All non-category channels are displayed as text channels now (text + announcement + hybrid)
     const uncategorizedText = useMemo(() =>
-        uncategorizedChannels.filter(c => c.type === "text" || c.type === "announcement"),
+        uncategorizedChannels.filter(c => c.type === "text" || c.type === "announcement" || c.type === "hybrid"),
         [uncategorizedChannels]
     );
 
-    // Uncategorized voice channels from unified API
+    // Legacy voice channels from old API - kept for backward compatibility
+    // These will be empty since we no longer have voice/video/stage types
     const uncategorizedVoice = useMemo(() =>
         uncategorizedChannels.filter(c =>
-            c.type === "voice" || c.type === "video" || c.type === "stage" || c.type === "hybrid"
+            c.type === "voice" || c.type === "video" || c.type === "stage"
         ),
         [uncategorizedChannels]
     );

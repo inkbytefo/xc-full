@@ -21,18 +21,15 @@ type ChannelType string
 
 const (
 	TypeText         ChannelType = "text"         // Text-only chat channel
-	TypeVoice        ChannelType = "voice"        // Voice-only channel
-	TypeVideo        ChannelType = "video"        // Video-enabled voice channel
 	TypeAnnouncement ChannelType = "announcement" // Broadcast channel (read-only for most)
 	TypeCategory     ChannelType = "category"     // Category container for organizing channels
-	TypeStage        ChannelType = "stage"        // Webinar-style (speakers + listeners)
-	TypeHybrid       ChannelType = "hybrid"       // Text + Voice + Video combined (Discord-style)
+	TypeHybrid       ChannelType = "hybrid"       // Text + Voice + Video combined
 )
 
 // IsValid checks if the channel type is valid.
 func (t ChannelType) IsValid() bool {
 	switch t {
-	case TypeText, TypeVoice, TypeVideo, TypeAnnouncement, TypeCategory, TypeStage, TypeHybrid:
+	case TypeText, TypeAnnouncement, TypeCategory, TypeHybrid:
 		return true
 	}
 	return false
@@ -45,7 +42,7 @@ func (t ChannelType) IsCategory() bool {
 
 // IsVoiceEnabled checks if this channel type supports voice/video.
 func (t ChannelType) IsVoiceEnabled() bool {
-	return t == TypeVoice || t == TypeVideo || t == TypeStage || t == TypeHybrid
+	return t == TypeHybrid
 }
 
 // IsTextEnabled checks if this channel type supports text messages.

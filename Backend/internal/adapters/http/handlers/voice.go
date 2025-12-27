@@ -103,14 +103,8 @@ func (h *VoiceHandler) CreateVoiceChannel(c *fiber.Ctx) error {
 		))
 	}
 
-	channelType := channel.TypeVoice
-	if req.Type == "video" {
-		channelType = channel.TypeVideo
-	} else if req.Type == "stage" {
-		channelType = channel.TypeStage
-	} else if req.Type == "hybrid" {
-		channelType = channel.TypeHybrid
-	}
+	// All voice-enabled channels are now hybrid type
+	channelType := channel.TypeHybrid
 
 	now := time.Now()
 	channelID := generateVoiceChannelID()
