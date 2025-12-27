@@ -36,6 +36,10 @@ interface UseServerDataReturn {
     infoChannels: Channel[];
     textChannels: Channel[];
 
+    // Category hierarchy
+    categories: Channel[];
+    groupedChannels: Map<string | null, Channel[]>;
+
     // Loading states
     loading: boolean;
     isInitialLoadComplete: boolean;
@@ -108,6 +112,35 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     const textChannels = useMemo(() => channels.filter(
         (c) => c.type === "text" && !infoChannels.includes(c)
     ), [channels, infoChannels]);
+
+    // Category channels (for hierarchy display)
+    const categories = useMemo(() => channels.filter(
+        (c) => c.type === "category"
+    ).sort((a, b) => a.position - b.position), [channels]);
+
+    // Grouped channels by category (for dynamic sidebar)
+    const groupedChannels = useMemo(() => {
+        const groups = new Map<string | null, typeof channels>();
+
+        // Initialize with null key for uncategorized
+        groups.set(null, []);
+
+        // Initialize category groups
+        categories.forEach(cat => groups.set(cat.id, []));
+
+        // Group non-category channels
+        channels.forEach(ch => {
+            if (ch.type === "category") return;
+            const parentKey = ch.parentId || null;
+            const group = groups.get(parentKey) || groups.get(null)!;
+            group.push(ch);
+        });
+
+        // Sort each group by position
+        groups.forEach(group => group.sort((a, b) => a.position - b.position));
+
+        return groups;
+    }, [channels, categories]);
 
     // Loading states
     const loading = serversLoading;
@@ -257,6 +290,8 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         currentChannel,
         infoChannels,
         textChannels,
+        categories,
+        groupedChannels,
         loading,
         isInitialLoadComplete,
         channelsLoading: channelsLoading || voiceLoading,

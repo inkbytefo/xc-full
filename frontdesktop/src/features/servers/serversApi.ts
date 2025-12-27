@@ -194,6 +194,46 @@ export async function deleteChannel(serverId: string, channelId: string): Promis
     await api.delete(`/api/v1/servers/${serverId}/channels/${channelId}`);
 }
 
+// Update channel position (single channel)
+export async function updateChannelPosition(
+    serverId: string,
+    channelId: string,
+    position: number,
+    parentId?: string | null
+): Promise<Channel> {
+    const res = await api.patch<{ data: Channel }>(`/api/v1/servers/${serverId}/channels/${channelId}`, {
+        position,
+        ...(parentId !== undefined && { parentId }),
+    });
+    return res.data;
+}
+
+// Bulk update channel positions (for drag and drop)
+export interface ChannelPositionUpdate {
+    id: string;
+    position: number;
+    parentId?: string | null;
+}
+
+export async function reorderChannels(
+    serverId: string,
+    updates: ChannelPositionUpdate[]
+): Promise<void> {
+    // Try bulk endpoint first, fallback to individual updates
+    try {
+        await api.patch(`/api/v1/servers/${serverId}/channels/reorder`, { updates });
+    } catch (error) {
+        // Fallback: update each channel individually
+        console.warn("Bulk reorder not available, using individual updates");
+        for (const update of updates) {
+            await api.patch(`/api/v1/servers/${serverId}/channels/${update.id}`, {
+                position: update.position,
+                ...(update.parentId !== undefined && { parentId: update.parentId }),
+            });
+        }
+    }
+}
+
 // ============================================================================
 // Channel Message Endpoints
 // ============================================================================

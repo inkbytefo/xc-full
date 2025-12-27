@@ -324,8 +324,9 @@ export function ServersPage() {
 
             {/* Channel Sidebar */}
             <ChannelSidebar
-              infoChannels={serverData.infoChannels}
-              textChannels={serverData.textChannels}
+              serverId={serverData.currentServer?.id || ""}
+              categories={serverData.categories}
+              groupedChannels={serverData.groupedChannels}
               voiceChannels={serverData.voiceChannels}
               selectedChannel={serverData.selectedChannel}
               activeVoiceChannelId={voiceStore.activeChannelId}
@@ -337,7 +338,6 @@ export function ServersPage() {
               onSelectChannel={handleSelectChannel}
               onVoiceChannelClick={handleVoiceChannelClick}
               onAddChannel={() => setShowCreateChannelModal(true)}
-              onAddVoiceChannel={() => setShowCreateChannelModal(true)}
               onEditChannel={(channel) => {
                 // TODO: Open edit channel modal
                 console.log("Edit channel:", channel);
@@ -345,25 +345,26 @@ export function ServersPage() {
               onDeleteChannel={async (channel) => {
                 if (confirm(`"${channel.name}" kanalını silmek istediğinize emin misiniz?`)) {
                   try {
-                    await import("./serversApi").then(m => m.deleteChannel(serverData.currentServer!.id, channel.id));
+                    // Determine if it's a voice channel or text channel
+                    if (channel.type === "voice" || channel.type === "video" || channel.type === "stage") {
+                      await import("../voice/voiceApi").then(m => m.deleteVoiceChannel(channel.id));
+                    } else {
+                      await import("./serversApi").then(m => m.deleteChannel(serverData.currentServer!.id, channel.id));
+                    }
                     await serverData.refreshChannels();
                   } catch (err) {
                     console.error("Failed to delete channel:", err);
                   }
                 }
               }}
-              onEditVoiceChannel={(channel) => {
-                // TODO: Open edit voice channel modal
-                console.log("Edit voice channel:", channel);
-              }}
-              onDeleteVoiceChannel={async (channel) => {
-                if (confirm(`"${channel.name}" ses kanalını silmek istediğinize emin misiniz?`)) {
-                  try {
-                    await import("../voice/voiceApi").then(m => m.deleteVoiceChannel(channel.id));
-                    await serverData.refreshChannels();
-                  } catch (err) {
-                    console.error("Failed to delete voice channel:", err);
-                  }
+              onReorderChannels={async (updates) => {
+                if (!serverData.currentServer) return;
+                try {
+                  const { reorderChannels } = await import("./serversApi");
+                  await reorderChannels(serverData.currentServer.id, updates);
+                  await serverData.refreshChannels();
+                } catch (err) {
+                  console.error("Failed to reorder channels:", err);
                 }
               }}
             />
