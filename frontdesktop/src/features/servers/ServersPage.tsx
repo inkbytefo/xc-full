@@ -405,9 +405,9 @@ export function ServersPage() {
             }}
           />
         ) : isViewingVoiceRoom &&
-        voiceStore.activeChannel &&
-        serverData.currentServer &&
-        voiceStore.activeChannel.serverId === serverData.currentServer.id ? (
+          voiceStore.activeChannel &&
+          serverData.currentServer &&
+          voiceStore.activeChannel.serverId === serverData.currentServer.id ? (
           <div className="flex-1 flex min-h-0">
             <div className="flex-1 min-h-0 flex flex-col">
               {voiceStore.activeChannel.type === "video" ? (
@@ -633,6 +633,7 @@ export function ServersPage() {
           members={members.members}
           membersByRole={members.membersByRole}
           loading={members.loading}
+          serverId={serverData.currentServer.id}
         />
       )}
 

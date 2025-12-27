@@ -29,13 +29,14 @@ func NewChannelRepository(pool *pgxpool.Pool) *ChannelRepository {
 // FindByID finds a channel by its ID.
 func (r *ChannelRepository) FindByID(ctx context.Context, id string) (*channel.Channel, error) {
 	query := `
-		SELECT id, server_id, parent_id, name, description, type, position, is_private, created_at, updated_at
+		SELECT id, server_id, parent_id, name, description, type, position, is_private, 
+		       user_limit, bitrate, livekit_room, created_at, updated_at
 		FROM channels
 		WHERE id = $1
 	`
 
 	var ch channel.Channel
-	var desc, parentID *string
+	var desc, parentID, livekitRoom *string
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&ch.ID,
@@ -46,6 +47,9 @@ func (r *ChannelRepository) FindByID(ctx context.Context, id string) (*channel.C
 		&ch.Type,
 		&ch.Position,
 		&ch.IsPrivate,
+		&ch.UserLimit,
+		&ch.Bitrate,
+		&livekitRoom,
 		&ch.CreatedAt,
 		&ch.UpdatedAt,
 	)
@@ -61,6 +65,15 @@ func (r *ChannelRepository) FindByID(ctx context.Context, id string) (*channel.C
 		ch.Description = *desc
 	}
 	ch.ParentID = parentID
+	if livekitRoom != nil {
+		ch.LiveKitRoom = *livekitRoom
+	}
+
+	// Get participant count for voice-enabled channels
+	if ch.Type.IsVoiceEnabled() {
+		count, _ := r.getParticipantCount(ctx, id)
+		ch.ParticipantCount = count
+	}
 
 	return &ch, nil
 }
@@ -68,7 +81,8 @@ func (r *ChannelRepository) FindByID(ctx context.Context, id string) (*channel.C
 // FindByServerID finds all channels in a server.
 func (r *ChannelRepository) FindByServerID(ctx context.Context, serverID string) ([]*channel.Channel, error) {
 	query := `
-		SELECT id, server_id, parent_id, name, description, type, position, is_private, created_at, updated_at
+		SELECT id, server_id, parent_id, name, description, type, position, is_private,
+		       user_limit, bitrate, livekit_room, created_at, updated_at
 		FROM channels
 		WHERE server_id = $1
 		ORDER BY position, created_at
@@ -83,7 +97,7 @@ func (r *ChannelRepository) FindByServerID(ctx context.Context, serverID string)
 	var channels []*channel.Channel
 	for rows.Next() {
 		var ch channel.Channel
-		var desc, parentID *string
+		var desc, parentID, livekitRoom *string
 
 		err := rows.Scan(
 			&ch.ID,
@@ -94,6 +108,9 @@ func (r *ChannelRepository) FindByServerID(ctx context.Context, serverID string)
 			&ch.Type,
 			&ch.Position,
 			&ch.IsPrivate,
+			&ch.UserLimit,
+			&ch.Bitrate,
+			&livekitRoom,
 			&ch.CreatedAt,
 			&ch.UpdatedAt,
 		)
@@ -105,6 +122,9 @@ func (r *ChannelRepository) FindByServerID(ctx context.Context, serverID string)
 			ch.Description = *desc
 		}
 		ch.ParentID = parentID
+		if livekitRoom != nil {
+			ch.LiveKitRoom = *livekitRoom
+		}
 
 		channels = append(channels, &ch)
 	}
@@ -163,13 +183,17 @@ func (r *ChannelRepository) FindCategories(ctx context.Context, serverID string)
 func (r *ChannelRepository) Create(ctx context.Context, ch *channel.Channel) error {
 	query := `
 		INSERT INTO channels (
-			id, server_id, parent_id, name, description, type, position, is_private, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			id, server_id, parent_id, name, description, type, position, is_private,
+			user_limit, bitrate, livekit_room, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
 	`
 
-	var desc *string
+	var desc, livekitRoom *string
 	if ch.Description != "" {
 		desc = &ch.Description
+	}
+	if ch.LiveKitRoom != "" {
+		livekitRoom = &ch.LiveKitRoom
 	}
 
 	_, err := r.pool.Exec(ctx, query,
@@ -181,6 +205,9 @@ func (r *ChannelRepository) Create(ctx context.Context, ch *channel.Channel) err
 		ch.Type,
 		ch.Position,
 		ch.IsPrivate,
+		ch.UserLimit,
+		ch.Bitrate,
+		livekitRoom,
 		ch.CreatedAt,
 		ch.UpdatedAt,
 	)
@@ -202,13 +229,19 @@ func (r *ChannelRepository) Update(ctx context.Context, ch *channel.Channel) err
 			type = $5,
 			position = $6,
 			is_private = $7,
+			user_limit = $8,
+			bitrate = $9,
+			livekit_room = $10,
 			updated_at = NOW()
 		WHERE id = $1
 	`
 
-	var desc *string
+	var desc, livekitRoom *string
 	if ch.Description != "" {
 		desc = &ch.Description
+	}
+	if ch.LiveKitRoom != "" {
+		livekitRoom = &ch.LiveKitRoom
 	}
 
 	result, err := r.pool.Exec(ctx, query,
@@ -219,6 +252,9 @@ func (r *ChannelRepository) Update(ctx context.Context, ch *channel.Channel) err
 		ch.Type,
 		ch.Position,
 		ch.IsPrivate,
+		ch.UserLimit,
+		ch.Bitrate,
+		livekitRoom,
 	)
 
 	if err != nil {
@@ -268,6 +304,98 @@ func (r *ChannelRepository) ReorderChannels(ctx context.Context, serverID string
 	}
 
 	return tx.Commit(ctx)
+}
+
+// FindVoiceEnabled finds all voice-enabled channels in a server.
+func (r *ChannelRepository) FindVoiceEnabled(ctx context.Context, serverID string) ([]*channel.Channel, error) {
+	query := `
+		SELECT id, server_id, parent_id, name, description, type, position, is_private,
+		       user_limit, bitrate, livekit_room, created_at, updated_at
+		FROM channels
+		WHERE server_id = $1 AND type IN ('voice', 'video', 'stage', 'hybrid')
+		ORDER BY position, created_at
+	`
+
+	rows, err := r.pool.Query(ctx, query, serverID)
+	if err != nil {
+		return nil, fmt.Errorf("query voice-enabled channels: %w", err)
+	}
+	defer rows.Close()
+
+	var channels []*channel.Channel
+	for rows.Next() {
+		var ch channel.Channel
+		var desc, parentID, livekitRoom *string
+
+		err := rows.Scan(
+			&ch.ID,
+			&ch.ServerID,
+			&parentID,
+			&ch.Name,
+			&desc,
+			&ch.Type,
+			&ch.Position,
+			&ch.IsPrivate,
+			&ch.UserLimit,
+			&ch.Bitrate,
+			&livekitRoom,
+			&ch.CreatedAt,
+			&ch.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan voice channel: %w", err)
+		}
+
+		if desc != nil {
+			ch.Description = *desc
+		}
+		ch.ParentID = parentID
+		if livekitRoom != nil {
+			ch.LiveKitRoom = *livekitRoom
+		}
+
+		// Get participant count
+		count, _ := r.getParticipantCount(ctx, ch.ID)
+		ch.ParticipantCount = count
+
+		channels = append(channels, &ch)
+	}
+
+	return channels, nil
+}
+
+// UpdateLiveKitRoom updates the LiveKit room name for a channel.
+func (r *ChannelRepository) UpdateLiveKitRoom(ctx context.Context, id, roomName string) error {
+	query := `UPDATE channels SET livekit_room = $2, updated_at = NOW() WHERE id = $1`
+
+	var room *string
+	if roomName != "" {
+		room = &roomName
+	}
+
+	result, err := r.pool.Exec(ctx, query, id, room)
+	if err != nil {
+		return fmt.Errorf("update livekit room: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return channel.ErrNotFound
+	}
+
+	return nil
+}
+
+// getParticipantCount gets the number of participants in a voice channel.
+func (r *ChannelRepository) getParticipantCount(ctx context.Context, channelID string) (int, error) {
+	query := `SELECT COUNT(*) FROM voice_participants WHERE channel_id = $1`
+
+	var count int
+	err := r.pool.QueryRow(ctx, query, channelID).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
 }
 
 // ============================================================================

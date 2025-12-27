@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { Channel } from "../../../api/types";
-import type { VoiceChannel } from "../../voice/voiceApi";
 import { HashIcon, ChevronDownIcon, VolumeIcon, VideoIcon, StageIcon } from "./Icons";
 
 interface CategoryState {
@@ -12,7 +11,7 @@ interface CategoryState {
 interface ChannelSidebarProps {
     infoChannels: Channel[];
     textChannels: Channel[];
-    voiceChannels: VoiceChannel[];
+    voiceChannels: Channel[];
     selectedChannel: string | null;
     activeVoiceChannelId: string | null;
     isVoiceConnected: boolean;
@@ -32,8 +31,8 @@ interface ChannelSidebarProps {
     onAddVoiceChannel?: () => void;
     onEditChannel?: (channel: Channel) => void;
     onDeleteChannel?: (channel: Channel) => void;
-    onEditVoiceChannel?: (channel: VoiceChannel) => void;
-    onDeleteVoiceChannel?: (channel: VoiceChannel) => void;
+    onEditVoiceChannel?: (channel: Channel) => void;
+    onDeleteVoiceChannel?: (channel: Channel) => void;
 }
 
 export function ChannelSidebar({
@@ -241,7 +240,7 @@ function TextChannelItem({ channel, isSelected, canManage, onClick, onEdit, onDe
 }
 
 interface VoiceChannelItemProps {
-    channel: VoiceChannel;
+    channel: Channel;
     isActive: boolean;
     isConnecting: boolean;
     participants: Array<{
@@ -293,7 +292,7 @@ function VoiceChannelItem({
                     {isConnecting && (
                         <div className="h-3 w-3 animate-spin rounded-full border border-yellow-400 border-t-transparent" />
                     )}
-                    {channel.participantCount > 0 && !isActive && (
+                    {(channel.participantCount ?? 0) > 0 && !isActive && (
                         <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded">
                             {channel.participantCount}
                         </span>

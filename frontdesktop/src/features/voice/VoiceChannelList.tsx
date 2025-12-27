@@ -77,7 +77,7 @@ export function VoiceChannelList({ serverId }: VoiceChannelListProps) {
                                 {channel.type === "video" ? "📹" : channel.type === "stage" ? "🎭" : "🔊"}
                             </span>
                             <span className="flex-1 truncate">{channel.name}</span>
-                            {channel.participantCount > 0 && (
+                            {(channel.participantCount ?? 0) > 0 && (
                                 <span className="text-xs bg-white/10 px-1.5 py-0.5 rounded">
                                     {channel.participantCount}
                                 </span>

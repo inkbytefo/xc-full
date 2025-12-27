@@ -10,15 +10,15 @@ import (
 	"github.com/google/uuid"
 
 	"xcord/internal/adapters/http/dto"
+	"xcord/internal/domain/channel"
 	"xcord/internal/domain/server"
 	"xcord/internal/domain/user"
-	"xcord/internal/domain/voice"
 	"xcord/internal/infrastructure/livekit"
 )
 
-// VoiceHandler handles voice/video channel requests.
+// VoiceHandler handles voice/video channel requests using unified channel system.
 type VoiceHandler struct {
-	channelRepo voice.ChannelRepository
+	channelRepo channel.Repository
 	memberRepo  server.MemberRepository
 	serverRepo  server.Repository
 	userRepo    user.Repository
@@ -27,7 +27,7 @@ type VoiceHandler struct {
 
 // NewVoiceHandler creates a new VoiceHandler.
 func NewVoiceHandler(
-	channelRepo voice.ChannelRepository,
+	channelRepo channel.Repository,
 	memberRepo server.MemberRepository,
 	serverRepo server.Repository,
 	userRepo user.Repository,
@@ -57,7 +57,7 @@ func (h *VoiceHandler) GetVoiceChannels(c *fiber.Ctx) error {
 		))
 	}
 
-	channels, err := h.channelRepo.FindByServerID(c.Context(), serverID)
+	channels, err := h.channelRepo.FindVoiceEnabled(c.Context(), serverID)
 	if err != nil {
 		slog.Error("get voice channels error", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
@@ -103,18 +103,20 @@ func (h *VoiceHandler) CreateVoiceChannel(c *fiber.Ctx) error {
 		))
 	}
 
-	channelType := voice.TypeVoice
+	channelType := channel.TypeVoice
 	if req.Type == "video" {
-		channelType = voice.TypeVideo
+		channelType = channel.TypeVideo
 	} else if req.Type == "stage" {
-		channelType = voice.TypeStage
+		channelType = channel.TypeStage
+	} else if req.Type == "hybrid" {
+		channelType = channel.TypeHybrid
 	}
 
 	now := time.Now()
 	channelID := generateVoiceChannelID()
 	roomName := channelID
 
-	channel := &voice.VoiceChannel{
+	newChannel := &channel.Channel{
 		ID:          channelID,
 		ServerID:    serverID,
 		Name:        req.Name,
@@ -127,7 +129,7 @@ func (h *VoiceHandler) CreateVoiceChannel(c *fiber.Ctx) error {
 		UpdatedAt:   now,
 	}
 
-	if err := h.channelRepo.Create(c.Context(), channel); err != nil {
+	if err := h.channelRepo.Create(c.Context(), newChannel); err != nil {
 		slog.Error("create voice channel error", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
 			"INTERNAL_ERROR",
@@ -136,7 +138,7 @@ func (h *VoiceHandler) CreateVoiceChannel(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"data": voiceChannelToDTO(channel),
+		"data": voiceChannelToDTO(newChannel),
 	})
 }
 
@@ -212,6 +214,22 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 		))
 	}
 
+	// Check for timeout
+	member, err := h.memberRepo.FindByServerAndUser(c.Context(), channel.ServerID, userID)
+	if err != nil {
+		slog.Error("find member error", slog.Any("error", err))
+		// Continue but assume no timeout check possible - or fail? Failing is safer.
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to verify member status",
+		))
+	}
+
+	canPublish := true
+	if member.IsTimedOut() {
+		canPublish = false
+	}
+
 	// Fetch user for metadata
 	u, err := h.userRepo.FindByID(c.Context(), userID)
 	if err != nil {
@@ -227,7 +245,7 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 	}
 
 	// Generate token
-	token, err := h.livekit.GenerateToken(userID, channel.LiveKitRoom, metadata, true, true, 24*time.Hour)
+	token, err := h.livekit.GenerateToken(userID, channel.LiveKitRoom, metadata, canPublish, true, 24*time.Hour)
 	if err != nil {
 		slog.Error("generate token error", slog.Any("error", err))
 		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
@@ -307,7 +325,7 @@ func (h *VoiceHandler) canManageChannels(c *fiber.Ctx, serverID, userID string) 
 
 func (h *VoiceHandler) handleError(c *fiber.Ctx, err error) error {
 	switch {
-	case errors.Is(err, voice.ErrChannelNotFound):
+	case errors.Is(err, channel.ErrNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
 			"NOT_FOUND",
 			"Voice channel not found",
@@ -321,7 +339,7 @@ func (h *VoiceHandler) handleError(c *fiber.Ctx, err error) error {
 	}
 }
 
-func voiceChannelToDTO(ch *voice.VoiceChannel) dto.VoiceChannelResponse {
+func voiceChannelToDTO(ch *channel.Channel) dto.VoiceChannelResponse {
 	return dto.VoiceChannelResponse{
 		ID:               ch.ID,
 		ServerID:         ch.ServerID,

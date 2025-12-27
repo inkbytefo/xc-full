@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useServer, useServerMembers, useJoinServer, serverKeys } from "../../lib/query";
 import { useQueryClient } from "@tanstack/react-query";
-import { getServer, getServerMembers, joinServer } from "./serversApi";
-import type { Server, ServerMember } from "../../api/types";
-import { serverKeys } from "../../lib/query";
 import { useAuthStore } from "../../store/authStore";
 
 export function ServerProfilePage() {
@@ -12,58 +10,52 @@ export function ServerProfilePage() {
     const queryClient = useQueryClient();
     const currentUser = useAuthStore((s) => s.user);
 
-    const [server, setServer] = useState<Server | null>(null);
-    const [members, setMembers] = useState<ServerMember[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [joining, setJoining] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [isMember, setIsMember] = useState(false);
+    // Join request pending state (local only)
     const [joinRequestPending, setJoinRequestPending] = useState(false);
 
-    useEffect(() => {
-        if (!serverId) return;
+    // React Query hooks
+    const {
+        data: server,
+        isLoading: serverLoading,
+        error: serverError,
+    } = useServer(serverId ?? null);
 
-        async function load() {
-            setLoading(true);
-            setError(null);
-            try {
-                const [serverData, memberData] = await Promise.all([
-                    getServer(serverId!),
-                    getServerMembers(serverId!).catch(() => []),
-                ]);
-                setServer(serverData);
-                setMembers(memberData);
-                // Check if current user is a member
-                const userIsMember = memberData.some(
-                    (m: any) => m.userId === currentUser?.id || m.user?.id === currentUser?.id
-                );
-                setIsMember(userIsMember);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Failed to load server");
-            } finally {
-                setLoading(false);
-            }
-        }
-        load();
-    }, [serverId, currentUser?.id]);
+    const {
+        data: members = [],
+        isLoading: membersLoading,
+    } = useServerMembers(serverId ?? null);
+
+    // Join server mutation
+    const joinServerMutation = useJoinServer();
+
+    // Derived state
+    const loading = serverLoading || membersLoading;
+    const error = serverError ? (serverError instanceof Error ? serverError.message : "Failed to load server") : null;
+
+    const isMember = useMemo(() => {
+        return members.some(
+            (m: any) => m.userId === currentUser?.id || m.user?.id === currentUser?.id
+        );
+    }, [members, currentUser?.id]);
+
+    const isOwner = server?.ownerId === currentUser?.id;
+    const onlineMembers = useMemo(() => {
+        return members.filter((m: any) => m.isOnline || m.user?.isOnline);
+    }, [members]);
 
     const handleJoin = async () => {
         if (!serverId) return;
-        setJoining(true);
         setJoinRequestPending(false);
         try {
-            const result = await joinServer(serverId);
+            const result = await joinServerMutation.mutateAsync(serverId);
             await queryClient.invalidateQueries({ queryKey: serverKeys.all });
             if (result.pending) {
                 setJoinRequestPending(true);
                 return;
             }
-            setIsMember(true);
             navigate(`/servers/${serverId}`);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to join server");
-        } finally {
-            setJoining(false);
+            console.error("Failed to join server:", e);
         }
     };
 
@@ -99,9 +91,6 @@ export function ServerProfilePage() {
             </div>
         );
     }
-
-    const onlineMembers = members.filter((m: any) => m.isOnline || m.user?.isOnline);
-    const isOwner = server.ownerId === currentUser?.id;
 
     return (
         <div className="flex h-full bg-[#0a0a0f]">
@@ -166,10 +155,10 @@ export function ServerProfilePage() {
                             ) : (
                                 <button
                                     onClick={handleJoin}
-                                    disabled={joining || joinRequestPending}
+                                    disabled={joinServerMutation.isPending || joinRequestPending}
                                     className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:opacity-50 text-white font-medium rounded-lg transition-all"
                                 >
-                                    {joining ? "Joining..." : joinRequestPending ? "Request Sent" : "Join Server"}
+                                    {joinServerMutation.isPending ? "Joining..." : joinRequestPending ? "Request Sent" : "Join Server"}
                                 </button>
                             )}
                             <button

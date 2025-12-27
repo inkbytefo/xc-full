@@ -125,12 +125,21 @@ type Role struct {
 
 // Member represents a server member with roles.
 type Member struct {
-	ID       string
-	ServerID string
-	UserID   string
-	Nickname string
-	JoinedAt time.Time
-	Roles    []Role // Populated when needed
+	ID                         string
+	ServerID                   string
+	UserID                     string
+	Nickname                   string
+	JoinedAt                   time.Time
+	CommunicationDisabledUntil *time.Time // Nullable for timeout
+	Roles                      []Role     // Populated when needed
+}
+
+// IsTimedOut checks if the member is currently timed out.
+func (m *Member) IsTimedOut() bool {
+	if m.CommunicationDisabledUntil == nil {
+		return false
+	}
+	return m.CommunicationDisabledUntil.After(time.Now())
 }
 
 // GetPermissions calculates the combined permissions from all roles.
@@ -191,4 +200,56 @@ type JoinRequest struct {
 	Message   string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+}
+
+// ============================================================================
+// BAN ENTITY
+// ============================================================================
+
+type Ban struct {
+	ID        string
+	ServerID  string
+	UserID    string
+	BannedBy  string
+	Reason    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// ============================================================================
+// AUDIT LOG ENTITY
+// ============================================================================
+
+type AuditLogAction string
+
+const (
+	AuditLogActionMemberKick    AuditLogAction = "MEMBER_KICK"
+	AuditLogActionMemberBan     AuditLogAction = "MEMBER_BAN"
+	AuditLogActionMemberUnban   AuditLogAction = "MEMBER_UNBAN"
+	AuditLogActionMemberTimeout AuditLogAction = "MEMBER_TIMEOUT"
+	AuditLogActionTimeoutRemove AuditLogAction = "TIMEOUT_REMOVE"
+	AuditLogActionChannelCreate AuditLogAction = "CHANNEL_CREATE"
+	AuditLogActionChannelUpdate AuditLogAction = "CHANNEL_UPDATE"
+	AuditLogActionChannelDelete AuditLogAction = "CHANNEL_DELETE"
+	AuditLogActionRoleCreate    AuditLogAction = "ROLE_CREATE"
+	AuditLogActionRoleUpdate    AuditLogAction = "ROLE_UPDATE"
+	AuditLogActionRoleDelete    AuditLogAction = "ROLE_DELETE"
+	AuditLogActionServerUpdate  AuditLogAction = "SERVER_UPDATE"
+	AuditLogActionInviteCreate  AuditLogAction = "INVITE_CREATE"
+	AuditLogActionInviteDelete  AuditLogAction = "INVITE_DELETE"
+	AuditLogActionMessageDelete AuditLogAction = "MESSAGE_DELETE"
+	AuditLogActionMessagePin    AuditLogAction = "MESSAGE_PIN"
+	AuditLogActionMessageUnpin  AuditLogAction = "MESSAGE_UNPIN"
+	AuditLogActionBotAdd        AuditLogAction = "BOT_ADD"
+)
+
+type AuditLog struct {
+	ID         string
+	ServerID   string
+	ActorID    string
+	TargetID   string
+	ActionType AuditLogAction
+	Changes    map[string]interface{}
+	Reason     string
+	CreatedAt  time.Time
 }

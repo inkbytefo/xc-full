@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
 import { BackgroundLayer } from "./components/BackgroundLayer";
 import { MainSidebar } from "./components/MainSidebar";
+import { WindowControls } from "./components/TitleBar";
 import { ProtectedRoute, PublicRoute } from "./components/AuthGuard";
 import { LoginPage } from "./features/auth/LoginPage";
 import { RegisterPage } from "./features/auth/RegisterPage";
@@ -20,10 +21,11 @@ import { GlobalVoiceSessionModal } from "./features/voice/components/GlobalVoice
  */
 function RootLayout() {
     return (
-        <div className="min-h-screen bg-transparent">
+        <div className="h-screen overflow-hidden bg-transparent">
+            <WindowControls />
             <BackgroundLayer />
             <MainSidebar />
-            <main className="relative z-10 min-h-screen pl-[72px]">
+            <main className="relative z-10 h-full pl-[72px] overflow-hidden">
                 <Outlet />
             </main>
             <GlobalVoiceSessionModal />
@@ -52,7 +54,10 @@ export const router = createBrowserRouter([
         path: "/login",
         element: (
             <PublicRoute>
-                <LoginPage />
+                <div className="h-screen overflow-hidden">
+                    <WindowControls />
+                    <LoginPage />
+                </div>
             </PublicRoute>
         ),
     },
@@ -60,7 +65,10 @@ export const router = createBrowserRouter([
         path: "/register",
         element: (
             <PublicRoute>
-                <RegisterPage />
+                <div className="h-screen overflow-hidden">
+                    <WindowControls />
+                    <RegisterPage />
+                </div>
             </PublicRoute>
         ),
     },

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Track } from "livekit-client";
-import type { VoiceChannel } from "../../voice/voiceApi";
+import type { Channel } from "../../../api/types";
 import {
     VideoIcon,
     VideoOffIcon,
@@ -25,7 +25,7 @@ interface VideoParticipant {
 }
 
 interface VideoRoomViewProps {
-    channel: VoiceChannel;
+    channel: Channel;
     participants: VideoParticipant[];
     localParticipant: VideoParticipant | null;
     isMuted: boolean;

@@ -1,4 +1,4 @@
-import type { VoiceChannel } from "../../voice/voiceApi";
+import type { Channel } from "../../../api/types";
 import {
     VolumeIcon,
     MicIcon,
@@ -13,7 +13,7 @@ import {
 import { ControlButton } from "./ControlButton";
 
 interface VoiceOverlayProps {
-    channel: VoiceChannel;
+    channel: Channel;
     participants: Array<{
         sid: string;
         identity: string;

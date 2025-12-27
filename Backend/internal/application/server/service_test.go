@@ -105,6 +105,11 @@ func (m *mockMemberRepo) IsMember(ctx context.Context, serverID, userID string) 
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *mockMemberRepo) Update(ctx context.Context, member *server.Member) error {
+	args := m.Called(ctx, member)
+	return args.Error(0)
+}
+
 type mockRoleRepo struct {
 	mock.Mock
 }
@@ -216,7 +221,7 @@ func TestService_Join_IdempotentAlreadyMember(t *testing.T) {
 	roleRepo.On("FindDefaultRole", mock.Anything, serverID).Return(&server.Role{ID: roleID}, nil)
 	memberRepo.On("AssignRole", mock.Anything, memberID, roleID).Return(nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil, nil, nil)
 
 	result, err := svc.Join(ctx, serverID, userID)
 	require.NoError(t, err)
@@ -250,7 +255,7 @@ func TestService_Join_PublicServerCreatesMemberAndIncrementsCount(t *testing.T) 
 	memberRepo.On("AssignRole", mock.Anything, mock.AnythingOfType("string"), roleID).Return(nil)
 	serverRepo.On("IncrementMemberCount", mock.Anything, serverID, 1).Return(nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil, nil, nil)
 
 	result, err := svc.Join(ctx, serverID, userID)
 	assert.NoError(t, err)
@@ -281,7 +286,7 @@ func TestService_Join_PrivateServerCreatesJoinRequest(t *testing.T) {
 		return r != nil && r.ServerID == serverID && r.UserID == userID && r.Status == server.JoinRequestStatusPending
 	})).Return(nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, joinRequestRepo)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, joinRequestRepo, nil, nil)
 
 	result, err := svc.Join(ctx, serverID, userID)
 	require.NoError(t, err)
@@ -325,7 +330,7 @@ func TestService_AcceptJoinRequest_OwnerAcceptsCreatesMember(t *testing.T) {
 	serverRepo.On("IncrementMemberCount", mock.Anything, serverID, 1).Return(nil)
 	joinRequestRepo.On("UpdateStatus", mock.Anything, serverID, targetUserID, server.JoinRequestStatusAccepted).Return(nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, joinRequestRepo)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, joinRequestRepo, nil, nil)
 
 	err := svc.AcceptJoinRequest(ctx, serverID, targetUserID, actorUserID)
 	require.NoError(t, err)
@@ -347,7 +352,7 @@ func TestService_Leave_IdempotentWhenNotMember(t *testing.T) {
 
 	memberRepo.On("IsMember", mock.Anything, serverID, userID).Return(false, nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil, nil, nil)
 
 	err := svc.Leave(ctx, serverID, userID)
 	require.NoError(t, err)
@@ -371,7 +376,7 @@ func TestService_Leave_OwnerCannotLeave(t *testing.T) {
 		OwnerID: userID,
 	}, nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil, nil, nil)
 
 	err := svc.Leave(ctx, serverID, userID)
 	assert.ErrorIs(t, err, server.ErrOwnerCannotLeave)
@@ -398,7 +403,7 @@ func TestService_Leave_MemberDeletesAndDecrementsCount(t *testing.T) {
 	memberRepo.On("Delete", mock.Anything, serverID, userID).Return(nil)
 	serverRepo.On("IncrementMemberCount", mock.Anything, serverID, -1).Return(nil)
 
-	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil)
+	svc := appserver.NewService(serverRepo, memberRepo, roleRepo, nil, nil, nil, nil)
 
 	err := svc.Leave(ctx, serverID, userID)
 	assert.NoError(t, err)

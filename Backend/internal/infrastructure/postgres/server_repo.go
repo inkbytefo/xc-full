@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -228,10 +229,15 @@ func NewMemberRepository(pool *pgxpool.Pool) *MemberRepository {
 // FindByServerID finds all members of a server.
 func (r *MemberRepository) FindByServerID(ctx context.Context, serverID string) ([]*server.Member, error) {
 	query := `
-		SELECT id, server_id, user_id, nickname, joined_at
-		FROM server_members
-		WHERE server_id = $1
-		ORDER BY joined_at
+		SELECT
+			m.id, m.server_id, m.user_id, m.nickname, m.joined_at, m.communication_disabled_until,
+			r.id, r.server_id, r.name, r.color, r.position,
+			r.permissions, r.is_default, r.is_mentionable, r.created_at, r.updated_at
+		FROM server_members m
+		LEFT JOIN member_roles mr ON mr.member_id = m.id
+		LEFT JOIN roles r ON r.id = mr.role_id
+		WHERE m.server_id = $1
+		ORDER BY m.joined_at, r.position DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query, serverID)
@@ -240,27 +246,111 @@ func (r *MemberRepository) FindByServerID(ctx context.Context, serverID string) 
 	}
 	defer rows.Close()
 
+	membersByID := make(map[string]*server.Member)
 	var members []*server.Member
 	for rows.Next() {
-		var m server.Member
 		var nickname *string
-		err := rows.Scan(&m.ID, &m.ServerID, &m.UserID, &nickname, &m.JoinedAt)
+		var memberID string
+		var srvID string
+		var userID string
+		var joinedAt time.Time
+		var commDisabledUntil *time.Time
+
+		var roleID *string
+		var roleServerID *string
+		var roleName *string
+		var roleColor *string
+		var rolePosition *int
+		var rolePermissions *int64
+		var roleIsDefault *bool
+		var roleIsMentionable *bool
+		var roleCreatedAt *time.Time
+		var roleUpdatedAt *time.Time
+
+		err := rows.Scan(
+			&memberID, &srvID, &userID, &nickname, &joinedAt, &commDisabledUntil,
+			&roleID, &roleServerID, &roleName, &roleColor, &rolePosition,
+			&rolePermissions, &roleIsDefault, &roleIsMentionable, &roleCreatedAt, &roleUpdatedAt,
+		)
 		if err != nil {
 			return nil, fmt.Errorf("scan member: %w", err)
 		}
-		if nickname != nil {
-			m.Nickname = *nickname
+
+		m, ok := membersByID[memberID]
+		if !ok {
+			m = &server.Member{
+				ID:                         memberID,
+				ServerID:                   srvID,
+				UserID:                     userID,
+				JoinedAt:                   joinedAt,
+				CommunicationDisabledUntil: commDisabledUntil,
+			}
+			if nickname != nil {
+				m.Nickname = *nickname
+			}
+			membersByID[memberID] = m
+			members = append(members, m)
 		}
-		members = append(members, &m)
+
+		if roleID != nil {
+			role := server.Role{
+				ID:            *roleID,
+				ServerID:      derefString(roleServerID),
+				Name:          derefString(roleName),
+				Color:         derefString(roleColor),
+				Position:      derefInt(rolePosition),
+				Permissions:   server.Permission(derefInt64(rolePermissions)),
+				IsDefault:     derefBool(roleIsDefault),
+				IsMentionable: derefBool(roleIsMentionable),
+				CreatedAt:     derefTime(roleCreatedAt),
+				UpdatedAt:     derefTime(roleUpdatedAt),
+			}
+			m.Roles = append(m.Roles, role)
+		}
 	}
 
 	return members, nil
 }
 
+func derefString(v *string) string {
+	if v == nil {
+		return ""
+	}
+	return *v
+}
+
+func derefInt(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+func derefInt64(v *int64) int64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+func derefBool(v *bool) bool {
+	if v == nil {
+		return false
+	}
+	return *v
+}
+
+func derefTime(v *time.Time) time.Time {
+	if v == nil {
+		return time.Time{}
+	}
+	return *v
+}
+
 // FindByServerAndUser finds a member by server and user ID.
 func (r *MemberRepository) FindByServerAndUser(ctx context.Context, serverID, userID string) (*server.Member, error) {
 	query := `
-		SELECT id, server_id, user_id, nickname, joined_at
+		SELECT id, server_id, user_id, nickname, joined_at, communication_disabled_until
 		FROM server_members
 		WHERE server_id = $1 AND user_id = $2
 	`
@@ -268,7 +358,7 @@ func (r *MemberRepository) FindByServerAndUser(ctx context.Context, serverID, us
 	var m server.Member
 	var nickname *string
 	err := r.pool.QueryRow(ctx, query, serverID, userID).Scan(
-		&m.ID, &m.ServerID, &m.UserID, &nickname, &m.JoinedAt,
+		&m.ID, &m.ServerID, &m.UserID, &nickname, &m.JoinedAt, &m.CommunicationDisabledUntil,
 	)
 
 	if err != nil {
@@ -327,8 +417,8 @@ func (r *MemberRepository) FindByServerAndUserWithRoles(ctx context.Context, ser
 // Create adds a member to a server.
 func (r *MemberRepository) Create(ctx context.Context, m *server.Member) error {
 	query := `
-		INSERT INTO server_members (id, server_id, user_id, nickname, joined_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO server_members (id, server_id, user_id, nickname, joined_at, communication_disabled_until)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 
 	var nickname *string
@@ -337,7 +427,7 @@ func (r *MemberRepository) Create(ctx context.Context, m *server.Member) error {
 	}
 
 	_, err := r.pool.Exec(ctx, query,
-		m.ID, m.ServerID, m.UserID, nickname, m.JoinedAt,
+		m.ID, m.ServerID, m.UserID, nickname, m.JoinedAt, m.CommunicationDisabledUntil,
 	)
 
 	if err != nil {
@@ -348,6 +438,29 @@ func (r *MemberRepository) Create(ctx context.Context, m *server.Member) error {
 		return fmt.Errorf("insert member: %w", err)
 	}
 
+	return nil
+}
+
+// Update updates an existing member.
+func (r *MemberRepository) Update(ctx context.Context, m *server.Member) error {
+	query := `
+		UPDATE server_members
+		SET nickname = $3, communication_disabled_until = $4
+		WHERE server_id = $1 AND user_id = $2
+	`
+
+	var nickname *string
+	if m.Nickname != "" {
+		nickname = &m.Nickname
+	}
+
+	_, err := r.pool.Exec(ctx, query,
+		m.ServerID, m.UserID, nickname, m.CommunicationDisabledUntil,
+	)
+
+	if err != nil {
+		return fmt.Errorf("update member: %w", err)
+	}
 	return nil
 }
 

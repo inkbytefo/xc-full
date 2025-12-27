@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Modal } from "../../components/Modal";
 import { useAuthStore } from "../../store/authStore";
-import { updateProfile } from "./userApi";
+import { useUpdateProfile } from "./hooks";
 import { uploadFile, isImage } from "../media/mediaApi";
 
 interface EditProfileModalProps {
@@ -24,7 +24,6 @@ const GRADIENT_OPTIONS: Array<[string, string]> = [
 
 export function EditProfileModal({ isOpen, onClose, onSave }: EditProfileModalProps) {
     const user = useAuthStore((s) => s.user);
-    const setUser = useAuthStore((s) => s.setUser);
 
     const [displayName, setDisplayName] = useState(user?.displayName || "");
     const [bio, setBio] = useState(user?.bio || "");
@@ -35,11 +34,14 @@ export function EditProfileModal({ isOpen, onClose, onSave }: EditProfileModalPr
     const [bannerUrl, setBannerUrl] = useState(user?.bannerUrl || "");
     const [avatarUploading, setAvatarUploading] = useState(false);
     const [bannerUploading, setBannerUploading] = useState(false);
-    const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const avatarInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
+
+    // Use the update profile mutation hook
+    const updateProfileMutation = useUpdateProfile();
+    const saving = updateProfileMutation.isPending;
 
     const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -89,12 +91,10 @@ export function EditProfileModal({ isOpen, onClose, onSave }: EditProfileModalPr
             return;
         }
 
-        setSaving(true);
         setError(null);
 
         try {
-            // Call PATCH /me API
-            const updatedUser = await updateProfile({
+            await updateProfileMutation.mutateAsync({
                 displayName: displayName.trim(),
                 bio: bio.trim() || undefined,
                 avatarGradient: selectedGradient,
@@ -102,26 +102,12 @@ export function EditProfileModal({ isOpen, onClose, onSave }: EditProfileModalPr
                 bannerUrl: bannerUrl || undefined,
             });
 
-            // Update local auth store with new user data
-            if (user) {
-                setUser({
-                    ...user,
-                    displayName: updatedUser.displayName,
-                    bio: updatedUser.bio,
-                    avatarGradient: updatedUser.avatarGradient,
-                    avatarUrl: updatedUser.avatarUrl,
-                    bannerUrl: updatedUser.bannerUrl,
-                });
-            }
-
             onSave?.();
             onClose();
         } catch (e) {
             setError(e instanceof Error ? e.message : "Profil güncellenemedi");
-        } finally {
-            setSaving(false);
         }
-    }, [displayName, bio, selectedGradient, avatarUrl, bannerUrl, user, setUser, onClose, onSave]);
+    }, [displayName, bio, selectedGradient, avatarUrl, bannerUrl, updateProfileMutation, onClose, onSave]);
 
     const removeAvatar = () => setAvatarUrl("");
     const removeBanner = () => setBannerUrl("");

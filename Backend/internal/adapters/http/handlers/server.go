@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"log/slog"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -67,11 +68,18 @@ func (h *ServerHandler) Create(c *fiber.Ctx) error {
 		))
 	}
 
+	// Generate icon gradient from accent color (creates primary + darker secondary)
+	var iconGradient [2]string
+	if req.Accent != "" {
+		iconGradient = [2]string{req.Accent, req.Accent + "99"} // Primary + slightly transparent
+	}
+
 	srv, err := h.serverService.Create(c.Context(), serverApp.CreateCommand{
-		Name:        req.Name,
-		Description: req.Description,
-		OwnerID:     userID,
-		IsPublic:    req.IsPublic,
+		Name:         req.Name,
+		Description:  req.Description,
+		OwnerID:      userID,
+		IsPublic:     req.IsPublic,
+		IconGradient: iconGradient,
 	})
 
 	if err != nil {
@@ -183,12 +191,12 @@ func (h *ServerHandler) ListJoinRequests(c *fiber.Ctx) error {
 	resp := make([]dto.JoinRequestResponse, len(requests))
 	for i, r := range requests {
 		resp[i] = dto.JoinRequestResponse{
-			ServerID:   r.ServerID,
-			UserID:     r.UserID,
-			Status:     string(r.Status),
-			Message:    r.Message,
-			CreatedAt:  r.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
-			UpdatedAt:  r.UpdatedAt.Format("2006-01-02T15:04:05.000Z"),
+			ServerID:  r.ServerID,
+			UserID:    r.UserID,
+			Status:    string(r.Status),
+			Message:   r.Message,
+			CreatedAt: r.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
+			UpdatedAt: r.UpdatedAt.Format("2006-01-02T15:04:05.000Z"),
 		}
 	}
 
@@ -263,11 +271,17 @@ func (h *ServerHandler) ListMembers(c *fiber.Ctx) error {
 			displayRole = m.Roles[0].Name
 		}
 
+		roleIDs := make([]string, len(m.Roles))
+		for j, r := range m.Roles {
+			roleIDs[j] = r.ID
+		}
+
 		resp := dto.MemberWithUserResponse{
 			ID:       m.ID,
 			UserID:   m.UserID,
 			Role:     displayRole,
 			JoinedAt: m.JoinedAt.Format("2006-01-02T15:04:05.000Z"),
+			RoleIDs:  roleIDs,
 		}
 
 		// Fetch user data
@@ -304,6 +318,128 @@ func (h *ServerHandler) RemoveMember(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// Ban bans a member from the server.
+// POST /servers/:id/bans
+func (h *ServerHandler) Ban(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	var req struct {
+		UserID string `json:"userId"`
+		Reason string `json:"reason"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if req.UserID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"User ID is required",
+		))
+	}
+
+	if err := h.serverService.BanMember(c.Context(), serverID, req.UserID, actorID, req.Reason); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// Unban removes a ban from a user.
+// DELETE /servers/:id/bans/:userId
+func (h *ServerHandler) Unban(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	if err := h.serverService.UnbanMember(c.Context(), serverID, targetUserID, actorID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// GetBans returns all bans for a server.
+// GET /servers/:id/bans
+func (h *ServerHandler) GetBans(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	bans, err := h.serverService.GetBans(c.Context(), serverID, actorID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	response := make([]dto.BanResponse, len(bans))
+	for i, b := range bans {
+		response[i] = dto.BanResponse{
+			ID:        b.ID,
+			UserID:    b.UserID,
+			BannedBy:  b.BannedBy,
+			Reason:    b.Reason,
+			CreatedAt: b.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"data": response,
+	})
+}
+
+// Timeout times out a member.
+// POST /servers/:id/members/:userId/timeout
+func (h *ServerHandler) Timeout(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	var req struct {
+		DurationSeconds int    `json:"durationSeconds"`
+		Reason          string `json:"reason"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if req.DurationSeconds <= 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Duration must be positive",
+		))
+	}
+
+	duration := time.Duration(req.DurationSeconds) * time.Second
+
+	if err := h.serverService.TimeoutMember(c.Context(), serverID, targetUserID, actorID, duration, req.Reason); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// RemoveTimeout removes a timeout from a member.
+// DELETE /servers/:id/members/:userId/timeout
+func (h *ServerHandler) RemoveTimeout(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	if err := h.serverService.RemoveTimeout(c.Context(), serverID, targetUserID, actorID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // ListRoles lists all roles in a server.
 // GET /servers/:id/roles
 func (h *ServerHandler) ListRoles(c *fiber.Ctx) error {
@@ -330,6 +466,140 @@ func (h *ServerHandler) ListRoles(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": response,
 	})
+}
+
+// CreateRole creates a new role.
+// POST /servers/:id/roles
+func (h *ServerHandler) CreateRole(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	var req struct {
+		Name        string `json:"name"`
+		Color       string `json:"color"`
+		Permissions int64  `json:"permissions"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if req.Name == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Role name is required",
+		))
+	}
+
+	role, err := h.serverService.CreateRole(c.Context(), serverID, req.Name, req.Color, server.Permission(req.Permissions), actorID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"data": dto.RoleResponse{
+			ID:          role.ID,
+			Name:        role.Name,
+			Color:       role.Color,
+			Position:    role.Position,
+			Permissions: int64(role.Permissions),
+			IsDefault:   role.IsDefault,
+		},
+	})
+}
+
+// UpdateRole updates an existing role.
+// PATCH /servers/:id/roles/:roleId
+func (h *ServerHandler) UpdateRole(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	roleID := c.Params("roleId")
+
+	var req struct {
+		Name        *string `json:"name"`
+		Color       *string `json:"color"`
+		Permissions *int64  `json:"permissions"`
+		Position    *int    `json:"position"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	var name, color string
+	if req.Name != nil {
+		name = *req.Name
+	}
+	if req.Color != nil {
+		color = *req.Color
+	}
+
+	var perms *server.Permission
+	if req.Permissions != nil {
+		p := server.Permission(*req.Permissions)
+		perms = &p
+	}
+
+	role, err := h.serverService.UpdateRole(c.Context(), serverID, roleID, name, color, perms, req.Position, actorID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"data": dto.RoleResponse{
+			ID:          role.ID,
+			Name:        role.Name,
+			Color:       role.Color,
+			Position:    role.Position,
+			Permissions: int64(role.Permissions),
+			IsDefault:   role.IsDefault,
+		},
+	})
+}
+
+// DeleteRole deletes a role.
+// DELETE /servers/:id/roles/:roleId
+func (h *ServerHandler) DeleteRole(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	roleID := c.Params("roleId")
+
+	if err := h.serverService.DeleteRole(c.Context(), serverID, roleID, actorID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+// UpdateMemberRoles updates a member's roles.
+// PUT /servers/:id/members/:userId/roles
+func (h *ServerHandler) UpdateMemberRoles(c *fiber.Ctx) error {
+	actorID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+	targetUserID := c.Params("userId")
+
+	var req struct {
+		RoleIDs []string `json:"roleIds"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if err := h.serverService.UpdateMemberRoles(c.Context(), serverID, targetUserID, req.RoleIDs, actorID); err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
 }
 
 func (h *ServerHandler) handleError(c *fiber.Ctx, err error) error {

@@ -40,13 +40,13 @@ export {
     useServers,
     useServer,
     useChannels,
+    useServerMembers,
     useCreateServer,
     useJoinServer,
     useLeaveServer,
     serverKeys,
 } from './hooks/useServers';
 
-// Follower hooks
 export {
     useFollowers,
     useFollowing,
@@ -56,3 +56,5 @@ export {
     followerKeys,
 } from './hooks/useFollowers';
 
+// User profile keys (re-export from profile feature hooks)
+export { userKeys } from '../../features/profile/hooks/useUserProfile';

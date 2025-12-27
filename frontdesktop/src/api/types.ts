@@ -72,11 +72,37 @@ export interface Channel {
   serverId: string;
   name: string;
   description?: string;
-  type: "text" | "voice" | "announcement" | "category";
+  type: "text" | "voice" | "video" | "announcement" | "category" | "stage" | "hybrid";
   position: number;
   isPrivate?: boolean;
-  parentId?: string; // Category ID for RBAC 2.0
+  parentId?: string; // Category ID for hierarchy
+  // Voice/Video capabilities
+  userLimit?: number;      // 0 = unlimited
+  bitrate?: number;        // Audio bitrate in kbps
+  livekitRoom?: string;    // LiveKit room name
+  participantCount?: number; // Current participants in voice channel
   createdAt?: string;
+}
+
+// ============================================================================
+// CHANNEL TYPE HELPERS
+// ============================================================================
+
+export type ChannelType = Channel["type"];
+
+/** Check if a channel type supports voice/video features */
+export function isVoiceEnabled(type: ChannelType): boolean {
+  return ["voice", "video", "stage", "hybrid"].includes(type);
+}
+
+/** Check if a channel type supports text messages */
+export function isTextEnabled(type: ChannelType): boolean {
+  return ["text", "announcement", "hybrid"].includes(type);
+}
+
+/** Check if a channel is voice-enabled */
+export function isVoiceChannel(channel: Channel): boolean {
+  return isVoiceEnabled(channel.type);
 }
 
 export interface ChannelMessage {
@@ -126,6 +152,7 @@ export interface ServerMember {
   id: string;
   userId: string;
   role: string; // Display role name (highest role or "member")
+  roleIds?: string[];
   joinedAt: string;
   user?: {
     id: string;
@@ -133,6 +160,14 @@ export interface ServerMember {
     displayName: string;
     avatarGradient: [string, string];
   };
+}
+
+export interface Ban {
+  id: string;
+  userId: string;
+  bannedBy: string;
+  reason: string;
+  createdAt: string;
 }
 
 // === DM ===

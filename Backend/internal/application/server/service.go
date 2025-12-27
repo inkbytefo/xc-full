@@ -20,6 +20,8 @@ type Service struct {
 	roleRepo        server.RoleRepository
 	channelRepo     channelDomain.Repository
 	joinRequestRepo server.JoinRequestRepository
+	banRepo         server.BanRepository
+	auditRepo       server.AuditLogRepository
 }
 
 // NewService creates a new server service.
@@ -29,6 +31,8 @@ func NewService(
 	roleRepo server.RoleRepository,
 	channelRepo channelDomain.Repository,
 	joinRequestRepo server.JoinRequestRepository,
+	banRepo server.BanRepository,
+	auditRepo server.AuditLogRepository,
 ) *Service {
 	return &Service{
 		serverRepo:      serverRepo,
@@ -36,26 +40,35 @@ func NewService(
 		roleRepo:        roleRepo,
 		channelRepo:     channelRepo,
 		joinRequestRepo: joinRequestRepo,
+		banRepo:         banRepo,
+		auditRepo:       auditRepo,
 	}
 }
 
 // CreateCommand represents a server creation request.
 type CreateCommand struct {
-	Name        string
-	Description string
-	OwnerID     string
-	IsPublic    bool
+	Name         string
+	Description  string
+	OwnerID      string
+	IsPublic     bool
+	IconGradient [2]string // Optional: custom icon gradient colors
 }
 
 // Create creates a new server.
 func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server, error) {
 	now := time.Now()
 
+	// Use provided icon gradient or generate a random one
+	iconGradient := cmd.IconGradient
+	if iconGradient[0] == "" || iconGradient[1] == "" {
+		iconGradient = generateGradient()
+	}
+
 	srv := &server.Server{
 		ID:           generateID("serv"),
 		Name:         cmd.Name,
 		Description:  cmd.Description,
-		IconGradient: generateGradient(),
+		IconGradient: iconGradient,
 		OwnerID:      cmd.OwnerID,
 		MemberCount:  1,
 		IsPublic:     cmd.IsPublic,
@@ -228,18 +241,26 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult
 		}
 
 		req := &server.JoinRequest{
-			ServerID:   serverID,
-			UserID:     userID,
-			Status:     server.JoinRequestStatusPending,
-			Message:    "",
-			CreatedAt:  time.Now(),
-			UpdatedAt:  time.Now(),
+			ServerID:  serverID,
+			UserID:    userID,
+			Status:    server.JoinRequestStatusPending,
+			Message:   "",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
 		}
 		if err := s.joinRequestRepo.Create(ctx, req); err != nil {
 			return JoinResult{}, err
 		}
 
 		return JoinResult{Pending: true}, nil
+	}
+
+	// Check if banned
+	if s.banRepo != nil {
+		isBanned, err := s.banRepo.IsBanned(ctx, serverID, userID)
+		if err == nil && isBanned {
+			return JoinResult{}, server.ErrNoPermission // Or specific ErrBanned
+		}
 	}
 
 	member := &server.Member{
@@ -454,11 +475,420 @@ func (s *Service) RejectJoinRequest(ctx context.Context, serverID, targetUserID,
 	return s.joinRequestRepo.UpdateStatus(ctx, serverID, targetUserID, server.JoinRequestStatusRejected)
 }
 
+// BanMember bans a member from the server.
+func (s *Service) BanMember(ctx context.Context, serverID, targetUserID, actorUserID, reason string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	// Permission Check
+	if !s.canBanMembers(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	// Cannot ban owner
+	if srv.OwnerID == targetUserID {
+		return server.ErrNoPermission
+	}
+
+	// 1. Create Ban Record
+	ban := &server.Ban{
+		ID:        generateID("ban"),
+		ServerID:  serverID,
+		UserID:    targetUserID,
+		BannedBy:  actorUserID,
+		Reason:    reason,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := s.banRepo.Create(ctx, ban); err != nil {
+		return err
+	}
+
+	// 2. Remove Member (if they are currently in the server)
+	isMember, err := s.memberRepo.IsMember(ctx, serverID, targetUserID)
+	if err == nil && isMember {
+		if err := s.memberRepo.Delete(ctx, serverID, targetUserID); err != nil {
+			slog.Warn("failed to remove banned member", slog.Any("error", err))
+		} else {
+			_ = s.serverRepo.IncrementMemberCount(ctx, serverID, -1)
+		}
+	}
+
+	// 3. Create Audit Log
+	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberBan, map[string]interface{}{
+		"reason": reason,
+	})
+
+	return nil
+}
+
+// UnbanMember removes a ban.
+func (s *Service) UnbanMember(ctx context.Context, serverID, targetUserID, actorUserID string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canBanMembers(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	if err := s.banRepo.Delete(ctx, serverID, targetUserID); err != nil {
+		return err
+	}
+
+	// Audit Log
+	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberUnban, nil)
+
+	return nil
+}
+
+// GetBans returns all bans for a server.
+func (s *Service) GetBans(ctx context.Context, serverID, actorUserID string) ([]*server.Ban, error) {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.canBanMembers(ctx, srv, actorUserID) {
+		return nil, server.ErrNoPermission
+	}
+
+	return s.banRepo.FindByServerID(ctx, serverID)
+}
+
+// TimeoutMember timeouts a member.
+func (s *Service) TimeoutMember(ctx context.Context, serverID, targetUserID, actorUserID string, duration time.Duration, reason string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	// Check permission (needs MuteMembers or ManageMembers/KickMembers depending on policy, utilizing MuteMembers for now)
+	// Adapting to use KickMembers as a proxy for "Mod" powers if MuteMembers is exclusively voice.
+	// Ideally we use PermissionMuteMembers if we map it to general "Timeout". Let's use PermissionKickMembers as a baseline for "Mod".
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, actorUserID)
+	if err != nil {
+		return server.ErrNoPermission
+	}
+
+	// Check if actor has KickMembers OR MuteMembers (Voice)
+	if !member.HasPermission(server.PermissionKickMembers) && !member.HasPermission(server.PermissionMuteMembers) && srv.OwnerID != actorUserID {
+		return server.ErrNoPermission
+	}
+
+	if srv.OwnerID == targetUserID {
+		return server.ErrNoPermission
+	}
+
+	targetMember, err := s.memberRepo.FindByServerAndUser(ctx, serverID, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	until := time.Now().Add(duration)
+	targetMember.CommunicationDisabledUntil = &until
+
+	if err := s.memberRepo.Update(ctx, targetMember); err != nil {
+		return err
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
+		"duration": duration.String(),
+		"until":    until,
+		"reason":   reason,
+	})
+
+	return nil
+}
+
+// RemoveTimeout removes a timeout.
+func (s *Service) RemoveTimeout(ctx context.Context, serverID, targetUserID, actorUserID string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, actorUserID)
+	if err != nil {
+		return server.ErrNoPermission
+	}
+
+	if !member.HasPermission(server.PermissionKickMembers) && !member.HasPermission(server.PermissionMuteMembers) && srv.OwnerID != actorUserID {
+		return server.ErrNoPermission
+	}
+
+	targetMember, err := s.memberRepo.FindByServerAndUser(ctx, serverID, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	targetMember.CommunicationDisabledUntil = nil
+
+	if err := s.memberRepo.Update(ctx, targetMember); err != nil {
+		return err
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionTimeoutRemove, nil)
+
+	return nil
+}
+
+// CreateRole creates a new role.
+func (s *Service) CreateRole(ctx context.Context, serverID, name, color string, permissions server.Permission, actorUserID string) (*server.Role, error) {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.canManageRoles(ctx, srv, actorUserID) {
+		return nil, server.ErrNoPermission
+	}
+
+	// Determine position: find max existing position + 1
+	roles, err := s.roleRepo.FindByServerID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+	position := 1
+	if len(roles) > 0 {
+		position = roles[0].Position + 1
+	}
+
+	role := &server.Role{
+		ID:            generateID("role"),
+		ServerID:      serverID,
+		Name:          name,
+		Color:         color,
+		Position:      position,
+		Permissions:   permissions,
+		IsDefault:     false,
+		IsMentionable: true,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+	}
+
+	if err := s.roleRepo.Create(ctx, role); err != nil {
+		return nil, err
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleCreate, map[string]interface{}{
+		"name":        name,
+		"permissions": permissions,
+	})
+
+	return role, nil
+}
+
+// UpdateRole updates an existing role.
+func (s *Service) UpdateRole(ctx context.Context, serverID, roleID, name, color string, permissions *server.Permission, position *int, actorUserID string) (*server.Role, error) {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !s.canManageRoles(ctx, srv, actorUserID) {
+		return nil, server.ErrNoPermission
+	}
+
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+
+	if role.ServerID != serverID {
+		return nil, server.ErrRoleNotFound
+	}
+
+	// Prevent editing restricted roles (like @everyone) if we enforce logic there (e.g. can't change position or name of @everyone)
+	if role.IsDefault {
+		// Example check: maybe allow changing permissions but not name
+	}
+
+	changes := make(map[string]interface{})
+
+	if name != "" {
+		changes["name_old"] = role.Name
+		role.Name = name
+		changes["name_new"] = name
+	}
+	if color != "" {
+		changes["color_old"] = role.Color
+		role.Color = color
+		changes["color_new"] = color
+	}
+	if permissions != nil {
+		changes["permissions_old"] = role.Permissions
+		role.Permissions = *permissions
+		changes["permissions_new"] = *permissions
+	}
+	if position != nil {
+		changes["position_old"] = role.Position
+		role.Position = *position
+		changes["position_new"] = *position
+	}
+
+	role.UpdatedAt = time.Now()
+
+	if err := s.roleRepo.Update(ctx, role); err != nil {
+		return nil, err
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleUpdate, changes)
+
+	return role, nil
+}
+
+// DeleteRole deletes a role.
+func (s *Service) DeleteRole(ctx context.Context, serverID, roleID, actorUserID string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canManageRoles(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+
+	if role.ServerID != serverID {
+		return server.ErrRoleNotFound
+	}
+
+	if role.IsDefault {
+		return errors.New("cannot delete default role")
+	}
+
+	if err := s.roleRepo.Delete(ctx, roleID); err != nil {
+		return err
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, roleID, server.AuditLogActionRoleDelete, nil)
+
+	return nil
+}
+
+// UpdateMemberRoles updates a member's roles.
+func (s *Service) UpdateMemberRoles(ctx context.Context, serverID, targetUserID string, roleIDs []string, actorUserID string) error {
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err != nil {
+		return err
+	}
+
+	if !s.canManageRoles(ctx, srv, actorUserID) {
+		return server.ErrNoPermission
+	}
+
+	// 1. Get member's current roles
+	currentRoles, err := s.roleRepo.FindByMemberID(ctx, memberID(ctx, s, serverID, targetUserID))
+	if err != nil {
+		return err
+	}
+
+	// 2. Identify roles to add and remove
+	// (Simplification: Remove all existing non-default roles, then add new ones)
+	// IMPORTANT: Don't remove the default role (@everyone) if it's not in the list, or ensure it's always in the list.
+	// Best practice: The list should contain ALL roles the user should have. Use this as "Set" operation.
+
+	member, err := s.memberRepo.FindByServerAndUser(ctx, serverID, targetUserID)
+	if err != nil {
+		return err
+	}
+
+	defaultRole, _ := s.roleRepo.FindDefaultRole(ctx, serverID)
+
+	// Remove all currently assigned roles (except maybe default, but let's just handle IDs cleanly)
+	for _, r := range currentRoles {
+		if r.IsDefault {
+			continue // Don't touch default role
+		}
+		_ = s.memberRepo.RemoveRole(ctx, member.ID, r.ID)
+	}
+
+	// Add new roles
+	for _, rid := range roleIDs {
+		// Skip adding default role explicitly if we treat it as auto-assigned,
+		// but checking if it's valid role is good.
+		r, err := s.roleRepo.FindByID(ctx, rid)
+		if err != nil {
+			continue
+		}
+		if r.ServerID != serverID {
+			continue
+		}
+		_ = s.memberRepo.AssignRole(ctx, member.ID, rid)
+	}
+
+	// Ensure default role is assigned
+	if defaultRole != nil {
+		_ = s.memberRepo.AssignRole(ctx, member.ID, defaultRole.ID)
+	}
+
+	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
+		"action": "update_roles",
+		"roles":  roleIDs,
+	})
+
+	return nil
+}
+
+// helper to get member ID from User ID
+func memberID(ctx context.Context, s *Service, serverID, userID string) string {
+	m, _ := s.memberRepo.FindByServerAndUser(ctx, serverID, userID)
+	if m != nil {
+		return m.ID
+	}
+	return ""
+}
+
+func (s *Service) logAudit(ctx context.Context, serverID, actorID, targetID string, action server.AuditLogAction, changes map[string]interface{}) error {
+	log := &server.AuditLog{
+		ID:         generateID("audit"),
+		ServerID:   serverID,
+		ActorID:    actorID,
+		TargetID:   targetID,
+		ActionType: action,
+		Changes:    changes,
+		CreatedAt:  time.Now(),
+	}
+	return s.auditRepo.Create(ctx, log)
+}
+
+func (s *Service) IsTimedOut(ctx context.Context, serverID, userID string) bool {
+	member, err := s.memberRepo.FindByServerAndUser(ctx, serverID, userID)
+	if err != nil {
+		return false
+	}
+	return member.IsTimedOut()
+}
+
 // ============================================================================
 // PERMISSION HELPERS
 // ============================================================================
 
 // canManageServer checks if a user can manage server settings.
+// canManageRoles checks if a user can manage roles.
+func (s *Service) canManageRoles(ctx context.Context, srv *server.Server, userID string) bool {
+	// Owner can always manage roles
+	if srv.OwnerID == userID {
+		return true
+	}
+
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, userID)
+	if err != nil {
+		return false
+	}
+
+	return member.HasPermission(server.PermissionManageRoles)
+}
+
 func (s *Service) canManageServer(ctx context.Context, srv *server.Server, userID string) bool {
 	// Owner can always manage
 	if srv.OwnerID == userID {
@@ -486,6 +916,36 @@ func (s *Service) canKickMembers(ctx context.Context, srv *server.Server, userID
 	}
 
 	return member.HasPermission(server.PermissionKickMembers)
+}
+
+// canBanMembers checks if a user can ban members.
+func (s *Service) canBanMembers(ctx context.Context, srv *server.Server, userID string) bool {
+	// Owner can always ban
+	if srv.OwnerID == userID {
+		return true
+	}
+
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, userID)
+	if err != nil {
+		return false
+	}
+
+	return member.HasPermission(server.PermissionBanMembers)
+}
+
+// canMuteMembers checks if a user can mute members.
+func (s *Service) canMuteMembers(ctx context.Context, srv *server.Server, userID string) bool {
+	// Owner can always mute
+	if srv.OwnerID == userID {
+		return true
+	}
+
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, srv.ID, userID)
+	if err != nil {
+		return false
+	}
+
+	return member.HasPermission(server.PermissionMuteMembers)
 }
 
 func (s *Service) canManageJoinRequests(ctx context.Context, srv *server.Server, userID string) bool {

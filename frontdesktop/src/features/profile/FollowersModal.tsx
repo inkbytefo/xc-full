@@ -1,11 +1,12 @@
 // ============================================================================
-// Followers/Following Modal Component
+// Followers/Following Modal Component - Refactored with React Query
 // ============================================================================
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { getUserFollowers, getUserFollowing, followUser, unfollowUser, type UserProfile } from "./userApi";
+import { useFollowers, useFollowing, useToggleFollow } from "../../lib/query";
 import { useAuthStore } from "../../store/authStore";
+import type { UserProfile } from "./userApi";
 
 type ModalTab = "followers" | "following";
 
@@ -32,22 +33,52 @@ export function FollowersModal({
     const currentUser = useAuthStore((s) => s.user);
 
     const [activeTab, setActiveTab] = useState<ModalTab>(initialTab);
-    const [users, setUsers] = useState<UserProfile[]>([]);
-    const [loading, setLoading] = useState(false);
-    const [cursor, setCursor] = useState<string | undefined>(undefined);
-    const [hasMore, setHasMore] = useState(true);
+
+    // React Query hooks for fetching followers/following
+    const {
+        data: followersData,
+        isLoading: followersLoading,
+        hasNextPage: hasMoreFollowers,
+        fetchNextPage: fetchMoreFollowers,
+        isFetchingNextPage: isFetchingMoreFollowers,
+    } = useFollowers(activeTab === "followers" && isOpen ? userId : null);
+
+    const {
+        data: followingData,
+        isLoading: followingLoading,
+        hasNextPage: hasMoreFollowing,
+        fetchNextPage: fetchMoreFollowing,
+        isFetchingNextPage: isFetchingMoreFollowing,
+    } = useFollowing(activeTab === "following" && isOpen ? userId : null);
+
+    // Flatten paginated data
+    const users: UserProfile[] = useMemo(() => {
+        if (activeTab === "followers") {
+            return followersData?.pages.flatMap(page => page.data) ?? [];
+        }
+        return followingData?.pages.flatMap(page => page.data) ?? [];
+    }, [activeTab, followersData, followingData]);
+
+    // Loading states
+    const loading = activeTab === "followers" ? followersLoading : followingLoading;
+    const hasMore = activeTab === "followers" ? hasMoreFollowers : hasMoreFollowing;
+    const isFetchingMore = activeTab === "followers" ? isFetchingMoreFollowers : isFetchingMoreFollowing;
+
+    // Toggle follow hook
+    const { toggle } = useToggleFollow();
+
+    // Track individual follow states (local)
     const [followingStates, setFollowingStates] = useState<Record<string, boolean>>({});
     const [followLoading, setFollowLoading] = useState<Record<string, boolean>>({});
 
-    // Reset when modal opens or tab changes
+    // Initialize following states from server data
     useEffect(() => {
-        if (isOpen) {
-            setUsers([]);
-            setCursor(undefined);
-            setHasMore(true);
-            loadUsers();
-        }
-    }, [isOpen, activeTab, userId]);
+        const states: Record<string, boolean> = {};
+        users.forEach((u) => {
+            states[u.id] = u.isFollowing || false;
+        });
+        setFollowingStates((prev) => ({ ...prev, ...states }));
+    }, [users]);
 
     // Update initial tab when prop changes
     useEffect(() => {
@@ -56,34 +87,6 @@ export function FollowersModal({
         }
     }, [initialTab, isOpen]);
 
-    const loadUsers = useCallback(async (nextCursor?: string) => {
-        if (loading || (!hasMore && nextCursor)) return;
-
-        setLoading(true);
-        try {
-            const response = activeTab === "followers"
-                ? await getUserFollowers(userId, { cursor: nextCursor, limit: 20 })
-                : await getUserFollowing(userId, { cursor: nextCursor, limit: 20 });
-
-            const newUsers = response.data;
-            setUsers((prev) => nextCursor ? [...prev, ...newUsers] : newUsers);
-
-            // Initialize following states
-            const states: Record<string, boolean> = {};
-            newUsers.forEach((u) => {
-                states[u.id] = u.isFollowing || false;
-            });
-            setFollowingStates((prev) => ({ ...prev, ...states }));
-
-            setCursor(response.nextCursor || undefined);
-            setHasMore(!!response.nextCursor);
-        } catch (err) {
-            console.error("Failed to load users:", err);
-        } finally {
-            setLoading(false);
-        }
-    }, [activeTab, userId, loading, hasMore]);
-
     const handleFollowToggle = async (targetUserId: string) => {
         if (followLoading[targetUserId] || targetUserId === currentUser?.id) return;
 
@@ -91,13 +94,8 @@ export function FollowersModal({
 
         try {
             const isCurrentlyFollowing = followingStates[targetUserId];
-            if (isCurrentlyFollowing) {
-                await unfollowUser(targetUserId);
-                setFollowingStates((prev) => ({ ...prev, [targetUserId]: false }));
-            } else {
-                await followUser(targetUserId);
-                setFollowingStates((prev) => ({ ...prev, [targetUserId]: true }));
-            }
+            await toggle(targetUserId, isCurrentlyFollowing);
+            setFollowingStates((prev) => ({ ...prev, [targetUserId]: !isCurrentlyFollowing }));
         } catch (err) {
             console.error("Follow action failed:", err);
         } finally {
@@ -111,8 +109,10 @@ export function FollowersModal({
     };
 
     const handleLoadMore = () => {
-        if (cursor && hasMore && !loading) {
-            loadUsers(cursor);
+        if (activeTab === "followers" && hasMoreFollowers && !isFetchingMoreFollowers) {
+            fetchMoreFollowers();
+        } else if (activeTab === "following" && hasMoreFollowing && !isFetchingMoreFollowing) {
+            fetchMoreFollowing();
         }
     };
 
@@ -142,8 +142,8 @@ export function FollowersModal({
                     <button
                         onClick={() => setActiveTab("followers")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === "followers"
-                                ? "text-purple-400 border-b-2 border-purple-500"
-                                : "text-zinc-500 hover:text-zinc-300"
+                            ? "text-purple-400 border-b-2 border-purple-500"
+                            : "text-zinc-500 hover:text-zinc-300"
                             }`}
                     >
                         Takipçiler ({initialFollowersCount.toLocaleString()})
@@ -151,8 +151,8 @@ export function FollowersModal({
                     <button
                         onClick={() => setActiveTab("following")}
                         className={`flex-1 py-3 text-sm font-medium transition-colors ${activeTab === "following"
-                                ? "text-purple-400 border-b-2 border-purple-500"
-                                : "text-zinc-500 hover:text-zinc-300"
+                            ? "text-purple-400 border-b-2 border-purple-500"
+                            : "text-zinc-500 hover:text-zinc-300"
                             }`}
                     >
                         Takip ({initialFollowingCount.toLocaleString()})
@@ -202,8 +202,8 @@ export function FollowersModal({
                                             onClick={() => handleFollowToggle(user.id)}
                                             disabled={followLoading[user.id]}
                                             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${followingStates[user.id]
-                                                    ? "bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400"
-                                                    : "bg-purple-600 text-white hover:bg-purple-700"
+                                                ? "bg-white/10 text-white hover:bg-red-500/20 hover:text-red-400"
+                                                : "bg-purple-600 text-white hover:bg-purple-700"
                                                 }`}
                                         >
                                             {followLoading[user.id] ? (
@@ -223,10 +223,10 @@ export function FollowersModal({
                                 <div className="p-4 text-center">
                                     <button
                                         onClick={handleLoadMore}
-                                        disabled={loading}
+                                        disabled={isFetchingMore}
                                         className="px-4 py-2 rounded-lg bg-white/10 text-white text-sm hover:bg-white/20 transition-colors disabled:opacity-50"
                                     >
-                                        {loading ? "Yükleniyor..." : "Daha Fazla Yükle"}
+                                        {isFetchingMore ? "Yükleniyor..." : "Daha Fazla Yükle"}
                                     </button>
                                 </div>
                             )}

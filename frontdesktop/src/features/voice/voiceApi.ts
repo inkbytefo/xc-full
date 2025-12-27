@@ -3,18 +3,15 @@
 // ============================================================================
 
 import { api } from "../../api/client";
+import type { Channel } from "../../api/types";
 
-// Types
-export interface VoiceChannel {
-    id: string;
-    serverId: string;
-    name: string;
-    type: "voice" | "video" | "stage";
-    position: number;
-    userLimit: number;
-    participantCount: number;
-    createdAt: string;
-}
+// ============================================================================
+// TYPES
+// ============================================================================
+
+// VoiceChannel is now deprecated - use Channel with isVoiceChannel() helper
+// Keeping this alias for backward compatibility during migration
+export type VoiceChannel = Channel;
 
 export interface VoiceParticipant {
     identity: string;
@@ -27,7 +24,7 @@ export interface VoiceParticipant {
 export interface VoiceToken {
     token: string;
     roomName: string;
-    channel: VoiceChannel;
+    channel: Channel;
 }
 
 // ============================================================================
@@ -35,8 +32,8 @@ export interface VoiceToken {
 // ============================================================================
 
 // Get voice channels for a server
-export async function getVoiceChannels(serverId: string): Promise<VoiceChannel[]> {
-    const res = await api.get<{ data: VoiceChannel[] }>(
+export async function getVoiceChannels(serverId: string): Promise<Channel[]> {
+    const res = await api.get<{ data: Channel[] }>(
         `/api/v1/servers/${serverId}/voice-channels`
     );
     return res.data;
@@ -46,8 +43,8 @@ export async function getVoiceChannels(serverId: string): Promise<VoiceChannel[]
 export async function createVoiceChannel(
     serverId: string,
     data: { name: string; type?: "voice" | "video" | "stage"; position?: number; userLimit?: number }
-): Promise<VoiceChannel> {
-    const res = await api.post<{ data: VoiceChannel }>(
+): Promise<Channel> {
+    const res = await api.post<{ data: Channel }>(
         `/api/v1/servers/${serverId}/voice-channels`,
         data
     );

@@ -47,6 +47,7 @@ CREATE TABLE server_members (
     user_id     VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     nickname    VARCHAR(32),
     joined_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    communication_disabled_until TIMESTAMPTZ, -- Timeout/mute until this time
     
     CONSTRAINT unique_server_member UNIQUE (server_id, user_id)
 );
@@ -62,8 +63,8 @@ CREATE TABLE member_roles (
 );
 
 -- ============================================================================
--- CHANNELS TABLE (Updated with Category Support)
--- type = 'category' means this is a parent container
+-- CHANNELS TABLE (Unified: Text + Voice + Video + Hybrid)
+-- Supports all channel types in a single table
 -- ============================================================================
 CREATE TABLE channels (
     id          VARCHAR(26) PRIMARY KEY,
@@ -74,11 +75,15 @@ CREATE TABLE channels (
     type        VARCHAR(20) NOT NULL DEFAULT 'text',
     position    INTEGER NOT NULL DEFAULT 0,
     is_private  BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Voice/Video capabilities
+    user_limit  INTEGER NOT NULL DEFAULT 0,      -- 0 = unlimited
+    bitrate     INTEGER NOT NULL DEFAULT 64,     -- Audio bitrate in kbps
+    livekit_room VARCHAR(100),                   -- LiveKit room name for voice/video
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     CONSTRAINT channel_name_length CHECK (char_length(name) >= 1 AND char_length(name) <= 100),
-    CONSTRAINT valid_channel_type CHECK (type IN ('text', 'voice', 'announcement', 'category'))
+    CONSTRAINT valid_channel_type CHECK (type IN ('text', 'voice', 'video', 'announcement', 'category', 'stage', 'hybrid'))
 );
 
 -- ============================================================================
@@ -117,6 +122,8 @@ CREATE INDEX idx_member_roles_role_id ON member_roles(role_id);
 CREATE INDEX idx_channels_server_id ON channels(server_id);
 CREATE INDEX idx_channels_parent_id ON channels(parent_id);
 CREATE INDEX idx_channels_position ON channels(server_id, position);
+CREATE UNIQUE INDEX idx_channels_livekit_room ON channels(livekit_room) WHERE livekit_room IS NOT NULL;
+CREATE INDEX idx_channels_voice_enabled ON channels(server_id, type) WHERE type IN ('voice', 'video', 'stage', 'hybrid');
 
 CREATE INDEX idx_permission_overwrites_channel_id ON permission_overwrites(channel_id);
 CREATE INDEX idx_permission_overwrites_target ON permission_overwrites(target_type, target_id);

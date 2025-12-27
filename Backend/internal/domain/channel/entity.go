@@ -13,22 +13,26 @@ var (
 	ErrNotFound     = errors.New("channel not found")
 	ErrInvalidType  = errors.New("invalid channel type")
 	ErrNoPermission = errors.New("no permission to access channel")
+	ErrChannelFull  = errors.New("channel is full")
 )
 
 // ChannelType represents the type of channel.
 type ChannelType string
 
 const (
-	TypeText         ChannelType = "text"
-	TypeVoice        ChannelType = "voice"
-	TypeAnnouncement ChannelType = "announcement"
-	TypeCategory     ChannelType = "category" // RBAC 2.0: Category container
+	TypeText         ChannelType = "text"         // Text-only chat channel
+	TypeVoice        ChannelType = "voice"        // Voice-only channel
+	TypeVideo        ChannelType = "video"        // Video-enabled voice channel
+	TypeAnnouncement ChannelType = "announcement" // Broadcast channel (read-only for most)
+	TypeCategory     ChannelType = "category"     // Category container for organizing channels
+	TypeStage        ChannelType = "stage"        // Webinar-style (speakers + listeners)
+	TypeHybrid       ChannelType = "hybrid"       // Text + Voice + Video combined (Discord-style)
 )
 
 // IsValid checks if the channel type is valid.
 func (t ChannelType) IsValid() bool {
 	switch t {
-	case TypeText, TypeVoice, TypeAnnouncement, TypeCategory:
+	case TypeText, TypeVoice, TypeVideo, TypeAnnouncement, TypeCategory, TypeStage, TypeHybrid:
 		return true
 	}
 	return false
@@ -39,11 +43,21 @@ func (t ChannelType) IsCategory() bool {
 	return t == TypeCategory
 }
 
+// IsVoiceEnabled checks if this channel type supports voice/video.
+func (t ChannelType) IsVoiceEnabled() bool {
+	return t == TypeVoice || t == TypeVideo || t == TypeStage || t == TypeHybrid
+}
+
+// IsTextEnabled checks if this channel type supports text messages.
+func (t ChannelType) IsTextEnabled() bool {
+	return t == TypeText || t == TypeAnnouncement || t == TypeHybrid
+}
+
 // Channel represents a channel entity in the domain.
 type Channel struct {
 	ID          string
 	ServerID    string
-	ParentID    *string // RBAC 2.0: Category parent (nil if top-level or is a category)
+	ParentID    *string // Category parent (nil if top-level or is a category)
 	Name        string
 	Description string
 	Type        ChannelType
@@ -51,6 +65,14 @@ type Channel struct {
 	IsPrivate   bool
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
+
+	// Voice/Video capabilities (for voice-enabled channel types)
+	UserLimit   int    // 0 = unlimited
+	Bitrate     int    // Audio bitrate in kbps (default: 64)
+	LiveKitRoom string // LiveKit room name for voice/video
+
+	// Runtime state (populated when needed)
+	ParticipantCount int
 
 	// Joined fields - populated when needed
 	PermissionOverwrites []PermissionOverwrite

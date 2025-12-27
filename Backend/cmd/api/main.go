@@ -105,12 +105,14 @@ func main() {
 	convRepo := postgres.NewConversationRepository(dbPool)
 	dmMessageRepo := postgres.NewDMMessageRepository(dbPool)
 	wallPostRepo := postgres.NewWallPostRepository(dbPool)
+	banRepo := postgres.NewBanRepository(dbPool)
+	auditRepo := postgres.NewAuditLogRepository(dbPool)
 
 	// Initialize services
 	privacyRepo := postgres.NewPrivacyRepository(dbPool)
 	readStateRepo := postgres.NewReadStateRepository(dbPool)
 	userService := userApp.NewService(userRepo, sessionRepo, followRepo, privacyRepo, passwordHasher, jwtService)
-	serverService := serverApp.NewService(serverRepo, memberRepo, roleRepo, channelRepo, joinRequestRepo)
+	serverService := serverApp.NewService(serverRepo, memberRepo, roleRepo, channelRepo, joinRequestRepo, banRepo, auditRepo)
 	channelService := channelApp.NewService(channelRepo, memberRepo, serverRepo, readStateRepo)
 	feedService := feedApp.NewService(postRepo, reactionRepo)
 	dmService := dmApp.NewService(convRepo, dmMessageRepo)
@@ -146,7 +148,7 @@ func main() {
 	notificationHandler := handlers.NewNotificationHandler(notificationRepo)
 	searchRepo := postgres.NewSearchRepository(dbPool)
 	searchHandler := handlers.NewSearchHandler(searchRepo)
-	voiceChannelRepo := postgres.NewVoiceChannelRepository(dbPool)
+	// Note: voiceChannelRepo removed - using unified channelRepo for voice channels
 	voiceParticipantRepo := postgres.NewVoiceParticipantRepository(dbPool)
 
 	// Initialize LiveKit service if configured
@@ -170,7 +172,7 @@ func main() {
 		logger.Warn("LiveKit not configured, voice features will be unavailable")
 	}
 
-	voiceHandler := handlers.NewVoiceHandler(voiceChannelRepo, memberRepo, serverRepo, userRepo, livekitService)
+	voiceHandler := handlers.NewVoiceHandler(channelRepo, memberRepo, serverRepo, userRepo, livekitService)
 	webhookHandler := handlers.NewWebhookHandler(voiceParticipantRepo, livekitAPIKey, livekitAPISecret)
 	mediaRepo := postgres.NewMediaRepository(dbPool)
 	uploadDir := "./uploads"

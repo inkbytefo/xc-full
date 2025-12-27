@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import type { Server, Channel } from '../../../../api/types';
-import type { VoiceChannel } from '../../../voice/voiceApi';
 
 // SVG Icons
 const HashIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -26,9 +25,9 @@ interface ChannelSidebarProps {
     channels: Channel[];
     selectedChannelId: string | null;
     onChannelSelect: (channelId: string) => void;
-    voiceChannels: VoiceChannel[];
+    voiceChannels: Channel[];
     activeVoiceChannelId?: string | null;
-    onVoiceChannelJoin: (channel: VoiceChannel) => void;
+    onVoiceChannelJoin: (channel: Channel) => void;
 }
 
 export function ChannelSidebar({
@@ -154,7 +153,7 @@ export function ChannelSidebar({
 
                         {voiceChannels.map((c) => {
                             const isActive = activeVoiceChannelId === c.id;
-                            const limitLabel = c.userLimit > 0 ? `${c.participantCount}/${c.userLimit}` : `${c.participantCount}`;
+                            const limitLabel = (c.userLimit ?? 0) > 0 ? `${c.participantCount ?? 0}/${c.userLimit}` : `${c.participantCount ?? 0}`;
 
                             return (
                                 <div

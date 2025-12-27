@@ -37,6 +37,9 @@ type MemberRepository interface {
 	// Create adds a member to a server.
 	Create(ctx context.Context, member *Member) error
 
+	// Update updates an existing member.
+	Update(ctx context.Context, member *Member) error
+
 	// Delete removes a member from a server.
 	Delete(ctx context.Context, serverID, userID string) error
 
@@ -83,4 +86,19 @@ type JoinRequestRepository interface {
 	Delete(ctx context.Context, serverID, userID string) error
 	FindByServerAndUser(ctx context.Context, serverID, userID string) (*JoinRequest, error)
 	FindPendingByServerID(ctx context.Context, serverID string) ([]*JoinRequest, error)
+}
+
+// BanRepository defines the interface for server bans.
+type BanRepository interface {
+	Create(ctx context.Context, ban *Ban) error
+	Delete(ctx context.Context, serverID, userID string) error
+	Find(ctx context.Context, serverID, userID string) (*Ban, error)
+	FindByServerID(ctx context.Context, serverID string) ([]*Ban, error)
+	IsBanned(ctx context.Context, serverID, userID string) (bool, error)
+}
+
+// AuditLogRepository defines the interface for audit logs.
+type AuditLogRepository interface {
+	Create(ctx context.Context, log *AuditLog) error
+	FindByServerID(ctx context.Context, serverID string, limit, offset int) ([]*AuditLog, error)
 }

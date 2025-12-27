@@ -3,12 +3,19 @@ import { getServerMembers } from "../serversApi";
 
 export interface ServerMember {
     id: string;
+    userId: string;
     handle: string;
     displayName: string;
     avatarGradient: [string, string];
-    role: "owner" | "admin" | "moderator" | "member";
+    role: "owner" | "admin" | "moderator" | "member" | string;
+    roleIds?: string[];
     isOnline?: boolean;
     status?: string;
+    user?: {
+        id: string;
+        displayName: string;
+        handle: string;
+    };
 }
 
 interface MembersByRole {
@@ -58,14 +65,21 @@ export function useServerMembers({
 
                         return {
                             id: m.id,
+                            userId: m.userId || user?.id,
                             handle: user?.handle || "user",
                             displayName: user?.displayName || "User",
                             avatarGradient: hasValidGradient
                                 ? user.avatarGradient
                                 : ["#e4e4e7", "#3f3f46"],
                             role: m.role,
+                            roleIds: m.roleIds,
                             isOnline: false,
                             status: "",
+                            user: user ? {
+                                id: user.id || m.userId,
+                                displayName: user.displayName,
+                                handle: user.handle
+                            } : undefined,
                         };
                     });
                     setMembers(mappedMembers as ServerMember[]);

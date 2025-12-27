@@ -101,8 +101,19 @@ func Setup(app *fiber.App, cfg *Config) {
 	servers.Post("/:id/join-requests/:userId/reject", cfg.ServerHandler.RejectJoinRequest)
 	servers.Post("/:id/leave", cfg.ServerHandler.Leave)
 	servers.Get("/:id/members", cfg.ServerHandler.ListMembers)
-	servers.Delete("/:id/members/:userId", cfg.ServerHandler.RemoveMember)
+
+	// Moderation routes
+	servers.Get("/:id/bans", cfg.ServerHandler.GetBans)
+	servers.Post("/:id/bans", cfg.ServerHandler.Ban)
+	servers.Delete("/:id/bans/:userId", cfg.ServerHandler.Unban)
+	servers.Post("/:id/members/:userId/timeout", cfg.ServerHandler.Timeout)
+	servers.Delete("/:id/members/:userId/timeout", cfg.ServerHandler.RemoveTimeout)
+
 	servers.Get("/:id/roles", cfg.ServerHandler.ListRoles)
+	servers.Post("/:id/roles", cfg.ServerHandler.CreateRole)
+	servers.Patch("/:id/roles/:roleId", cfg.ServerHandler.UpdateRole)
+	servers.Delete("/:id/roles/:roleId", cfg.ServerHandler.DeleteRole)
+	servers.Put("/:id/members/:userId/roles", cfg.ServerHandler.UpdateMemberRoles)
 
 	// Server wall routes
 	servers.Get("/:id/wall", cfg.ServerWallHandler.GetWallPosts)

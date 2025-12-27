@@ -170,7 +170,7 @@ export function PostCard({
   const gradientB = author.avatarGradient[1];
 
   return (
-    <article className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md transition hover:border-white/15">
+    <article className="group relative overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-sm transition-all hover:border-purple-500/30 hover:bg-black/40 hover:shadow-[0_0_30px_rgba(147,51,234,0.1)]">
       <div className="flex items-start gap-3">
         <UserPopover
           userId={author.id}

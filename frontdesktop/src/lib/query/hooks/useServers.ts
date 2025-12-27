@@ -10,8 +10,9 @@ import {
     joinServer,
     leaveServer,
     fetchChannels,
+    getServerMembers,
 } from '../../../features/servers/serversApi';
-import type { Server } from '../../../api/types';
+import type { Server, ServerMember } from '../../../api/types';
 
 // ============================================================================
 // Query Keys
@@ -21,6 +22,8 @@ export const serverKeys = {
     all: ['servers'] as const,
     detail: (id: string) => ['servers', id] as const,
     channels: (serverId: string) => ['channels', serverId] as const,
+    members: (serverId: string) => ['serverMembers', serverId] as const,
+    roles: (serverId: string) => ['roles', serverId] as const,
 };
 
 // ============================================================================
@@ -61,6 +64,22 @@ export function useChannels(serverId: string | null) {
         queryFn: () => {
             if (!serverId) throw new Error('No server ID');
             return fetchChannels(serverId);
+        },
+        enabled: !!serverId,
+        staleTime: 1000 * 60 * 2, // 2 minutes
+    });
+}
+
+// ============================================================================
+// useServerMembers - Server Members List
+// ============================================================================
+
+export function useServerMembers(serverId: string | null) {
+    return useQuery<ServerMember[]>({
+        queryKey: serverId ? serverKeys.members(serverId) : ['serverMembers', 'none'],
+        queryFn: () => {
+            if (!serverId) throw new Error('No server ID');
+            return getServerMembers(serverId);
         },
         enabled: !!serverId,
         staleTime: 1000 * 60 * 2, // 2 minutes

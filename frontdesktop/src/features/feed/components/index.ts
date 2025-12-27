@@ -2,3 +2,8 @@
 export { PostCard } from "./PostCard";
 export { PostComposer } from "./PostComposer";
 export { GlobalSearchModal } from "./GlobalSearchModal";
+export { FeedHeader } from "./FeedHeader";
+export { FeedTabs } from "./FeedTabs";
+export { FeedEmptyState } from "./FeedEmptyState";
+export { FeedNavSidebar } from "./FeedNavSidebar";
+export { FeedRightSidebar } from "./FeedRightSidebar";

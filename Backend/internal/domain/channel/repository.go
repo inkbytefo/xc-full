@@ -13,6 +13,9 @@ type Repository interface {
 	// FindCategories finds all category channels in a server.
 	FindCategories(ctx context.Context, serverID string) ([]*Channel, error)
 
+	// FindVoiceEnabled finds all voice-enabled channels in a server.
+	FindVoiceEnabled(ctx context.Context, serverID string) ([]*Channel, error)
+
 	// Create creates a new channel.
 	Create(ctx context.Context, channel *Channel) error
 
@@ -24,6 +27,9 @@ type Repository interface {
 
 	// ReorderChannels updates channel positions.
 	ReorderChannels(ctx context.Context, serverID string, positions map[string]int) error
+
+	// UpdateLiveKitRoom updates the LiveKit room name for a channel.
+	UpdateLiveKitRoom(ctx context.Context, id, roomName string) error
 }
 
 // MessageRepository defines the interface for channel message data access.

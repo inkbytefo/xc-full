@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Server, Visibility } from "../../../api/types";
+import { useAuthStore } from "../../../store/authStore";
 
 function cn(...values: Array<string | false | null | undefined>): string {
   return values.filter(Boolean).join(" ");
@@ -18,6 +19,7 @@ export function PostComposer({
   onSubmit: (payload: { text: string; visibility: string; serverId?: string }) => Promise<void>;
   busy: boolean;
 }) {
+  const user = useAuthStore((s) => s.user);
   const [text, setText] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("public");
   const [serverId, setServerId] = useState<string>("");
@@ -25,7 +27,6 @@ export function PostComposer({
   const maxChars = 2800;
   const remaining = maxChars - text.length;
   const remainingClamped = clamp(remaining, -9999, maxChars);
-  // Block submission if visibility=server but no server selected
   const serverRequired = visibility === "server";
   const serverValid = !serverRequired || serverId !== "";
   const canPost = text.trim().length > 0 && remaining >= 0 && !busy && serverValid;
@@ -52,22 +53,33 @@ export function PostComposer({
     setText("");
   }
 
+  // User avatar gradient
+  const avatarGradient = user?.avatarGradient || ["#8B5CF6", "#EC4899"];
+
   return (
-    <section className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-md">
+    <section className="rounded-2xl border border-white/10 bg-black/30 p-4 backdrop-blur-sm">
       <div className="flex items-start gap-3">
-        <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-br from-white/15 to-white/5 ring-1 ring-white/10" />
+        {/* User Avatar */}
+        <div
+          className="h-10 w-10 shrink-0 rounded-full ring-1 ring-white/20"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${avatarGradient[0]}, ${avatarGradient[1]})`,
+          }}
+        />
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-sm font-medium text-zinc-100">Yeni post</div>
+            <div className="text-sm font-medium text-zinc-100">
+              {user?.displayName || "Yeni post"}
+            </div>
             <div className="flex items-center gap-2">
-              <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-zinc-300">
+              <div className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-zinc-300">
                 {visibilityLabel}
               </div>
               <select
                 value={visibility}
                 onChange={(e) => setVisibility(e.currentTarget.value as Visibility)}
-                className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-[11px] text-zinc-200 outline-none focus:border-white/20"
+                className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-[11px] text-zinc-200 outline-none focus:border-purple-500/50 transition-colors"
               >
                 <option value="public">Herkes</option>
                 <option value="friends">Arkadaşlar</option>
@@ -82,9 +94,9 @@ export function PostComposer({
               <select
                 value={serverId}
                 onChange={(e) => setServerId(e.currentTarget.value)}
-                className={`min-w-0 flex-1 rounded-lg border px-2 py-1 text-xs outline-none focus:border-white/20 ${serverRequired && !serverId
+                className={`min-w-0 flex-1 rounded-lg border px-2 py-1 text-xs outline-none focus:border-purple-500/50 transition-colors ${serverRequired && !serverId
                     ? "border-red-500/50 bg-red-500/10 text-red-300"
-                    : "border-white/10 bg-black/30 text-zinc-200"
+                    : "border-white/10 bg-black/40 text-zinc-200"
                   }`}
               >
                 <option value="">Sunucu seçin</option>
@@ -107,14 +119,18 @@ export function PostComposer({
             onChange={(e) => setText(e.currentTarget.value)}
             placeholder="Ne oluyor?"
             rows={3}
-            className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-white/20"
+            className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-purple-500/50 transition-colors"
           />
 
           <div className="mt-3 flex items-center justify-between gap-3">
             <div
               className={cn(
-                "text-xs",
-                remainingClamped < 0 ? "text-rose-300" : remainingClamped < 60 ? "text-amber-200" : "text-zinc-500",
+                "text-xs tabular-nums",
+                remainingClamped < 0
+                  ? "text-rose-400"
+                  : remainingClamped < 60
+                    ? "text-amber-400"
+                    : "text-zinc-500"
               )}
             >
               {remainingClamped}
@@ -125,10 +141,10 @@ export function PostComposer({
               disabled={!canPost}
               onClick={() => void handleSubmit()}
               className={cn(
-                "rounded-xl px-3 py-2 text-sm font-medium text-white transition",
+                "rounded-xl px-4 py-2 text-sm font-medium transition-all",
                 canPost
-                  ? "bg-[var(--velvet)]/80 shadow-[0_12px_30px_rgba(148,70,91,0.25)] hover:bg-[var(--velvet)]"
-                  : "cursor-not-allowed bg-white/10 text-white/40",
+                  ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 hover:scale-[1.02]"
+                  : "cursor-not-allowed bg-white/10 text-white/40"
               )}
             >
               {busy ? "Paylaşılıyor…" : "Paylaş"}

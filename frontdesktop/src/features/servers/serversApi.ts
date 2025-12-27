@@ -108,6 +108,49 @@ export async function fetchRoles(serverId: string): Promise<Role[]> {
     return res.data;
 }
 
+export async function createRole(serverId: string, data: { name: string; color: string; permissions: number }): Promise<Role> {
+    const res = await api.post<{ data: Role }>(`/api/v1/servers/${serverId}/roles`, data);
+    return res.data;
+}
+
+export async function updateRole(serverId: string, roleId: string, data: { name?: string; color?: string; permissions?: number; position?: number }): Promise<Role> {
+    const res = await api.patch<{ data: Role }>(`/api/v1/servers/${serverId}/roles/${roleId}`, data);
+    return res.data;
+}
+
+export async function deleteRole(serverId: string, roleId: string): Promise<void> {
+    await api.delete(`/api/v1/servers/${serverId}/roles/${roleId}`);
+}
+
+export async function updateMemberRoles(serverId: string, userId: string, roleIds: string[]): Promise<void> {
+    await api.put(`/api/v1/servers/${serverId}/members/${userId}/roles`, { roleIds });
+}
+
+// ============================================================================
+// Moderation Endpoints
+// ============================================================================
+
+export async function banMember(serverId: string, userId: string, reason: string): Promise<void> {
+    await api.post(`/api/v1/servers/${serverId}/bans`, { userId, reason });
+}
+
+export async function unbanMember(serverId: string, userId: string): Promise<void> {
+    await api.delete(`/api/v1/servers/${serverId}/bans/${userId}`);
+}
+
+export async function getBans(serverId: string): Promise<import("../../api/types").Ban[]> {
+    const res = await api.get<{ data: import("../../api/types").Ban[] }>(`/api/v1/servers/${serverId}/bans`);
+    return res.data;
+}
+
+export async function timeoutMember(serverId: string, userId: string, durationSeconds: number, reason: string): Promise<void> {
+    await api.post(`/api/v1/servers/${serverId}/members/${userId}/timeout`, { durationSeconds, reason });
+}
+
+export async function removeTimeout(serverId: string, userId: string): Promise<void> {
+    await api.delete(`/api/v1/servers/${serverId}/members/${userId}/timeout`);
+}
+
 // ============================================================================
 // Channel Endpoints
 // ============================================================================
@@ -121,8 +164,11 @@ export async function fetchChannels(serverId: string): Promise<Channel[]> {
 // Create a channel
 export async function createChannel(serverId: string, data: {
     name: string;
-    type?: "text" | "voice" | "announcement";
+    type?: "text" | "voice" | "video" | "announcement" | "stage" | "hybrid";
     description?: string;
+    userLimit?: number;
+    bitrate?: number;
+    parentId?: string;
 }): Promise<Channel> {
     const res = await api.post<{ data: Channel }>(`/api/v1/servers/${serverId}/channels`, {
         ...data,
@@ -135,6 +181,9 @@ export async function createChannel(serverId: string, data: {
 export async function updateChannel(serverId: string, channelId: string, data: {
     name?: string;
     description?: string;
+    userLimit?: number;
+    bitrate?: number;
+    parentId?: string;
 }): Promise<Channel> {
     const res = await api.patch<{ data: Channel }>(`/api/v1/servers/${serverId}/channels/${channelId}`, data);
     return res.data;

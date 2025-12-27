@@ -176,6 +176,7 @@ type CreateServerRequest struct {
 	Name        string `json:"name" validate:"required,min=2,max=100"`
 	Description string `json:"description" validate:"max=500"`
 	IsPublic    bool   `json:"isPublic"`
+	Accent      string `json:"accent"` // Primary color for icon gradient
 }
 
 // UpdateServerRequest represents a server update request.
@@ -213,6 +214,7 @@ type MemberWithUserResponse struct {
 	Role     string              `json:"role"`
 	JoinedAt string              `json:"joinedAt"`
 	User     *PublicUserResponse `json:"user,omitempty"`
+	RoleIDs  []string            `json:"roleIds,omitempty"`
 }
 
 // UpdateMemberRoleRequest represents a role update request.
@@ -228,6 +230,15 @@ type RoleResponse struct {
 	Position    int    `json:"position"`
 	Permissions int64  `json:"permissions"`
 	IsDefault   bool   `json:"isDefault"`
+}
+
+// BanResponse represents a server ban.
+type BanResponse struct {
+	ID        string `json:"id"`
+	UserID    string `json:"userId"`
+	BannedBy  string `json:"bannedBy"`
+	Reason    string `json:"reason"`
+	CreatedAt string `json:"createdAt"`
 }
 
 type JoinRequestResponse struct {
