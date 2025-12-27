@@ -32,6 +32,7 @@ interface HybridChatAreaProps {
     onDeleteMessage?: (messageId: string) => Promise<void>;
     onTyping?: () => void;
     typingUsers?: string[];
+    canSend?: boolean; // Permission to send messages
 }
 
 // ============================================================================
@@ -229,6 +230,7 @@ interface HybridControlBarProps {
     sending: boolean;
     channelName: string;
     onTyping?: () => void;
+    canSend?: boolean; // Permission to send messages
 
     // Voice controls
     isConnected: boolean;
@@ -250,6 +252,7 @@ function HybridControlBar({
     sending,
     channelName,
     onTyping,
+    canSend = true,
     isConnected,
     isConnecting,
     isMuted,
@@ -280,16 +283,25 @@ function HybridControlBar({
             <div className="flex items-end gap-3 p-3">
                 {/* Message Input */}
                 <div className="flex-1 relative">
-                    <textarea
-                        value={messageText}
-                        onChange={handleChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder={`Mesaj yaz #${channelName}`}
-                        disabled={sending}
-                        rows={1}
-                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-zinc-100 placeholder-zinc-500 outline-none resize-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all disabled:opacity-50"
-                        style={{ minHeight: "48px", maxHeight: "120px" }}
-                    />
+                    {canSend ? (
+                        <textarea
+                            value={messageText}
+                            onChange={handleChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder={`Mesaj yaz #${channelName}`}
+                            disabled={sending}
+                            rows={1}
+                            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-zinc-100 placeholder-zinc-500 outline-none resize-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/20 transition-all disabled:opacity-50"
+                            style={{ minHeight: "48px", maxHeight: "120px" }}
+                        />
+                    ) : (
+                        <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-500/5 border border-yellow-500/20">
+                            <svg className="w-5 h-5 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span className="text-sm text-yellow-200/70">Bu kanala mesaj gönderme izniniz yok.</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Voice Controls */}
@@ -377,6 +389,7 @@ export function HybridChatArea({
     onDeleteMessage,
     onTyping,
     typingUsers = [],
+    canSend = true,
 }: HybridChatAreaProps) {
     const currentUser = useAuthStore((s) => s.user);
     const voiceStore = useVoiceStore();
@@ -547,6 +560,7 @@ export function HybridChatArea({
                 sending={sending}
                 channelName={channel.name}
                 onTyping={onTyping}
+                canSend={canSend}
                 isConnected={isConnectedToThis}
                 isConnecting={isConnectingToThis}
                 isMuted={voiceStore.isMuted}

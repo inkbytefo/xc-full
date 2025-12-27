@@ -30,6 +30,7 @@ interface ChatAreaProps {
     onDeleteMessage?: (messageId: string) => Promise<void>;
     onTyping?: () => void;
     typingUsers?: string[];
+    canSend?: boolean; // Permission to send messages in this channel
 }
 
 export function ChatArea({
@@ -48,6 +49,7 @@ export function ChatArea({
     onDeleteMessage,
     onTyping,
     typingUsers = [],
+    canSend = true, // Default to true for backward compatibility
 }: ChatAreaProps) {
     const currentUser = useAuthStore((s) => s.user);
 
@@ -170,8 +172,12 @@ export function ChatArea({
                 placeholder={`Message #${channel.name}`}
                 disabled={sending}
                 variant={variant}
-                readOnly={channel.type === "announcement"}
-                readOnlyMessage="Bu bir duyuru kanalıdır. Sadece yöneticiler mesaj gönderebilir."
+                readOnly={!canSend}
+                readOnlyMessage={
+                    channel.type === "announcement"
+                        ? "Bu bir duyuru kanalıdır. Sadece yöneticiler mesaj gönderebilir."
+                        : "Bu kanala mesaj gönderme izniniz yok."
+                }
             />
 
             {/* Context Menu */}

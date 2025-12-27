@@ -83,6 +83,23 @@ export function ServersPage() {
     s.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Permission check: Can user send messages in current channel?
+  const canSendInChannel = useMemo(() => {
+    const ch = serverData.currentChannel;
+    if (!ch) return false;
+
+    // Owner can always send
+    if (isOwner) return true;
+
+    // Admin/moderator can send to announcement channels
+    if (ch.type === "announcement") {
+      return isAdmin || isModerator;
+    }
+
+    // Regular channels: any member can send
+    return true;
+  }, [serverData.currentChannel, isOwner, isAdmin, isModerator]);
+
   // Voice channel handlers
   const handleVoiceChannelClick = useCallback(
     (channelId: string) => {
@@ -583,6 +600,7 @@ export function ServersPage() {
                 onDeleteMessage={chatMessages.handleDelete}
                 onTyping={chatMessages.handleTyping}
                 typingUsers={chatMessages.typingUsers}
+                canSend={canSendInChannel}
               />
             ) : (
               <ChatArea
@@ -598,6 +616,7 @@ export function ServersPage() {
                 onDeleteMessage={chatMessages.handleDelete}
                 onTyping={chatMessages.handleTyping}
                 typingUsers={chatMessages.typingUsers}
+                canSend={canSendInChannel}
               />
             )}
             {serverData.currentServer &&

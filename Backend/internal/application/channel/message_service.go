@@ -73,8 +73,14 @@ func (s *MessageService) SendMessage(ctx context.Context, cmd SendMessageCommand
 		return nil, err
 	}
 
-	// Verify channel exists and belongs to server
-	if err := s.validateChannel(ctx, cmd.ChannelID, cmd.ServerID); err != nil {
+	// Get channel for type check
+	ch, err := s.channelRepo.FindByID(ctx, cmd.ChannelID)
+	if err != nil || ch == nil || ch.ServerID != cmd.ServerID {
+		return nil, channel.ErrNotFound
+	}
+
+	// Check permission to send in this channel
+	if err := s.canSendMessage(ctx, ch, cmd.ServerID, cmd.UserID); err != nil {
 		return nil, err
 	}
 
@@ -219,4 +225,48 @@ func (s *MessageService) canManageMessages(ctx context.Context, serverID, userID
 	}
 
 	return member.HasPermission(server.PermissionManageMessages)
+}
+
+// canSendMessage checks if the user can send a message in a channel.
+// This handles: owner bypass, admin bypass, announcement channels, and timeouts.
+func (s *MessageService) canSendMessage(ctx context.Context, ch *channel.Channel, serverID, userID string) error {
+	// 1. Check if server owner - always allowed
+	srv, err := s.serverRepo.FindByID(ctx, serverID)
+	if err == nil && srv != nil && srv.OwnerID == userID {
+		return nil // Owner can send anywhere
+	}
+
+	// 2. Get member with roles for permission checks
+	member, err := s.memberRepo.FindByServerAndUserWithRoles(ctx, serverID, userID)
+	if err != nil {
+		return server.ErrNotMember
+	}
+
+	// 3. Check if user is timed out
+	if member.IsTimedOut() {
+		return channel.ErrNoPermission
+	}
+
+	// 4. Administrator permission bypasses all channel restrictions
+	if member.HasPermission(server.PermissionAdministrator) {
+		return nil
+	}
+
+	// 5. Announcement channel - requires ManageChannels permission
+	if ch.Type == channel.TypeAnnouncement {
+		if !member.HasPermission(server.PermissionManageChannels) {
+			return channel.ErrNoPermission
+		}
+	}
+
+	// 6. Check SendMessages permission (for regular channels)
+	// Note: Default @everyone role usually has this, but can be overwritten
+	if !member.HasPermission(server.PermissionSendMessages) {
+		return channel.ErrNoPermission
+	}
+
+	// TODO: Check channel permission overwrites in the future
+	// This would check ch.PermissionOverwrites for role/member-specific denies
+
+	return nil
 }
