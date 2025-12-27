@@ -91,6 +91,7 @@ func (p Permission) Remove(perm Permission) Permission {
 // Server represents a server entity in the domain.
 type Server struct {
 	ID           string
+	Handle       string // Unique handle/slug (e.g. "my-server")
 	Name         string
 	Description  string
 	IconGradient [2]string

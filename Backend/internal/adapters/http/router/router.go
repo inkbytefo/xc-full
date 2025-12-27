@@ -78,6 +78,7 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// User routes
 	users := protected.Group("/users")
+	users.Get("/handle/:handle", cfg.UserHandler.GetUserByHandle)
 	users.Get("/:id", cfg.UserHandler.GetUser)
 	users.Post("/:id/follow", cfg.UserHandler.Follow)
 	users.Delete("/:id/follow", cfg.UserHandler.Unfollow)
@@ -91,6 +92,7 @@ func Setup(app *fiber.App, cfg *Config) {
 	// Server routes
 	servers := protected.Group("/servers")
 	servers.Get("", cfg.ServerHandler.List)
+	servers.Get("/handle/:handle", cfg.ServerHandler.GetByHandle)
 	servers.Post("", cfg.ServerHandler.Create)
 	servers.Get("/:id", cfg.ServerHandler.Get)
 	servers.Patch("/:id", cfg.ServerHandler.Update)

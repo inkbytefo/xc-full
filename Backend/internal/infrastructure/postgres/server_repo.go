@@ -26,7 +26,7 @@ func NewServerRepository(pool *pgxpool.Pool) *ServerRepository {
 func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Server, error) {
 	query := `
 		SELECT id, name, description, icon_gradient, owner_id, 
-		       member_count, is_public, created_at, updated_at
+		       member_count, is_public, created_at, updated_at, handle
 		FROM servers
 		WHERE id = $1
 	`
@@ -45,6 +45,7 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 		&s.IsPublic,
 		&s.CreatedAt,
 		&s.UpdatedAt,
+		&s.Handle,
 	)
 
 	if err != nil {
@@ -64,11 +65,54 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 	return &s, nil
 }
 
+// FindByHandle finds a server by its handle.
+func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*server.Server, error) {
+	query := `
+		SELECT id, name, description, icon_gradient, owner_id, 
+		       member_count, is_public, created_at, updated_at, handle
+		FROM servers
+		WHERE handle = $1
+	`
+
+	var s server.Server
+	var gradient []string
+	var desc *string
+
+	err := r.pool.QueryRow(ctx, query, handle).Scan(
+		&s.ID,
+		&s.Name,
+		&desc,
+		&gradient,
+		&s.OwnerID,
+		&s.MemberCount,
+		&s.IsPublic,
+		&s.CreatedAt,
+		&s.UpdatedAt,
+		&s.Handle,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, server.ErrNotFound
+		}
+		return nil, fmt.Errorf("query server by handle: %w", err)
+	}
+
+	if len(gradient) >= 2 {
+		s.IconGradient = [2]string{gradient[0], gradient[1]}
+	}
+	if desc != nil {
+		s.Description = *desc
+	}
+
+	return &s, nil
+}
+
 // FindByUserID finds all servers a user is a member of.
 func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*server.Server, error) {
 	query := `
 		SELECT s.id, s.name, s.description, s.icon_gradient, s.owner_id, 
-		       s.member_count, s.is_public, s.created_at, s.updated_at
+		       s.member_count, s.is_public, s.created_at, s.updated_at, s.handle
 		FROM servers s
 		INNER JOIN server_members sm ON s.id = sm.server_id
 		WHERE sm.user_id = $1
@@ -97,6 +141,7 @@ func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*
 			&s.IsPublic,
 			&s.CreatedAt,
 			&s.UpdatedAt,
+			&s.Handle,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan server: %w", err)
@@ -120,8 +165,8 @@ func (r *ServerRepository) Create(ctx context.Context, s *server.Server) error {
 	query := `
 		INSERT INTO servers (
 			id, name, description, icon_gradient, owner_id,
-			member_count, is_public, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			member_count, is_public, created_at, updated_at, handle
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 
 	var desc *string
@@ -139,6 +184,7 @@ func (r *ServerRepository) Create(ctx context.Context, s *server.Server) error {
 		s.IsPublic,
 		s.CreatedAt,
 		s.UpdatedAt,
+		s.Handle,
 	)
 
 	if err != nil {

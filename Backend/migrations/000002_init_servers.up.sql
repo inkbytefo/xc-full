@@ -6,6 +6,7 @@
 -- ============================================================================
 CREATE TABLE servers (
     id              VARCHAR(26) PRIMARY KEY,
+    handle          VARCHAR(32) NOT NULL,
     name            VARCHAR(100) NOT NULL,
     description     TEXT,
     icon_gradient   TEXT[] NOT NULL DEFAULT ARRAY['#667eea', '#764ba2'],
@@ -15,8 +16,12 @@ CREATE TABLE servers (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
+    CONSTRAINT unique_server_handle UNIQUE (handle),
+    CONSTRAINT server_handle_length CHECK (char_length(handle) >= 3 AND char_length(handle) <= 32),
     CONSTRAINT server_name_length CHECK (char_length(name) >= 2 AND char_length(name) <= 100)
 );
+
+CREATE UNIQUE INDEX idx_servers_handle ON servers(handle);
 
 -- ============================================================================
 -- ROLES TABLE (RBAC 2.0)

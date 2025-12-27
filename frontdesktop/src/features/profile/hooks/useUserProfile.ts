@@ -6,7 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../../store/authStore';
-import { getUser, updateProfile, type UserProfile } from '../userApi';
+import { getUser, getUserByHandle, updateProfile, type UserProfile } from '../userApi';
 
 // ============================================================================
 // Query Keys
@@ -14,7 +14,8 @@ import { getUser, updateProfile, type UserProfile } from '../userApi';
 
 export const userKeys = {
     all: ['users'] as const,
-    detail: (userId: string) => ['user', userId] as const,
+    detail: (userId: string) => ['user', 'id', userId] as const,
+    handle: (handle: string) => ['user', 'handle', handle] as const,
     me: ['user', 'me'] as const,
 };
 
@@ -24,24 +25,35 @@ export const userKeys = {
 
 interface UseUserProfileOptions {
     userId?: string | null;
+    handle?: string | null;
     enabled?: boolean;
 }
 
 export function useUserProfile(options: UseUserProfileOptions = {}) {
     const currentUser = useAuthStore((s) => s.user);
-    const { userId, enabled = true } = options;
+    const { userId, handle, enabled = true } = options;
 
-    // Determine target user ID
-    const targetUserId = userId || currentUser?.id || null;
-    const isOwnProfile = !userId || userId === currentUser?.id;
+    // Determine target
+    // Priority: handle -> userId -> currentUser
+    const targetHandle = handle;
+    const targetUserId = !handle ? (userId || currentUser?.id || null) : null;
+
+    const isOwnProfile =
+        (!!targetHandle && targetHandle === currentUser?.handle) ||
+        (!!targetUserId && targetUserId === currentUser?.id);
+
+    const queryKey = targetHandle
+        ? userKeys.handle(targetHandle)
+        : (targetUserId ? userKeys.detail(targetUserId) : userKeys.me);
 
     const query = useQuery<UserProfile | null>({
-        queryKey: targetUserId ? userKeys.detail(targetUserId) : userKeys.me,
+        queryKey,
         queryFn: async () => {
-            if (!targetUserId) return null;
-            return getUser(targetUserId);
+            if (targetHandle) return getUserByHandle(targetHandle);
+            if (targetUserId) return getUser(targetUserId);
+            return null;
         },
-        enabled: enabled && !!targetUserId,
+        enabled: enabled && (!!targetUserId || !!targetHandle),
         staleTime: 1000 * 60 * 2, // 2 minutes
     });
 
@@ -51,6 +63,8 @@ export function useUserProfile(options: UseUserProfileOptions = {}) {
         handle: currentUser.handle,
         displayName: currentUser.displayName,
         avatarGradient: (currentUser.avatarGradient || ['#8B5CF6', '#EC4899']) as [string, string],
+        avatarUrl: currentUser.avatarUrl,
+        bannerUrl: currentUser.bannerUrl,
         bio: currentUser.bio || '',
         isVerified: currentUser.isVerified || false,
         followersCount: 0,

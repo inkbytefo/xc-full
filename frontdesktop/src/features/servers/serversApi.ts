@@ -34,6 +34,12 @@ export async function getServer(id: string): Promise<Server> {
     return res.data;
 }
 
+// Get server by handle
+export async function getServerByHandle(handle: string): Promise<Server> {
+    const res = await api.get<{ data: Server }>(`/api/v1/servers/handle/${handle}`);
+    return res.data;
+}
+
 // Search public servers
 export async function searchServers(query: string, limit: number = 20): Promise<Server[]> {
     const res = await api.get<{ data: Server[] }>(`/api/v1/search/servers`, { q: query, limit });

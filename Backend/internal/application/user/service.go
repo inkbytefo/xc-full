@@ -12,6 +12,7 @@ import (
 	"xcord/internal/domain/user"
 	"xcord/internal/infrastructure/auth"
 	"xcord/internal/pkg/id"
+	"xcord/internal/pkg/validation"
 )
 
 // Service provides user-related operations.
@@ -64,6 +65,11 @@ type RegisterResult struct {
 func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (*RegisterResult, error) {
 	// Validate password
 	if err := s.hasher.Validate(cmd.Password); err != nil {
+		return nil, err
+	}
+
+	// Validate handle format and reserved words
+	if err := validation.ValidateHandle(cmd.Handle); err != nil {
 		return nil, err
 	}
 
@@ -563,4 +569,38 @@ func generateAvatarGradient() [2]string {
 	id := uuid.New()
 	idx := int(id[0]) % len(gradients)
 	return gradients[idx]
+}
+
+// GetProfileByHandle retrieves a user's profile by handle with stats.
+func (s *Service) GetProfileByHandle(ctx context.Context, handle, viewerID string) (*Profile, error) {
+	u, err := s.userRepo.FindByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use denormalized counters from user entity
+	followersCount := u.FollowersCount
+	followingCount := u.FollowingCount
+	postsCount := u.PostsCount
+
+	// Check follow relationship with viewer
+	var isFollowing, isFollowedBy bool
+	if viewerID != "" && viewerID != u.ID {
+		// Check if viewer follows this user
+		follow, _ := s.followRepo.FindByUsers(ctx, viewerID, u.ID)
+		if follow != nil {
+			isFollowing = follow.Status == user.FollowStatusActive
+		}
+		// Check if this user follows viewer
+		isFollowedBy, _ = s.followRepo.ExistsWithStatus(ctx, u.ID, viewerID, user.FollowStatusActive)
+	}
+
+	return &Profile{
+		User:           u,
+		FollowersCount: followersCount,
+		FollowingCount: followingCount,
+		PostsCount:     postsCount,
+		IsFollowing:    isFollowing,
+		IsFollowedBy:   isFollowedBy,
+	}, nil
 }

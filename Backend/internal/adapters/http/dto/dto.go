@@ -189,6 +189,7 @@ type UpdateServerRequest struct {
 // ServerResponse represents a server in API responses.
 type ServerResponse struct {
 	ID           string    `json:"id"`
+	Handle       string    `json:"handle"`
 	Name         string    `json:"name"`
 	Description  string    `json:"description,omitempty"`
 	IconGradient [2]string `json:"iconGradient"`

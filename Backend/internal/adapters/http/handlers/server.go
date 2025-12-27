@@ -109,6 +109,30 @@ func (h *ServerHandler) Get(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": serverToDTO(srv),
 	})
+	return c.JSON(fiber.Map{
+		"data": serverToDTO(srv),
+	})
+}
+
+// GetByHandle returns a server by Handle.
+// GET /servers/handle/:handle
+func (h *ServerHandler) GetByHandle(c *fiber.Ctx) error {
+	userID, _ := c.Locals("userID").(string) // Optional: allow public access logic in service if needed, but safe to pass ""
+	handle := c.Params("handle")
+
+	if userID == "" {
+		// If endpoint is public (no auth middleware), userID might be empty or missing.
+		// Use empty string or check logic.
+	}
+
+	srv, err := h.serverService.GetByHandle(c.Context(), handle, userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{
+		"data": serverToDTO(srv),
+	})
 }
 
 // Update updates a server.
@@ -630,6 +654,7 @@ func (h *ServerHandler) handleError(c *fiber.Ctx, err error) error {
 func serverToDTO(s *server.Server) dto.ServerResponse {
 	return dto.ServerResponse{
 		ID:           s.ID,
+		Handle:       s.Handle,
 		Name:         s.Name,
 		Description:  s.Description,
 		IconGradient: s.IconGradient,

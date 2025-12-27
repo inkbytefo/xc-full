@@ -113,6 +113,45 @@ func (h *UserHandler) GetUser(c *fiber.Ctx) error {
 	})
 }
 
+// GetUserByHandle returns a public user profile by handle.
+// GET /users/handle/:handle
+func (h *UserHandler) GetUserByHandle(c *fiber.Ctx) error {
+	handle := c.Params("handle")
+	if handle == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"INVALID_HANDLE",
+			"Handle is required",
+		))
+	}
+
+	currentUserID, _ := c.Locals("userID").(string)
+
+	profile, err := h.userService.GetProfileByHandle(c.Context(), handle, currentUserID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+			"USER_NOT_FOUND",
+			"User not found",
+		))
+	}
+
+	return c.JSON(fiber.Map{
+		"data": dto.UserProfileResponse{
+			ID:             profile.ID,
+			Handle:         profile.Handle,
+			DisplayName:    profile.DisplayName,
+			AvatarGradient: profile.AvatarGradient,
+			Bio:            profile.Bio,
+			IsVerified:     profile.IsVerified,
+			FollowersCount: profile.FollowersCount,
+			FollowingCount: profile.FollowingCount,
+			PostsCount:     profile.PostsCount,
+			IsFollowing:    profile.IsFollowing,
+			IsFollowedBy:   profile.IsFollowedBy,
+			CreatedAt:      profile.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
+		},
+	})
+}
+
 // UpdateMe updates the current user's profile.
 // PATCH /me
 func (h *UserHandler) UpdateMe(c *fiber.Ctx) error {

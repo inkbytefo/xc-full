@@ -9,7 +9,7 @@ import type { Post } from "../../api/types";
 type ProfileTab = "posts" | "likes" | "media";
 
 export function ProfilePage() {
-  const { userId } = useParams<{ userId?: string }>();
+  const { userId, handle } = useParams<{ userId?: string; handle?: string }>();
   const checkAuth = useAuthStore((s) => s.checkAuth);
 
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
@@ -18,7 +18,7 @@ export function ProfilePage() {
   const [followersModalTab, setFollowersModalTab] = useState<"followers" | "following">("followers");
 
   // Use profile hooks
-  const { profile, isLoading, error, isOwnProfile, currentUser } = useUserProfile({ userId });
+  const { profile, isLoading, error, isOwnProfile, currentUser } = useUserProfile({ userId, handle });
 
   // Use posts hook
   const { data: posts = [], isLoading: postsLoading } = useUserPosts({

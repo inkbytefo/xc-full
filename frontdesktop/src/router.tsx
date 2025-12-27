@@ -102,6 +102,10 @@ export const router = createBrowserRouter([
                 element: <ServersPage />,
             },
             {
+                path: "s/:handle",
+                element: <ServersPage />,
+            },
+            {
                 path: "servers/:serverId",
                 element: <ServersPage />,
             },
@@ -128,6 +132,10 @@ export const router = createBrowserRouter([
             {
                 path: "settings",
                 element: <SettingsPage />,
+            },
+            {
+                path: "u/:handle",
+                element: <ProfilePage />,
             },
             {
                 path: "profile",

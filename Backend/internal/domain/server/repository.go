@@ -7,6 +7,9 @@ type Repository interface {
 	// FindByID finds a server by its ID.
 	FindByID(ctx context.Context, id string) (*Server, error)
 
+	// FindByHandle finds a server by its handle.
+	FindByHandle(ctx context.Context, handle string) (*Server, error)
+
 	// FindByUserID finds all servers a user is a member of.
 	FindByUserID(ctx context.Context, userID string) ([]*Server, error)
 

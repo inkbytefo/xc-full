@@ -7,11 +7,15 @@ import (
 	"log/slog"
 	"time"
 
+	"regexp"
+	"strings"
+
 	"github.com/google/uuid"
 
 	channelDomain "xcord/internal/domain/channel"
 	"xcord/internal/domain/server"
 	"xcord/internal/pkg/id"
+	"xcord/internal/pkg/validation"
 )
 
 // Service provides server-related operations.
@@ -67,6 +71,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 
 	srv := &server.Server{
 		ID:           id.Generate("serv"),
+		Handle:       generateHandle(cmd.Name),
 		Name:         cmd.Name,
 		Description:  cmd.Description,
 		IconGradient: iconGradient,
@@ -155,6 +160,55 @@ func (s *Service) GetByID(ctx context.Context, id, userID string) (*server.Serve
 	}
 
 	return srv, nil
+}
+
+// GetByHandle retrieves a server by handle.
+func (s *Service) GetByHandle(ctx context.Context, handle, userID string) (*server.Server, error) {
+	srv, err := s.serverRepo.FindByHandle(ctx, handle)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if public or user is member
+	if !srv.IsPublic {
+		isMember, err := s.memberRepo.IsMember(ctx, srv.ID, userID)
+		if err != nil {
+			return nil, err
+		}
+		if !isMember {
+			return nil, server.ErrNotFound
+		}
+	}
+
+	return srv, nil
+}
+
+func generateHandle(name string) string {
+	// Simple slugify
+	reg := regexp.MustCompile("[^a-z0-9]+")
+	slug := reg.ReplaceAllString(strings.ToLower(name), "-")
+	slug = strings.Trim(slug, "-")
+
+	if len(slug) < 3 {
+		slug = "server-" + id.Generate("")[0:6]
+	}
+
+	// Ensure max length
+	if len(slug) > 30 {
+		slug = slug[:30]
+	}
+
+	// Add random suffix to reduce collision probability (for now)
+	// In a real app we'd check availability
+	slug = slug + "-" + id.Generate("")[len(id.Generate(""))-4:]
+
+	// Final validation check
+	if err := validation.ValidateHandle(slug); err != nil {
+		// If still invalid (e.g. reserved word + suffix is still reserved?? unlikely), fallback to purely random
+		return "server-" + id.Generate("serv")[0:8]
+	}
+
+	return slug
 }
 
 // ListByUser lists all servers a user is a member of.

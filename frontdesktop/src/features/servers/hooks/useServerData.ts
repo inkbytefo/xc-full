@@ -17,6 +17,8 @@ import {
 } from "../../../lib/query";
 import { useQueryClient } from "@tanstack/react-query";
 import { getVoiceChannels, type VoiceChannel } from "../../voice/voiceApi";
+import { getServerByHandle, getServer } from "../serversApi";
+import { useQuery } from "@tanstack/react-query";
 
 interface UseServerDataOptions {
     onError?: (message: string) => void;
@@ -59,9 +61,10 @@ interface UseServerDataReturn {
 }
 
 export function useServerData(options: UseServerDataOptions = {}): UseServerDataReturn {
-    const { serverId: urlServerId, channelId: urlChannelId } = useParams<{
+    const { serverId: urlServerId, channelId: urlChannelId, handle: urlHandle } = useParams<{
         serverId?: string;
         channelId?: string;
+        handle?: string;
     }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
@@ -97,7 +100,31 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     const servers = useMemo(() => serversData, [serversData]);
     const channels = useMemo(() => channelsData, [channelsData]);
 
-    const currentServer = servers.find((s) => s.id === selectedServer);
+    // React Query: Fetch individual server if not in list (e.g. public preview, handle access)
+    // We only fetch if we have a selectedServer but it's not in the main list
+    const serverInList = serversData.find((s) => s.id === selectedServer);
+
+    // Resolve handle to server ID
+    useEffect(() => {
+        if (urlHandle) {
+            getServerByHandle(urlHandle)
+                .then(server => {
+                    setSelectedServer(server.id);
+                })
+                .catch(err => {
+                    if (options.onError) options.onError("Server not found");
+                });
+        }
+    }, [urlHandle, options.onError]);
+
+    const { data: individualServer } = useQuery({
+        queryKey: serverKeys.detail(selectedServer || ""),
+        queryFn: () => getServer(selectedServer!),
+        enabled: !!selectedServer && !serverInList,
+        retry: false,
+    });
+
+    const currentServer = serverInList || individualServer;
     const currentChannel = channels.find((c) => c.id === selectedChannel);
 
     // Categorize channels

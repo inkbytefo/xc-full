@@ -34,6 +34,12 @@ export async function getUser(userId: string): Promise<UserProfile> {
     return res.data;
 }
 
+// Get another user's profile by handle
+export async function getUserByHandle(handle: string): Promise<UserProfile> {
+    const res = await api.get<{ data: UserProfile }>(`/api/v1/users/handle/${handle}`);
+    return res.data;
+}
+
 // Update current user's profile
 export async function updateProfile(data: {
     displayName?: string;
