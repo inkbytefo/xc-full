@@ -246,7 +246,24 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
 
     const refreshChannels = useCallback(async () => {
         if (!selectedServer) return;
-        await queryClient.invalidateQueries({ queryKey: serverKeys.channels(selectedServer) });
+
+        // Refresh text/category channels (Query)
+        const p1 = queryClient.invalidateQueries({ queryKey: serverKeys.channels(selectedServer) });
+
+        // Refresh voice channels (Manual State)
+        const p2 = (async () => {
+            setVoiceLoading(true);
+            try {
+                const data = await getVoiceChannels(selectedServer);
+                setVoiceChannels(data);
+            } catch (error) {
+                console.error("Failed to refresh voice channels:", error);
+            } finally {
+                setVoiceLoading(false);
+            }
+        })();
+
+        await Promise.all([p1, p2]);
     }, [selectedServer, queryClient]);
 
     const handleServerCreated = useCallback(async (newServerId: string) => {
