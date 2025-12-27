@@ -35,6 +35,7 @@ type UpdateCommand struct {
 	ReadReceiptsEnabled     *bool
 	TypingIndicatorsEnabled *bool
 	FriendRequestPermission *string
+	ShowServerTags          *bool
 }
 
 // GetSettings returns user's privacy settings (creates default if not exists).
@@ -105,6 +106,10 @@ func (s *Service) UpdateSettings(ctx context.Context, userID string, cmd UpdateC
 			return nil, privacy.ErrInvalidSetting
 		}
 		settings.FriendRequestPermission = p
+	}
+
+	if cmd.ShowServerTags != nil {
+		settings.ShowServerTags = *cmd.ShowServerTags
 	}
 
 	// Save updated settings

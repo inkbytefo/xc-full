@@ -62,6 +62,7 @@ export async function updateServer(id: string, data: {
     name?: string;
     description?: string;
     isPublic?: boolean;
+    tag?: string;
 }): Promise<Server> {
     const res = await api.patch<{ data: Server }>(`/api/v1/servers/${id}`, data);
     return res.data;

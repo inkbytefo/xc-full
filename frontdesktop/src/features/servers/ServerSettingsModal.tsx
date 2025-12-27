@@ -30,6 +30,7 @@ export function ServerSettingsModal({
     const [name, setName] = useState(server.name);
     const [description, setDescription] = useState(server.description || "");
     const [isPublic, setIsPublic] = useState(server.isPublic);
+    const [tag, setTag] = useState(server.tag || "");
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -45,6 +46,7 @@ export function ServerSettingsModal({
                 name,
                 description,
                 isPublic,
+                tag: tag || undefined,
             });
             onServerUpdated?.(updated);
             onClose();
@@ -233,6 +235,24 @@ export function ServerSettingsModal({
                                         {isPublic
                                             ? "Anyone can find and join this server"
                                             : "Only people with an invite can join"}
+                                    </p>
+                                </div>
+
+                                {/* Server Tag */}
+                                <div>
+                                    <label className="block text-sm font-medium text-zinc-300 mb-2">
+                                        Server Tag
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={tag}
+                                        onChange={(e) => setTag(e.target.value.slice(0, 9))}
+                                        maxLength={9}
+                                        className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition-colors font-mono uppercase tracking-wider"
+                                        placeholder="ABC"
+                                    />
+                                    <p className="mt-1 text-xs text-zinc-500">
+                                        1-9 karakter arası. Üye profillerinde [ {tag || "TAG"} ] şeklinde görünür.
                                     </p>
                                 </div>
 

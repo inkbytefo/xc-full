@@ -444,6 +444,18 @@ export function SettingsPage() {
                     onChange={(value) => updatePrivacy({ friendRequestPermission: value as PrivacySettings["friendRequestPermission"] })}
                     disabled={privacySaving}
                   />
+
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <div className="font-medium text-white">Sunucu Tag'leri</div>
+                      <div className="text-sm text-zinc-500">Profilinizde sunucu rol tag'lerinizi gösterin</div>
+                    </div>
+                    <Toggle
+                      checked={privacySettings.showServerTags}
+                      onChange={(checked) => updatePrivacy({ showServerTags: checked })}
+                      disabled={privacySaving}
+                    />
+                  </div>
                 </div>
 
                 {/* Saving indicator */}

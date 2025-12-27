@@ -26,7 +26,7 @@ func NewServerRepository(pool *pgxpool.Pool) *ServerRepository {
 func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Server, error) {
 	query := `
 		SELECT id, name, description, icon_gradient, owner_id, 
-		       member_count, is_public, created_at, updated_at, handle
+		       member_count, is_public, created_at, updated_at, handle, tag
 		FROM servers
 		WHERE id = $1
 	`
@@ -34,6 +34,7 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 	var s server.Server
 	var gradient []string
 	var desc *string
+	var tag *string
 
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&s.ID,
@@ -46,6 +47,7 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 		&s.CreatedAt,
 		&s.UpdatedAt,
 		&s.Handle,
+		&tag,
 	)
 
 	if err != nil {
@@ -61,6 +63,9 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 	if desc != nil {
 		s.Description = *desc
 	}
+	if tag != nil {
+		s.Tag = *tag
+	}
 
 	return &s, nil
 }
@@ -69,7 +74,7 @@ func (r *ServerRepository) FindByID(ctx context.Context, id string) (*server.Ser
 func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*server.Server, error) {
 	query := `
 		SELECT id, name, description, icon_gradient, owner_id, 
-		       member_count, is_public, created_at, updated_at, handle
+		       member_count, is_public, created_at, updated_at, handle, tag
 		FROM servers
 		WHERE handle = $1
 	`
@@ -77,6 +82,7 @@ func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*se
 	var s server.Server
 	var gradient []string
 	var desc *string
+	var tag *string
 
 	err := r.pool.QueryRow(ctx, query, handle).Scan(
 		&s.ID,
@@ -89,6 +95,7 @@ func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*se
 		&s.CreatedAt,
 		&s.UpdatedAt,
 		&s.Handle,
+		&tag,
 	)
 
 	if err != nil {
@@ -104,6 +111,9 @@ func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*se
 	if desc != nil {
 		s.Description = *desc
 	}
+	if tag != nil {
+		s.Tag = *tag
+	}
 
 	return &s, nil
 }
@@ -112,7 +122,7 @@ func (r *ServerRepository) FindByHandle(ctx context.Context, handle string) (*se
 func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*server.Server, error) {
 	query := `
 		SELECT s.id, s.name, s.description, s.icon_gradient, s.owner_id, 
-		       s.member_count, s.is_public, s.created_at, s.updated_at, s.handle
+		       s.member_count, s.is_public, s.created_at, s.updated_at, s.handle, s.tag
 		FROM servers s
 		INNER JOIN server_members sm ON s.id = sm.server_id
 		WHERE sm.user_id = $1
@@ -130,6 +140,7 @@ func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*
 		var s server.Server
 		var gradient []string
 		var desc *string
+		var tag *string
 
 		err := rows.Scan(
 			&s.ID,
@@ -142,6 +153,7 @@ func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*
 			&s.CreatedAt,
 			&s.UpdatedAt,
 			&s.Handle,
+			&tag,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan server: %w", err)
@@ -152,6 +164,9 @@ func (r *ServerRepository) FindByUserID(ctx context.Context, userID string) ([]*
 		}
 		if desc != nil {
 			s.Description = *desc
+		}
+		if tag != nil {
+			s.Tag = *tag
 		}
 
 		servers = append(servers, &s)
@@ -165,13 +180,18 @@ func (r *ServerRepository) Create(ctx context.Context, s *server.Server) error {
 	query := `
 		INSERT INTO servers (
 			id, name, description, icon_gradient, owner_id,
-			member_count, is_public, created_at, updated_at, handle
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			member_count, is_public, created_at, updated_at, handle, tag
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 
 	var desc *string
 	if s.Description != "" {
 		desc = &s.Description
+	}
+
+	var tag *string
+	if s.Tag != "" {
+		tag = &s.Tag
 	}
 
 	_, err := r.pool.Exec(ctx, query,
@@ -185,6 +205,7 @@ func (r *ServerRepository) Create(ctx context.Context, s *server.Server) error {
 		s.CreatedAt,
 		s.UpdatedAt,
 		s.Handle,
+		tag,
 	)
 
 	if err != nil {
@@ -202,6 +223,7 @@ func (r *ServerRepository) Update(ctx context.Context, s *server.Server) error {
 			description = $3,
 			icon_gradient = $4,
 			is_public = $5,
+			tag = $6,
 			updated_at = NOW()
 		WHERE id = $1
 	`
@@ -211,12 +233,18 @@ func (r *ServerRepository) Update(ctx context.Context, s *server.Server) error {
 		desc = &s.Description
 	}
 
+	var tag *string
+	if s.Tag != "" {
+		tag = &s.Tag
+	}
+
 	result, err := r.pool.Exec(ctx, query,
 		s.ID,
 		s.Name,
 		desc,
 		s.IconGradient[:],
 		s.IsPublic,
+		tag,
 	)
 
 	if err != nil {

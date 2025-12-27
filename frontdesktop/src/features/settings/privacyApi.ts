@@ -13,6 +13,7 @@ export interface PrivacySettings {
     readReceiptsEnabled: boolean;
     typingIndicatorsEnabled: boolean;
     friendRequestPermission: "everyone" | "friends_of_friends" | "nobody";
+    showServerTags: boolean;
 }
 
 export interface UpdatePrivacyRequest {
@@ -23,6 +24,7 @@ export interface UpdatePrivacyRequest {
     readReceiptsEnabled?: boolean;
     typingIndicatorsEnabled?: boolean;
     friendRequestPermission?: string;
+    showServerTags?: boolean;
 }
 
 // ============================================================================

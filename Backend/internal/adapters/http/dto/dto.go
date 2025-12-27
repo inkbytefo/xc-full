@@ -181,9 +181,10 @@ type CreateServerRequest struct {
 
 // UpdateServerRequest represents a server update request.
 type UpdateServerRequest struct {
-	Name        string `json:"name" validate:"min=2,max=100"`
-	Description string `json:"description" validate:"max=500"`
-	IsPublic    bool   `json:"isPublic"`
+	Name        string  `json:"name" validate:"min=2,max=100"`
+	Description string  `json:"description" validate:"max=500"`
+	IsPublic    bool    `json:"isPublic"`
+	Tag         *string `json:"tag,omitempty" validate:"omitempty,min=1,max=9"`
 }
 
 // ServerResponse represents a server in API responses.
@@ -196,6 +197,7 @@ type ServerResponse struct {
 	MemberCount  int       `json:"memberCount"`
 	OwnerID      string    `json:"ownerId"`
 	IsPublic     bool      `json:"isPublic"`
+	Tag          string    `json:"tag,omitempty"`
 	MyRole       string    `json:"myRole,omitempty"`
 	CreatedAt    string    `json:"createdAt,omitempty"`
 }
@@ -610,6 +612,7 @@ type PrivacySettingsResponse struct {
 	ReadReceiptsEnabled     bool   `json:"readReceiptsEnabled"`
 	TypingIndicatorsEnabled bool   `json:"typingIndicatorsEnabled"`
 	FriendRequestPermission string `json:"friendRequestPermission"`
+	ShowServerTags          bool   `json:"showServerTags"`
 }
 
 // UpdatePrivacyRequest represents a privacy settings update request.
@@ -621,4 +624,5 @@ type UpdatePrivacyRequest struct {
 	ReadReceiptsEnabled     *bool   `json:"readReceiptsEnabled,omitempty"`
 	TypingIndicatorsEnabled *bool   `json:"typingIndicatorsEnabled,omitempty"`
 	FriendRequestPermission *string `json:"friendRequestPermission,omitempty"`
+	ShowServerTags          *bool   `json:"showServerTags,omitempty"`
 }

@@ -95,6 +95,7 @@ type Settings struct {
 	ReadReceiptsEnabled     bool
 	TypingIndicatorsEnabled bool
 	FriendRequestPermission FriendRequestPermission
+	ShowServerTags          bool // Show server role tags on profile
 	CreatedAt               time.Time
 	UpdatedAt               time.Time
 }
@@ -111,6 +112,7 @@ func DefaultSettings(userID string) *Settings {
 		ReadReceiptsEnabled:     true,
 		TypingIndicatorsEnabled: true,
 		FriendRequestPermission: FriendRequestEveryone,
+		ShowServerTags:          true,
 		CreatedAt:               now,
 		UpdatedAt:               now,
 	}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Track } from "livekit-client";
+
+import { useVideoTiles, type VideoParticipant, type VideoTileItem } from "../hooks/useVideoTiles";
 import type { Channel } from "../../../api/types";
 import {
     VideoIcon,
@@ -12,17 +13,7 @@ import {
 } from "./Icons";
 import { ControlButton } from "./ControlButton";
 
-interface VideoParticipant {
-    sid: string;
-    identity: string;
-    isSpeaking: boolean;
-    isMuted: boolean;
-    isCameraOn: boolean;
-    isScreenSharing: boolean;
-    isLocal: boolean;
-    cameraTrack?: Track | null;
-    screenShareTrack?: Track | null;
-}
+// interfaces VideoParticipant and VideoTileItem are now imported from the hook
 
 interface VideoRoomViewProps {
     channel: Channel;
@@ -49,66 +40,13 @@ export function VideoRoomView({
     onToggleScreenShare,
     onDisconnect,
 }: VideoRoomViewProps) {
+    const { tiles, allParticipants, focusedParticipant, setFocusedParticipant } = useVideoTiles(
+        participants,
+        localParticipant
+    );
+
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [focusedParticipant, setFocusedParticipant] = useState<string | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
-
-    const allParticipants = localParticipant
-        ? [localParticipant, ...participants.filter(p => !p.isLocal)]
-        : participants;
-
-    const tiles: VideoTileItem[] = allParticipants.flatMap((p) => {
-        const base: Omit<VideoTileItem, "tileId" | "tileKind" | "track" | "hasVideo"> = {
-            sid: p.sid,
-            identity: p.identity,
-            isSpeaking: p.isSpeaking,
-            isMuted: p.isMuted,
-            isCameraOn: p.isCameraOn,
-            isScreenSharing: p.isScreenSharing,
-            isLocal: p.isLocal,
-        };
-
-        const cameraTile: VideoTileItem = {
-            ...base,
-            tileId: `${p.sid}:camera`,
-            tileKind: "camera",
-            track: p.cameraTrack ?? null,
-            hasVideo: !!(p.isCameraOn && p.cameraTrack),
-        };
-
-        const screenTile: VideoTileItem | null =
-            p.isScreenSharing && p.screenShareTrack
-                ? {
-                    ...base,
-                    tileId: `${p.sid}:screen`,
-                    tileKind: "screen",
-                    track: p.screenShareTrack ?? null,
-                    hasVideo: true,
-                }
-                : null;
-
-        return screenTile ? [screenTile, cameraTile] : [cameraTile];
-    });
-
-    useEffect(() => {
-        const screenTile = tiles.find((t) => t.tileKind === "screen");
-        if (!screenTile) {
-            if (focusedParticipant && !tiles.some((t) => t.tileId === focusedParticipant)) {
-                setFocusedParticipant(null);
-            }
-            return;
-        }
-
-        if (!focusedParticipant) {
-            setFocusedParticipant(screenTile.tileId);
-            return;
-        }
-
-        const focusedExists = tiles.some((t) => t.tileId === focusedParticipant);
-        if (!focusedExists) {
-            setFocusedParticipant(screenTile.tileId);
-        }
-    }, [focusedParticipant, tiles]);
 
     const gridCols = tiles.length <= 1 ? 1
         : tiles.length <= 4 ? 2
@@ -242,19 +180,7 @@ export function VideoRoomView({
 
 // Sub-components
 
-interface VideoTileItem {
-    tileId: string;
-    tileKind: "camera" | "screen";
-    sid: string;
-    identity: string;
-    isSpeaking: boolean;
-    isMuted: boolean;
-    isCameraOn: boolean;
-    isScreenSharing: boolean;
-    isLocal: boolean;
-    track: Track | null;
-    hasVideo: boolean;
-}
+// Sub-components
 
 interface VideoTileProps {
     participant: VideoTileItem;

@@ -13,12 +13,14 @@ CREATE TABLE servers (
     owner_id        VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     member_count    INTEGER NOT NULL DEFAULT 1,
     is_public       BOOLEAN NOT NULL DEFAULT TRUE,
+    tag             VARCHAR(9),  -- Server role tag (1-9 chars)
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     
     CONSTRAINT unique_server_handle UNIQUE (handle),
     CONSTRAINT server_handle_length CHECK (char_length(handle) >= 3 AND char_length(handle) <= 32),
-    CONSTRAINT server_name_length CHECK (char_length(name) >= 2 AND char_length(name) <= 100)
+    CONSTRAINT server_name_length CHECK (char_length(name) >= 2 AND char_length(name) <= 100),
+    CONSTRAINT server_tag_length CHECK (tag IS NULL OR (char_length(tag) >= 1 AND char_length(tag) <= 9))
 );
 
 CREATE UNIQUE INDEX idx_servers_handle ON servers(handle);

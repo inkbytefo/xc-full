@@ -346,6 +346,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
         const baseDelay = Math.min(15000, 800 * Math.pow(2, attempt));
         const jitter = Math.floor(Math.random() * 250);
         const delayMs = baseDelay + jitter;
+
+        console.log(`[VoiceStore] Scheduling hard reconnect attempt ${attempt + 1} in ${delayMs}ms`);
+
         reconnectTimerId = window.setTimeout(() => {
             reconnectTimerId = null;
             void get().connect(desiredChannel as VoiceChannel);

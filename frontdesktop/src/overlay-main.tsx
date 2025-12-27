@@ -4,6 +4,8 @@ import { OverlayApp } from './features/overlay/OverlayApp';
 import './index.css';
 import './features/overlay/styles/overlay.css';
 import { WebSocketProvider } from './lib/websocket/WebSocketProvider';
+import { ToastProvider } from './features/overlay/NotificationToast';
+import { RealtimeNotifications } from './components/RealtimeNotifications';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { useVoiceStore } from './store/voiceStore';
@@ -17,7 +19,10 @@ function OverlayRoot() {
 
     return (
         <WebSocketProvider>
-            <OverlayApp />
+            <ToastProvider>
+                <RealtimeNotifications />
+                <OverlayApp />
+            </ToastProvider>
         </WebSocketProvider>
     );
 }

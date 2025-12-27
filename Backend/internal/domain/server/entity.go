@@ -98,6 +98,7 @@ type Server struct {
 	OwnerID      string
 	MemberCount  int
 	IsPublic     bool
+	Tag          string // Server role tag (1-9 characters)
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }

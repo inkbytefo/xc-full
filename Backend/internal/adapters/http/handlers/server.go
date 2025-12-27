@@ -109,9 +109,6 @@ func (h *ServerHandler) Get(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"data": serverToDTO(srv),
 	})
-	return c.JSON(fiber.Map{
-		"data": serverToDTO(srv),
-	})
 }
 
 // GetByHandle returns a server by Handle.
@@ -154,6 +151,7 @@ func (h *ServerHandler) Update(c *fiber.Ctx) error {
 		Name:        req.Name,
 		Description: req.Description,
 		IsPublic:    req.IsPublic,
+		Tag:         req.Tag,
 		UserID:      userID,
 	})
 
@@ -661,6 +659,7 @@ func serverToDTO(s *server.Server) dto.ServerResponse {
 		MemberCount:  s.MemberCount,
 		OwnerID:      s.OwnerID,
 		IsPublic:     s.IsPublic,
+		Tag:          s.Tag,
 		CreatedAt:    s.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
 	}
 }

@@ -63,6 +63,7 @@ export interface Server {
   memberCount: number;
   ownerId: string;
   isPublic: boolean;
+  tag?: string;  // Server tag (1-9 chars) for role display on profiles
   myRole?: MemberRole;
   createdAt?: string;
 }

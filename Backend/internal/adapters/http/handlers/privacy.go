@@ -45,6 +45,7 @@ func (h *PrivacyHandler) GetSettings(c *fiber.Ctx) error {
 			ReadReceiptsEnabled:     settings.ReadReceiptsEnabled,
 			TypingIndicatorsEnabled: settings.TypingIndicatorsEnabled,
 			FriendRequestPermission: string(settings.FriendRequestPermission),
+			ShowServerTags:          settings.ShowServerTags,
 		},
 	})
 }
@@ -72,6 +73,7 @@ func (h *PrivacyHandler) UpdateSettings(c *fiber.Ctx) error {
 		ReadReceiptsEnabled:     req.ReadReceiptsEnabled,
 		TypingIndicatorsEnabled: req.TypingIndicatorsEnabled,
 		FriendRequestPermission: req.FriendRequestPermission,
+		ShowServerTags:          req.ShowServerTags,
 	}
 
 	settings, err := h.privacyService.UpdateSettings(c.Context(), userID, cmd)
@@ -101,6 +103,7 @@ func (h *PrivacyHandler) UpdateSettings(c *fiber.Ctx) error {
 			ReadReceiptsEnabled:     settings.ReadReceiptsEnabled,
 			TypingIndicatorsEnabled: settings.TypingIndicatorsEnabled,
 			FriendRequestPermission: string(settings.FriendRequestPermission),
+			ShowServerTags:          settings.ShowServerTags,
 		},
 	})
 }

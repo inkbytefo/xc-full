@@ -245,11 +245,16 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         }
     }, [urlServerId, urlChannelId]);
 
-    // Sync URL FROM state
+    // Sync URL FROM state (only when on /servers path)
     useEffect(() => {
         if (!selectedServer) return;
 
         const currentPath = window.location.pathname;
+        
+        // Only sync URL if we're actually on a /servers path
+        // This prevents hijacking navigation to other routes like /feed or /dms
+        if (!currentPath.startsWith('/servers')) return;
+        
         const targetPath = selectedChannel
             ? `/servers/${selectedServer}/channels/${selectedChannel}`
             : `/servers/${selectedServer}`;

@@ -7,6 +7,7 @@ export { QueryProvider, queryClient } from './QueryProvider';
 
 // Real-time sync
 export { useRealtimeSync } from './useRealtimeSync';
+export { useNotificationToasts } from './useNotificationToasts';
 
 // Message hooks (DM)
 export {

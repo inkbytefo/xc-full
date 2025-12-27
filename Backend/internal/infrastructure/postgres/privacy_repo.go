@@ -27,7 +27,7 @@ func (r *PrivacyRepository) FindByUserID(ctx context.Context, userID string) (*p
 	query := `
 		SELECT user_id, online_status_visibility, dm_permission, profile_visibility,
 		       show_activity, read_receipts_enabled, typing_indicators_enabled,
-		       friend_request_permission, created_at, updated_at
+		       friend_request_permission, show_server_tags, created_at, updated_at
 		FROM privacy_settings
 		WHERE user_id = $1
 	`
@@ -44,6 +44,7 @@ func (r *PrivacyRepository) FindByUserID(ctx context.Context, userID string) (*p
 		&s.ReadReceiptsEnabled,
 		&s.TypingIndicatorsEnabled,
 		&friendReq,
+		&s.ShowServerTags,
 		&s.CreatedAt,
 		&s.UpdatedAt,
 	)
@@ -70,8 +71,8 @@ func (r *PrivacyRepository) Upsert(ctx context.Context, settings *privacy.Settin
 		INSERT INTO privacy_settings (
 			user_id, online_status_visibility, dm_permission, profile_visibility,
 			show_activity, read_receipts_enabled, typing_indicators_enabled,
-			friend_request_permission, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			friend_request_permission, show_server_tags, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		ON CONFLICT (user_id) DO UPDATE SET
 			online_status_visibility = EXCLUDED.online_status_visibility,
 			dm_permission = EXCLUDED.dm_permission,
@@ -80,6 +81,7 @@ func (r *PrivacyRepository) Upsert(ctx context.Context, settings *privacy.Settin
 			read_receipts_enabled = EXCLUDED.read_receipts_enabled,
 			typing_indicators_enabled = EXCLUDED.typing_indicators_enabled,
 			friend_request_permission = EXCLUDED.friend_request_permission,
+			show_server_tags = EXCLUDED.show_server_tags,
 			updated_at = NOW()
 	`
 
@@ -98,6 +100,7 @@ func (r *PrivacyRepository) Upsert(ctx context.Context, settings *privacy.Settin
 		settings.ReadReceiptsEnabled,
 		settings.TypingIndicatorsEnabled,
 		string(settings.FriendRequestPermission),
+		settings.ShowServerTags,
 		settings.CreatedAt,
 		settings.UpdatedAt,
 	)

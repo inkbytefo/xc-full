@@ -222,6 +222,7 @@ type UpdateCommand struct {
 	Name        string
 	Description string
 	IsPublic    bool
+	Tag         *string // Server tag (1-9 chars)
 	UserID      string
 }
 
@@ -245,6 +246,9 @@ func (s *Service) Update(ctx context.Context, cmd UpdateCommand) (*server.Server
 	srv.Name = cmd.Name
 	srv.Description = cmd.Description
 	srv.IsPublic = cmd.IsPublic
+	if cmd.Tag != nil {
+		srv.Tag = *cmd.Tag
+	}
 
 	if err := s.serverRepo.Update(ctx, srv); err != nil {
 		return nil, err

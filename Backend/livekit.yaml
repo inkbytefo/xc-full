@@ -12,7 +12,7 @@ redis:
     address: redis:6379
 
 keys:
-    devkey: xcord_dev_secret_key_32_chars_min
+    apik_8J2mP9xL4nQ5vR: sec_9kL32jH57mN21pQ68rS94tV75wX30yZ81aB64cD52eF43
 
 logging:
     json: true

@@ -25,6 +25,9 @@ CREATE TABLE privacy_settings (
     -- Friend Request Permission: 'everyone', 'friends_of_friends', 'nobody'
     friend_request_permission  VARCHAR(20) NOT NULL DEFAULT 'everyone',
     
+    -- Show Server Tags: display server role tags on profile
+    show_server_tags           BOOLEAN NOT NULL DEFAULT TRUE,
+    
     -- Timestamps
     created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
