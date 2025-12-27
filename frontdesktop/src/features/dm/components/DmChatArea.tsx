@@ -19,7 +19,7 @@ interface DmChatAreaProps {
     sending: boolean;
     messageText: string;
     messagesEndRef: React.RefObject<HTMLDivElement>;
-    typingUsers: string[];
+    typingUsers: { userId: string; handle?: string; displayName?: string }[];
     onMessageChange: (text: string) => void;
     onSend: () => void;
     onTyping: () => void;
@@ -287,7 +287,7 @@ export function DmChatArea({
                         <span className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "150ms" }} />
                         <span className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "300ms" }} />
                     </div>
-                    <span>{typingUsers.join(", ")} yazıyor...</span>
+                    <span>{typingUsers.map(u => u.displayName || u.handle || "Biri").join(", ")} yazıyor...</span>
                 </div>
             )}
 

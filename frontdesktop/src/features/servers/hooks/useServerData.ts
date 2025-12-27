@@ -284,9 +284,16 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     useEffect(() => {
         if (urlServerId && urlServerId !== selectedServer) {
             setSelectedServer(urlServerId);
+        } else if (!urlServerId && selectedServer) {
+            setSelectedServer(null);
         }
+
         if (urlChannelId && urlChannelId !== selectedChannel) {
             setSelectedChannel(urlChannelId);
+        } else if (!urlChannelId && selectedChannel && !selectedServer) {
+            // Only clear channel if we also don't have a server (root /servers)
+            // If we have a server but no channel param, that's valid (default channel)
+            setSelectedChannel(null);
         }
     }, [urlServerId, urlChannelId]);
 

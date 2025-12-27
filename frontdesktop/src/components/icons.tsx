@@ -18,3 +18,35 @@ export const MicOffIcon = ({ className = "w-5 h-5" }) => <IconWrapper className=
 export const HeadphonesIcon = ({ className = "w-5 h-5" }) => <IconWrapper className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 18v-6a9 9 0 0118 0v6" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5z" /></IconWrapper>;
 export const DeafenIcon = ({ className = "w-5 h-5" }) => <IconWrapper className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 18v-6a9 9 0 0118 0v6" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3l18 18" /></IconWrapper>;
 export const MenuIcon = ({ className = "w-5 h-5" }) => <IconWrapper className={className}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></IconWrapper>;
+
+export const DMIcon = ({ className = "w-5 h-5" }) => (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor">
+        <path d="M4 6.8A2.8 2.8 0 0 1 6.8 4h10.4A2.8 2.8 0 0 1 20 6.8v7.7A2.8 2.8 0 0 1 17.2 17H10l-4.5 3v-3H6.8A2.8 2.8 0 0 1 4 14.5V6.8Z" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M7.5 9.2h9M7.5 12h6.2" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+);
+
+export const ServersNavIcon = ({ className = "w-5 h-5" }) => (
+    <svg viewBox="0 0 24 24" fill="none" className={className} stroke="currentColor">
+        <path d="M7 7.5h10M7 16.5h10" strokeWidth="2" strokeLinecap="round" />
+        <path d="M6.2 5h11.6A2.2 2.2 0 0 1 20 7.2v1.6A2.2 2.2 0 0 1 17.8 11H6.2A2.2 2.2 0 0 1 4 8.8V7.2A2.2 2.2 0 0 1 6.2 5Z" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M6.2 13h11.6A2.2 2.2 0 0 1 20 15.2v1.6A2.2 2.2 0 0 1 17.8 19H6.2A2.2 2.2 0 0 1 4 16.8v-1.6A2.2 2.2 0 0 1 6.2 13Z" strokeWidth="2" strokeLinejoin="round" />
+        <path d="M7.2 8h.01M7.2 16h.01" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+);
+
+export const LiveIcon = ({ className = "w-5 h-5" }) => (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M7 9.2a3.5 3.5 0 0 0 0 5.6M17 9.2a3.5 3.5 0 0 1 0 5.6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M9.5 11a2 2 0 0 0 0 2.9M14.5 11a2 2 0 0 1 0 2.9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 8.25v7.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        <path d="M12 17.75a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z" fill="currentColor" />
+    </svg>
+);
+
+export const NotificationsIcon = ({ className = "w-5 h-5" }) => (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+        <path d="M12 21a2.2 2.2 0 0 0 2.1-1.6H9.9A2.2 2.2 0 0 0 12 21Z" fill="currentColor" />
+        <path d="M18 16.5H6c1.1-1.2 1.6-2.5 1.6-4.2V10.7a4.4 4.4 0 0 1 8.8 0v1.6c0 1.7.5 3 1.6 4.2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+    </svg>
+);

@@ -3,6 +3,15 @@ import type { ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { NotificationsModal } from "../features/notifications/NotificationsModal";
 import { getUnreadCount } from "../features/notifications/notificationsApi";
+import { cn } from "../lib/utils";
+import { useAuthStore } from "../store/authStore";
+import {
+  DMIcon,
+  ServersNavIcon,
+  LiveIcon,
+  SettingsIcon,
+  NotificationsIcon
+} from "./icons";
 
 type NavKey = "feed" | "dm" | "servers" | "live" | "settings" | "notifications" | "profile";
 
@@ -13,132 +22,15 @@ type NavItem = {
   path: string;
 };
 
-function cn(...values: Array<string | false | null | undefined>): string {
-  return values.filter(Boolean).join(" ");
-}
-
-function IconDM() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M4 6.8A2.8 2.8 0 0 1 6.8 4h10.4A2.8 2.8 0 0 1 20 6.8v7.7A2.8 2.8 0 0 1 17.2 17H10l-4.5 3v-3H6.8A2.8 2.8 0 0 1 4 14.5V6.8Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.5 9.2h9M7.5 12h6.2"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconServers() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M7 7.5h10M7 16.5h10"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M6.2 5h11.6A2.2 2.2 0 0 1 20 7.2v1.6A2.2 2.2 0 0 1 17.8 11H6.2A2.2 2.2 0 0 1 4 8.8V7.2A2.2 2.2 0 0 1 6.2 5Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M6.2 13h11.6A2.2 2.2 0 0 1 20 15.2v1.6A2.2 2.2 0 0 1 17.8 19H6.2A2.2 2.2 0 0 1 4 16.8v-1.6A2.2 2.2 0 0 1 6.2 13Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.2 8h.01M7.2 16h.01"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function IconLive() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M7 9.2a3.5 3.5 0 0 0 0 5.6M17 9.2a3.5 3.5 0 0 1 0 5.6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M9.5 11a2 2 0 0 0 0 2.9M14.5 11a2 2 0 0 1 0 2.9"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 8.25v7.5"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-      <path
-        d="M12 17.75a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z"
-        fill="currentColor"
-      />
-    </svg>
-  );
-}
-
-function IconSettings() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z"
-        stroke="currentColor"
-        strokeWidth="2"
-      />
-      <path
-        d="M19 12a7.1 7.1 0 0 0-.08-1l2.05-1.58-2-3.46-2.49.78a7.2 7.2 0 0 0-1.72-1L14 3h-4l-.76 2.74a7.2 7.2 0 0 0-1.72 1l-2.49-.78-2 3.46L5.08 11A7.1 7.1 0 0 0 5 12c0 .34.02.68.08 1l-2.05 1.58 2 3.46 2.49-.78c.53.4 1.1.74 1.72 1L10 21h4l.76-2.74c.62-.26 1.19-.6 1.72-1l2.49.78 2-3.46L18.92 13c.06-.32.08-.66.08-1Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function IconNotifications() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M12 21a2.2 2.2 0 0 0 2.1-1.6H9.9A2.2 2.2 0 0 0 12 21Z"
-        fill="currentColor"
-      />
-      <path
-        d="M18 16.5H6c1.1-1.2 1.6-2.5 1.6-4.2V10.7a4.4 4.4 0 0 1 8.8 0v1.6c0 1.7.5 3 1.6 4.2Z"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function Tooltip({ label }: { label: string }) {
+// Extracted Tooltip component (could be moved to separate file if needed)
+function SidebarTooltip({ label }: { label: string }) {
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute left-full top-1/2 ml-3 -translate-y-1/2 translate-x-1 opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100"
+      className="pointer-events-none absolute left-full top-1/2 ml-3 -translate-y-1/2 translate-x-1 opacity-0 transition-all duration-150 group-hover:translate-x-0 group-hover:opacity-100 z-50"
     >
       <div className="relative">
-        <div className="rounded-md bg-black/90 px-2 py-1 text-xs font-medium text-white shadow-lg">
+        <div className="rounded-md bg-black/90 px-2 py-1 text-xs font-medium text-white shadow-lg whitespace-nowrap">
           {label}
         </div>
         <div className="absolute left-[-6px] top-1/2 h-0 w-0 -translate-y-1/2 border-y-[6px] border-y-transparent border-r-[6px] border-r-black/90" />
@@ -185,7 +77,7 @@ function NavIcon({
           {item.icon}
         </span>
       </button>
-      <Tooltip label={item.label} />
+      <SidebarTooltip label={item.label} />
     </div>
   );
 }
@@ -208,7 +100,7 @@ function getActiveKeyFromPath(pathname: string): NavKey {
  */
 const NAV_PATHS: Record<NavKey, string> = {
   feed: "/feed",
-  dm: "/dms",
+  dm: "/dms", // Fixed: Matches router path
   servers: "/servers",
   live: "/live",
   notifications: "/notifications",
@@ -221,6 +113,7 @@ export function MainSidebar() {
   const navigate = useNavigate();
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const user = useAuthStore((s) => s.user);
 
   // Fetch unread count on mount and periodically
   useEffect(() => {
@@ -249,9 +142,9 @@ export function MainSidebar() {
 
   const topItems = useMemo<NavItem[]>(
     () => [
-      { key: "dm", label: "DM", icon: <IconDM />, path: "/dm" },
-      { key: "servers", label: "Servers", icon: <IconServers />, path: "/servers" },
-      { key: "live", label: "Live", icon: <IconLive />, path: "/live" },
+      { key: "dm", label: "DM", icon: <DMIcon />, path: "/dms" },
+      { key: "servers", label: "Servers", icon: <ServersNavIcon />, path: "/servers" },
+      { key: "live", label: "Live", icon: <LiveIcon />, path: "/live" },
     ],
     [],
   );
@@ -262,6 +155,12 @@ export function MainSidebar() {
     } else {
       navigate(NAV_PATHS[key]);
     }
+  };
+
+  // Helper for profile initials
+  const getInitials = (displayName?: string) => {
+    if (!displayName) return "??";
+    return displayName.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -296,7 +195,7 @@ export function MainSidebar() {
             >
               <div className="text-sm font-semibold tracking-wide text-white">XC</div>
             </button>
-            <Tooltip label="Ana Sayfa" />
+            <SidebarTooltip label="Ana Sayfa" />
           </div>
           <div className="h-px w-10 bg-white/10" />
           {topItems.map((item) => (
@@ -320,19 +219,19 @@ export function MainSidebar() {
               onClick={() => setIsNotificationsOpen(true)}
               className="relative h-full w-full cursor-pointer select-none transition-all duration-300 grid place-items-center text-zinc-200 hover:text-white rounded-[24px] hover:rounded-[16px] bg-stone-800/40 hover:bg-[var(--velvet)]/70"
             >
-              <IconNotifications />
+              <NotificationsIcon />
               {unreadCount > 0 && (
                 <div className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shadow-lg">
                   {unreadCount > 99 ? "99+" : unreadCount}
                 </div>
               )}
             </button>
-            <Tooltip label="Bildirimler" />
+            <SidebarTooltip label="Bildirimler" />
           </div>
 
           {/* Settings */}
           <NavIcon
-            item={{ key: "settings", label: "Ayarlar", icon: <IconSettings />, path: "/settings" }}
+            item={{ key: "settings", label: "Ayarlar", icon: <SettingsIcon className="w-5 h-5" />, path: "/settings" }}
             isActive={active === "settings"}
             onActivate={handleNavChange}
           />
@@ -363,9 +262,24 @@ export function MainSidebar() {
                 "ring-1 ring-white/10 shadow-[0_12px_30px_rgba(0,0,0,0.35)]",
               )}
             >
-              <div className="text-[13px] font-semibold text-white/90">TP</div>
+              {user?.avatarUrl ? (
+                <img src={user.avatarUrl} alt={user.displayName} className="w-full h-full rounded-[inherit] object-cover" />
+              ) : (
+                <div
+                  className="w-full h-full flex items-center justify-center rounded-[inherit]"
+                  style={{
+                    backgroundImage: user?.avatarGradient
+                      ? `linear-gradient(135deg, ${user.avatarGradient[0]}, ${user.avatarGradient[1]})`
+                      : undefined
+                  }}
+                >
+                  <span className="text-[13px] font-semibold text-white/90">
+                    {getInitials(user?.displayName)}
+                  </span>
+                </div>
+              )}
             </button>
-            <Tooltip label="Profil" />
+            <SidebarTooltip label="Profil" />
           </div>
         </div>
       </nav>

@@ -1,19 +1,23 @@
 import { createBrowserRouter, Navigate, Outlet } from "react-router-dom";
+import { Suspense, lazy } from "react";
 import { BackgroundLayer } from "./components/BackgroundLayer";
 import { MainSidebar } from "./components/MainSidebar";
 import { WindowControls } from "./components/TitleBar";
 import { ProtectedRoute, PublicRoute } from "./components/AuthGuard";
-import { LoginPage } from "./features/auth/LoginPage";
-import { RegisterPage } from "./features/auth/RegisterPage";
-import { DmPage } from "./features/dm/DmPage";
-import { FeedPage } from "./features/feed/FeedPage";
-import { LivePage } from "./features/live/LivePage";
-import { NotificationsPage } from "./features/notifications/NotificationsPage";
-import { ProfilePage } from "./features/profile/ProfilePage";
-import { ServersPage } from "./features/servers/ServersPage";
-import { ServerProfilePage } from "./features/servers/ServerProfilePage";
-import { SettingsPage } from "./features/settings/SettingsPage";
 import { GlobalVoiceSessionModal } from "./features/voice/components/GlobalVoiceSessionModal";
+import { PageLoader } from "./components/PageLoader";
+
+// Lazy load pages
+const LoginPage = lazy(() => import("./features/auth/LoginPage").then(module => ({ default: module.LoginPage })));
+const RegisterPage = lazy(() => import("./features/auth/RegisterPage").then(module => ({ default: module.RegisterPage })));
+const DmPage = lazy(() => import("./features/dm/DmPage").then(module => ({ default: module.DmPage })));
+const FeedPage = lazy(() => import("./features/feed/FeedPage").then(module => ({ default: module.FeedPage })));
+const LivePage = lazy(() => import("./features/live/LivePage").then(module => ({ default: module.LivePage })));
+const NotificationsPage = lazy(() => import("./features/notifications/NotificationsPage").then(module => ({ default: module.NotificationsPage })));
+const ProfilePage = lazy(() => import("./features/profile/ProfilePage").then(module => ({ default: module.ProfilePage })));
+const ServersPage = lazy(() => import("./features/servers/ServersPage").then(module => ({ default: module.ServersPage })));
+const ServerProfilePage = lazy(() => import("./features/servers/ServerProfilePage").then(module => ({ default: module.ServerProfilePage })));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(module => ({ default: module.SettingsPage })));
 
 /**
  * Root layout that wraps protected routes.
@@ -26,7 +30,9 @@ function RootLayout() {
             <BackgroundLayer />
             <MainSidebar />
             <main className="relative z-10 h-full pl-[72px] overflow-hidden">
-                <Outlet />
+                <Suspense fallback={<PageLoader />}>
+                    <Outlet />
+                </Suspense>
             </main>
             <GlobalVoiceSessionModal />
         </div>
@@ -56,7 +62,9 @@ export const router = createBrowserRouter([
             <PublicRoute>
                 <div className="h-screen overflow-hidden">
                     <WindowControls />
-                    <LoginPage />
+                    <Suspense fallback={<PageLoader />}>
+                        <LoginPage />
+                    </Suspense>
                 </div>
             </PublicRoute>
         ),
@@ -67,7 +75,9 @@ export const router = createBrowserRouter([
             <PublicRoute>
                 <div className="h-screen overflow-hidden">
                     <WindowControls />
-                    <RegisterPage />
+                    <Suspense fallback={<PageLoader />}>
+                        <RegisterPage />
+                    </Suspense>
                 </div>
             </PublicRoute>
         ),
@@ -152,3 +162,4 @@ export const router = createBrowserRouter([
         ],
     },
 ]);
+
