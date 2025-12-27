@@ -1,41 +1,28 @@
 package handlers
 
 import (
-	"errors"
-	"log/slog"
-	"time"
-
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
 
 	"xcord/internal/adapters/http/dto"
+	"xcord/internal/adapters/http/middleware"
+	channelApp "xcord/internal/application/channel"
 	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
 	"xcord/internal/domain/ws"
 )
 
 // ChannelMessageHandler handles channel message requests.
 type ChannelMessageHandler struct {
-	messageRepo      channel.MessageRepository
-	channelRepo      channel.Repository
-	memberRepo       server.MemberRepository
-	serverRepo       server.Repository
+	messageService   *channelApp.MessageService
 	websocketHandler *WebSocketHandler
 }
 
 // NewChannelMessageHandler creates a new ChannelMessageHandler.
 func NewChannelMessageHandler(
-	messageRepo channel.MessageRepository,
-	channelRepo channel.Repository,
-	memberRepo server.MemberRepository,
-	serverRepo server.Repository,
+	messageService *channelApp.MessageService,
 	websocketHandler *WebSocketHandler,
 ) *ChannelMessageHandler {
 	return &ChannelMessageHandler{
-		messageRepo:      messageRepo,
-		channelRepo:      channelRepo,
-		memberRepo:       memberRepo,
-		serverRepo:       serverRepo,
+		messageService:   messageService,
 		websocketHandler: websocketHandler,
 	}
 }
@@ -49,31 +36,15 @@ func (h *ChannelMessageHandler) GetMessages(c *fiber.Ctx) error {
 	cursor := c.Query("cursor")
 	limit := c.QueryInt("limit", 20)
 
-	// Check membership
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil || member == nil {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Not a member of this server",
-		))
-	}
-
-	// Verify channel exists
-	ch, err := h.channelRepo.FindByID(c.Context(), channelID)
-	if err != nil || ch == nil || ch.ServerID != serverID {
-		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
-			"NOT_FOUND",
-			"Channel not found",
-		))
-	}
-
-	messages, nextCursor, err := h.messageRepo.FindByChannelID(c.Context(), channelID, cursor, limit)
+	messages, nextCursor, err := h.messageService.GetMessages(c.Context(), channelApp.GetMessagesCommand{
+		ServerID:  serverID,
+		ChannelID: channelID,
+		UserID:    userID,
+		Cursor:    cursor,
+		Limit:     limit,
+	})
 	if err != nil {
-		slog.Error("get channel messages error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to get messages",
-		))
+		return h.handleError(c, err)
 	}
 
 	response := make([]dto.ChannelMessageResponse, len(messages))
@@ -96,24 +67,6 @@ func (h *ChannelMessageHandler) SendMessage(c *fiber.Ctx) error {
 	serverID := c.Params("id")
 	channelID := c.Params("chId")
 
-	// Check membership
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil || member == nil {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Not a member of this server",
-		))
-	}
-
-	// Verify channel exists
-	ch, err := h.channelRepo.FindByID(c.Context(), channelID)
-	if err != nil || ch == nil || ch.ServerID != serverID {
-		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
-			"NOT_FOUND",
-			"Channel not found",
-		))
-	}
-
 	var req dto.SendChannelMessageRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
@@ -122,33 +75,15 @@ func (h *ChannelMessageHandler) SendMessage(c *fiber.Ctx) error {
 		))
 	}
 
-	if len(req.Content) == 0 || len(req.Content) > 2000 {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
-			"INVALID_CONTENT",
-			"Message content must be between 1 and 2000 characters",
-		))
-	}
-
-	now := time.Now()
-	msg := &channel.ChannelMessage{
-		ID:        generateMsgID(),
-		ChannelID: channelID,
+	msg, err := h.messageService.SendMessage(c.Context(), channelApp.SendMessageCommand{
 		ServerID:  serverID,
-		AuthorID:  userID,
+		ChannelID: channelID,
+		UserID:    userID,
 		Content:   req.Content,
-		IsEdited:  false,
-		IsPinned:  false,
 		ReplyToID: req.ReplyToID,
-		CreatedAt: now,
-		UpdatedAt: now,
-	}
-
-	if err := h.messageRepo.Create(c.Context(), msg); err != nil {
-		slog.Error("create channel message error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to send message",
-		))
+	})
+	if err != nil {
+		return h.handleError(c, err)
 	}
 
 	if h.websocketHandler != nil {
@@ -168,33 +103,6 @@ func (h *ChannelMessageHandler) EditMessage(c *fiber.Ctx) error {
 	channelID := c.Params("chId")
 	messageID := c.Params("msgId")
 
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil || member == nil {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Not a member of this server",
-		))
-	}
-
-	msg, err := h.messageRepo.FindByID(c.Context(), messageID)
-	if err != nil {
-		return h.handleError(c, err)
-	}
-
-	if msg.ServerID != serverID || msg.ChannelID != channelID {
-		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
-			"NOT_FOUND",
-			"Message not found",
-		))
-	}
-
-	if msg.AuthorID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Cannot edit another user's message",
-		))
-	}
-
 	var req dto.EditChannelMessageRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
@@ -203,22 +111,9 @@ func (h *ChannelMessageHandler) EditMessage(c *fiber.Ctx) error {
 		))
 	}
 
-	if len(req.Content) == 0 || len(req.Content) > 2000 {
-		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
-			"INVALID_CONTENT",
-			"Message content must be between 1 and 2000 characters",
-		))
-	}
-
-	msg.Content = req.Content
-	msg.IsEdited = true
-
-	if err := h.messageRepo.Update(c.Context(), msg); err != nil {
-		slog.Error("update channel message error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to edit message",
-		))
+	msg, err := h.messageService.EditMessage(c.Context(), serverID, channelID, messageID, userID, req.Content)
+	if err != nil {
+		return h.handleError(c, err)
 	}
 
 	if h.websocketHandler != nil {
@@ -238,42 +133,8 @@ func (h *ChannelMessageHandler) DeleteMessage(c *fiber.Ctx) error {
 	channelID := c.Params("chId")
 	messageID := c.Params("msgId")
 
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil || member == nil {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Not a member of this server",
-		))
-	}
-
-	msg, err := h.messageRepo.FindByID(c.Context(), messageID)
-	if err != nil {
+	if err := h.messageService.DeleteMessage(c.Context(), serverID, channelID, messageID, userID); err != nil {
 		return h.handleError(c, err)
-	}
-
-	if msg.ServerID != serverID || msg.ChannelID != channelID {
-		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
-			"NOT_FOUND",
-			"Message not found",
-		))
-	}
-
-	// Check if user is author or has manage messages permission
-	if msg.AuthorID != userID {
-		if !h.canManageMessages(c, serverID, userID) {
-			return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-				"FORBIDDEN",
-				"Cannot delete another user's message",
-			))
-		}
-	}
-
-	if err := h.messageRepo.Delete(c.Context(), messageID); err != nil {
-		slog.Error("delete channel message error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to delete message",
-		))
 	}
 
 	if h.websocketHandler != nil {
@@ -299,22 +160,9 @@ func (h *ChannelMessageHandler) SearchMessages(c *fiber.Ctx) error {
 		))
 	}
 
-	// Check membership
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
-	if err != nil || member == nil {
-		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
-			"FORBIDDEN",
-			"Not a member of this server",
-		))
-	}
-
-	messages, err := h.messageRepo.Search(c.Context(), channelID, query, limit)
+	messages, err := h.messageService.SearchMessages(c.Context(), serverID, channelID, userID, query, limit)
 	if err != nil {
-		slog.Error("search channel messages error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to search messages",
-		))
+		return h.handleError(c, err)
 	}
 
 	response := make([]dto.ChannelMessageResponse, len(messages))
@@ -327,37 +175,8 @@ func (h *ChannelMessageHandler) SearchMessages(c *fiber.Ctx) error {
 	})
 }
 
-// canManageMessages checks if user can manage messages (delete others' messages)
-func (h *ChannelMessageHandler) canManageMessages(c *fiber.Ctx, serverID, userID string) bool {
-	// Check if owner
-	srv, err := h.serverRepo.FindByID(c.Context(), serverID)
-	if err == nil && srv.OwnerID == userID {
-		return true
-	}
-
-	// Check role permissions
-	member, err := h.memberRepo.FindByServerAndUserWithRoles(c.Context(), serverID, userID)
-	if err != nil {
-		return false
-	}
-
-	return member.HasPermission(server.PermissionManageMessages)
-}
-
 func (h *ChannelMessageHandler) handleError(c *fiber.Ctx, err error) error {
-	switch {
-	case errors.Is(err, channel.ErrMessageNotFound):
-		return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
-			"NOT_FOUND",
-			"Message not found",
-		))
-	default:
-		slog.Error("channel message handler error", slog.Any("error", err))
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"An internal error occurred",
-		))
-	}
+	return middleware.HandleDomainError(c, err)
 }
 
 func channelMessageToDTO(msg *channel.ChannelMessage) dto.ChannelMessageResponse {
@@ -383,10 +202,4 @@ func channelMessageToDTO(msg *channel.ChannelMessage) dto.ChannelMessageResponse
 	}
 
 	return resp
-}
-
-func generateMsgID() string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	return "cmsg_" + clean[:21]
 }

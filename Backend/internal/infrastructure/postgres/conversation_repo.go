@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"xcord/internal/domain/dm"
+	"xcord/internal/pkg/id"
 )
 
 // ConversationRepository implements dm.ConversationRepository using PostgreSQL.
@@ -215,14 +215,5 @@ func (r *ConversationRepository) getParticipants(ctx context.Context, convID str
 }
 
 func generatePartID() string {
-	return generateIDWithPrefix("part")
-}
-
-func generateIDWithPrefix(prefix string) string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
+	return id.Generate("part")
 }

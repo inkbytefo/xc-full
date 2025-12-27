@@ -113,6 +113,11 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         (c) => c.type === "text" && !infoChannels.includes(c)
     ), [channels, infoChannels]);
 
+    // Extract voice-enabled channels from unified API (voice, video, stage, hybrid)
+    const unifiedVoiceChannels = useMemo(() => channels.filter(
+        (c) => c.type === "voice" || c.type === "video" || c.type === "stage" || c.type === "hybrid"
+    ), [channels]);
+
     // Category channels (for hierarchy display)
     const categories = useMemo(() => channels.filter(
         (c) => c.type === "category"
@@ -160,6 +165,7 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     }, [channelsError, options.onError]);
 
     // Load voice channels when server changes
+    // Now we merge voice channels from both unified API and legacy voice API
     useEffect(() => {
         if (!selectedServer) {
             setVoiceChannels([]);
@@ -170,12 +176,18 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         async function loadVoice() {
             setVoiceLoading(true);
             try {
-                const data = await getVoiceChannels(selectedServer!);
+                const legacyVoice = await getVoiceChannels(selectedServer!);
                 if (!cancelled) {
-                    setVoiceChannels(data);
+                    // Merge: unified voice channels take precedence, legacy fills gaps
+                    const unifiedIds = new Set(unifiedVoiceChannels.map(c => c.id));
+                    const merged = legacyVoice.filter(v => !unifiedIds.has(v.id));
+                    setVoiceChannels(merged);
                 }
             } catch {
                 // Voice channels are optional
+                if (!cancelled) {
+                    setVoiceChannels([]);
+                }
             } finally {
                 if (!cancelled) {
                     setVoiceLoading(false);
@@ -184,7 +196,7 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         }
         loadVoice();
         return () => { cancelled = true; };
-    }, [selectedServer]);
+    }, [selectedServer, unifiedVoiceChannels]);
 
     // Auto-select first channel when channels load
     useEffect(() => {

@@ -5,9 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
-
 	"xcord/internal/domain/post"
+	"xcord/internal/pkg/id"
 )
 
 // Service provides feed-related operations.
@@ -54,7 +53,7 @@ func (s *Service) CreatePost(ctx context.Context, cmd CreatePostCommand) (*post.
 
 	now := time.Now()
 	p := &post.Post{
-		ID:          generateID("post"),
+		ID:          id.Generate("post"),
 		AuthorID:    cmd.AuthorID,
 		Content:     cmd.Content,
 		Visibility:  cmd.Visibility,
@@ -220,7 +219,7 @@ func (s *Service) ToggleReaction(ctx context.Context, postID, userID string, rea
 
 	// Add reaction
 	reaction := &post.Reaction{
-		ID:        generateID("reac"),
+		ID:        id.Generate("reac"),
 		PostID:    postID,
 		UserID:    userID,
 		Type:      reactionType,
@@ -254,13 +253,4 @@ func getCountField(reactionType post.ReactionType) string {
 	default:
 		return ""
 	}
-}
-
-func generateID(prefix string) string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
 }

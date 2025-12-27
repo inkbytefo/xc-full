@@ -324,11 +324,7 @@ func (h *ServerHandler) Ban(c *fiber.Ctx) error {
 	actorID := c.Locals("userID").(string)
 	serverID := c.Params("id")
 
-	var req struct {
-		UserID string `json:"userId"`
-		Reason string `json:"reason"`
-	}
-
+	var req dto.BanMemberRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"BAD_REQUEST",
@@ -398,11 +394,7 @@ func (h *ServerHandler) Timeout(c *fiber.Ctx) error {
 	serverID := c.Params("id")
 	targetUserID := c.Params("userId")
 
-	var req struct {
-		DurationSeconds int    `json:"durationSeconds"`
-		Reason          string `json:"reason"`
-	}
-
+	var req dto.TimeoutMemberRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"BAD_REQUEST",
@@ -474,12 +466,7 @@ func (h *ServerHandler) CreateRole(c *fiber.Ctx) error {
 	actorID := c.Locals("userID").(string)
 	serverID := c.Params("id")
 
-	var req struct {
-		Name        string `json:"name"`
-		Color       string `json:"color"`
-		Permissions int64  `json:"permissions"`
-	}
-
+	var req dto.CreateRoleRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"BAD_REQUEST",
@@ -518,13 +505,7 @@ func (h *ServerHandler) UpdateRole(c *fiber.Ctx) error {
 	serverID := c.Params("id")
 	roleID := c.Params("roleId")
 
-	var req struct {
-		Name        *string `json:"name"`
-		Color       *string `json:"color"`
-		Permissions *int64  `json:"permissions"`
-		Position    *int    `json:"position"`
-	}
-
+	var req dto.UpdateRoleRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"BAD_REQUEST",
@@ -584,10 +565,7 @@ func (h *ServerHandler) UpdateMemberRoles(c *fiber.Ctx) error {
 	serverID := c.Params("id")
 	targetUserID := c.Params("userId")
 
-	var req struct {
-		RoleIDs []string `json:"roleIds"`
-	}
-
+	var req dto.UpdateMemberRolesRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
 			"BAD_REQUEST",

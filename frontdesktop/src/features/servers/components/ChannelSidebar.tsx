@@ -11,6 +11,7 @@ import {
     PointerSensor,
     useSensor,
     useSensors,
+    useDroppable,
     type DragStartEvent,
     type DragEndEvent,
     type DragOverEvent,
@@ -223,6 +224,14 @@ export function ChannelSidebar({
         [uncategorizedChannels]
     );
 
+    // Uncategorized voice channels from unified API
+    const uncategorizedVoice = useMemo(() =>
+        uncategorizedChannels.filter(c =>
+            c.type === "voice" || c.type === "video" || c.type === "stage" || c.type === "hybrid"
+        ),
+        [uncategorizedChannels]
+    );
+
     // DnD handlers
     const handleDragStart = useCallback((event: DragStartEvent) => {
         setActiveId(event.active.id as string);
@@ -240,21 +249,43 @@ export function ChannelSidebar({
         if (!over || active.id === over.id || !onReorderChannels) return;
 
         const activeChannel = allChannels.find(c => c.id === active.id);
-        const overChannel = allChannels.find(c => c.id === over.id);
+
+        // Handle drop- prefixed IDs for droppable category targets
+        const overId = String(over.id);
+        const isDropOnCategory = overId.startsWith('drop-');
+        const actualOverId = isDropOnCategory ? overId.replace('drop-', '') : overId;
+
+        const overChannel = allChannels.find(c => c.id === actualOverId);
 
         if (!activeChannel) return;
+
+        // Don't allow dropping categories into themselves
+        if (activeChannel.type === 'category' && isDropOnCategory && actualOverId === activeChannel.id) {
+            return;
+        }
 
         // Determine new position and parent
         let newParentId: string | null = null;
         let newPosition = 0;
 
-        if (overChannel) {
-            // Dropping on a channel
+        if (isDropOnCategory) {
+            // Dropping on a category droppable - move channel into that category
+            newParentId = actualOverId;
+            const categoryChildren = groupedChannels.get(actualOverId) || [];
+            newPosition = categoryChildren.length;
+        } else if (overChannel) {
+            // Dropping on a channel or category (sortable)
             if (overChannel.type === "category") {
-                // Dropping on a category - move into that category
-                newParentId = overChannel.id;
-                const categoryChildren = groupedChannels.get(overChannel.id) || [];
-                newPosition = categoryChildren.length;
+                // Reordering categories - keep null parent, just change position
+                if (activeChannel.type === "category") {
+                    newParentId = null;
+                    newPosition = overChannel.position;
+                } else {
+                    // Channel dropped on category sortable area - move into category
+                    newParentId = overChannel.id;
+                    const categoryChildren = groupedChannels.get(overChannel.id) || [];
+                    newPosition = categoryChildren.length;
+                }
             } else {
                 // Dropping on a regular channel - take its position
                 newParentId = overChannel.parentId || null;
@@ -345,6 +376,38 @@ export function ChannelSidebar({
                     </SortableContext>
                 )}
 
+                {/* Uncategorized Voice Channels (from unified API) */}
+                {uncategorizedVoice.length > 0 && (
+                    <SortableContext
+                        items={uncategorizedVoice.map(c => c.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        <div className="mb-2">
+                            {uncategorizedVoice.map(channel => {
+                                const isActive = activeVoiceChannelId === channel.id && isVoiceConnected;
+                                const isConnecting = activeVoiceChannelId === channel.id && isVoiceConnecting;
+                                const participants = isActive ? voiceParticipants : (channelParticipants.get(channel.id) || []);
+
+                                return (
+                                    <SortableVoiceChannelItem
+                                        key={channel.id}
+                                        channel={channel}
+                                        isActive={isActive}
+                                        isConnecting={isConnecting}
+                                        isDragEnabled={isDragEnabled}
+                                        isOver={overId === channel.id}
+                                        participants={participants}
+                                        canManage={canManageChannels}
+                                        onClick={() => onVoiceChannelClick(channel.id)}
+                                        onEdit={() => onEditChannel?.(channel)}
+                                        onDelete={() => onDeleteChannel?.(channel)}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </SortableContext>
+                )}
+
                 {/* Dynamic Categories */}
                 {categories.map(category => {
                     const categoryChannels = groupedChannels.get(category.id) || [];
@@ -357,35 +420,20 @@ export function ChannelSidebar({
                         c.type === "voice" || c.type === "video" || c.type === "stage"
                     );
 
-                    if (categoryChannels.length === 0) return null;
-
+                    // Show category even if empty (allows adding channels to it)
                     return (
                         <div key={category.id} className="mb-2">
-                            {/* Category Header */}
-                            <div
-                                className={`flex items-center gap-1 px-1 py-1 rounded transition-colors ${overId === category.id ? "bg-purple-500/20" : ""
-                                    }`}
-                            >
-                                <button
-                                    onClick={() => toggleCategory(category.id)}
-                                    className="flex-1 flex items-center gap-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
-                                >
-                                    <ChevronDownIcon
-                                        className={`w-3 h-3 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
-                                    />
-                                    {category.name}
-                                </button>
-                                {canManageChannels && onAddChannel && (
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onAddChannel(); }}
-                                        className="text-zinc-600 hover:text-zinc-400 p-0.5"
-                                    >
-                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                        </svg>
-                                    </button>
-                                )}
-                            </div>
+                            {/* Category Header - Droppable & Sortable */}
+                            <DroppableCategoryHeader
+                                category={category}
+                                isCollapsed={isCollapsed}
+                                canManageChannels={canManageChannels}
+                                isDragEnabled={isDragEnabled}
+                                onToggle={() => toggleCategory(category.id)}
+                                onAddChannel={onAddChannel}
+                                onEdit={() => onEditChannel?.(category)}
+                                onDelete={() => onDeleteChannel?.(category)}
+                            />
 
                             {/* Category Channels */}
                             {!isCollapsed && (
@@ -481,6 +529,136 @@ export function ChannelSidebar({
                 )}
             </DragOverlay>
         </DndContext>
+    );
+}
+
+// ============================================================================
+// Droppable Category Header
+// ============================================================================
+
+interface DroppableCategoryHeaderProps {
+    category: Channel;
+    isCollapsed: boolean;
+    canManageChannels: boolean;
+    isDragEnabled: boolean;
+    onToggle: () => void;
+    onAddChannel?: () => void;
+    onEdit?: () => void;
+    onDelete?: () => void;
+}
+
+function DroppableCategoryHeader({
+    category,
+    isCollapsed,
+    canManageChannels,
+    isDragEnabled,
+    onToggle,
+    onAddChannel,
+    onEdit,
+    onDelete,
+}: DroppableCategoryHeaderProps) {
+    // Both droppable (for channels) and sortable (for category reordering)
+    const { isOver, setNodeRef: setDropRef } = useDroppable({
+        id: `drop-${category.id}`,
+        data: { type: 'category', categoryId: category.id }
+    });
+
+    const {
+        attributes,
+        listeners,
+        setNodeRef: setSortRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({
+        id: category.id,
+        disabled: !isDragEnabled,
+        data: { type: 'category' }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
+    // Combine refs
+    const setNodeRef = (node: HTMLElement | null) => {
+        setDropRef(node);
+        setSortRef(node);
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`group/category flex items-center gap-1 px-1 py-1 rounded transition-colors ${isOver ? "bg-purple-500/20 ring-1 ring-purple-500/50" : ""
+                }`}
+        >
+            {/* Drag Handle for Category */}
+            {isDragEnabled && (
+                <div
+                    {...attributes}
+                    {...listeners}
+                    className="opacity-0 group-hover/category:opacity-100 cursor-grab active:cursor-grabbing text-zinc-600 hover:text-zinc-400 -ml-0.5 mr-0.5"
+                >
+                    <svg width="8" height="12" viewBox="0 0 10 16" fill="currentColor">
+                        <circle cx="2" cy="2" r="1.5" />
+                        <circle cx="8" cy="2" r="1.5" />
+                        <circle cx="2" cy="8" r="1.5" />
+                        <circle cx="8" cy="8" r="1.5" />
+                    </svg>
+                </div>
+            )}
+
+            <button
+                onClick={onToggle}
+                className="flex-1 flex items-center gap-1 text-xs font-semibold text-zinc-500 uppercase tracking-wider hover:text-zinc-300 transition-colors"
+            >
+                <ChevronDownIcon
+                    className={`w-3 h-3 transition-transform ${isCollapsed ? "-rotate-90" : ""}`}
+                />
+                {category.name}
+            </button>
+
+            {canManageChannels && (
+                <div className="flex items-center gap-0.5 opacity-0 group-hover/category:opacity-100 transition-opacity">
+                    {onAddChannel && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onAddChannel(); }}
+                            className="p-0.5 rounded hover:bg-white/10 text-zinc-600 hover:text-zinc-400"
+                            title="Kanal Ekle"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                        </button>
+                    )}
+                    {onEdit && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                            className="p-0.5 rounded hover:bg-white/10 text-zinc-600 hover:text-zinc-400"
+                            title="Düzenle"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                            className="p-0.5 rounded hover:bg-red-500/20 text-zinc-600 hover:text-red-400"
+                            title="Sil"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
     );
 }
 

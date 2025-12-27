@@ -5,11 +5,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
-
 	"xcord/internal/domain/channel"
 	"xcord/internal/domain/readstate"
 	"xcord/internal/domain/server"
+	"xcord/internal/pkg/id"
 )
 
 // Service provides channel-related operations.
@@ -65,7 +64,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*channel.Chann
 
 	now := time.Now()
 	ch := &channel.Channel{
-		ID:          generateID("chan"),
+		ID:          id.Generate("chan"),
 		ServerID:    cmd.ServerID,
 		ParentID:    cmd.ParentID,
 		Name:        cmd.Name,
@@ -272,17 +271,4 @@ func (s *Service) AckMessage(ctx context.Context, userID, channelID, messageID s
 		LastReadMessageID: &messageID,
 		LastReadAt:        time.Now(),
 	})
-}
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-func generateID(prefix string) string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
 }

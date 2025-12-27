@@ -1,21 +1,29 @@
 // ============================================================================
-// Create Channel Modal Component
+// Create Channel Modal Component (Aligned with Backend API)
 // ============================================================================
 
 import { useState } from "react";
 import { createChannel } from "./serversApi";
-import { createVoiceChannel } from "../voice/voiceApi";
 
 interface CreateChannelModalProps {
     isOpen: boolean;
     onClose: () => void;
     serverId: string;
     onChannelCreated: () => void;
+    parentId?: string; // Pre-selected category
 }
 
-type ChannelType = "text" | "voice" | "announcement" | "category";
+// All channel types supported by backend
+type ChannelType = "text" | "voice" | "video" | "announcement" | "category" | "stage" | "hybrid";
 
-const CHANNEL_TYPES: { type: ChannelType; label: string; icon: string; description: string }[] = [
+interface ChannelTypeOption {
+    type: ChannelType;
+    label: string;
+    icon: string;
+    description: string;
+}
+
+const CHANNEL_TYPES: ChannelTypeOption[] = [
     {
         type: "text",
         label: "Metin Kanalı",
@@ -29,10 +37,28 @@ const CHANNEL_TYPES: { type: ChannelType; label: string; icon: string; descripti
         description: "Sesli iletişim kanalı",
     },
     {
+        type: "video",
+        label: "Video Kanalı",
+        icon: "📹",
+        description: "Görüntülü görüşme kanalı",
+    },
+    {
         type: "announcement",
         label: "Duyuru Kanalı",
         icon: "📢",
         description: "Sadece yöneticiler mesaj gönderebilir",
+    },
+    {
+        type: "stage",
+        label: "Sahne Kanalı",
+        icon: "🎭",
+        description: "Konuşmacı ve dinleyici modlu webinar",
+    },
+    {
+        type: "hybrid",
+        label: "Hibrit Kanal",
+        icon: "💬",
+        description: "Metin + Ses + Video bir arada",
     },
     {
         type: "category",
@@ -47,6 +73,7 @@ export function CreateChannelModal({
     onClose,
     serverId,
     onChannelCreated,
+    parentId,
 }: CreateChannelModalProps) {
     const [name, setName] = useState("");
     const [type, setType] = useState<ChannelType>("text");
@@ -57,46 +84,42 @@ export function CreateChannelModal({
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!name.trim()) {
+        const trimmedName = name.trim();
+        if (!trimmedName) {
             setError("Kanal adı gerekli");
             return;
         }
 
-        if (name.length < 1 || name.length > 100) {
-            setError("Kanal adı 1-100 karakter arasında olmalı");
+        if (trimmedName.length > 100) {
+            setError("Kanal adı en fazla 100 karakter olabilir");
+            return;
+        }
+
+        if (description.length > 500) {
+            setError("Açıklama en fazla 500 karakter olabilir");
             return;
         }
 
         setLoading(true);
         setError(null);
 
-        let channelName = name.trim();
-        // Text/Voice channels usually use kebab-case, Categories can be free-text
+        // Format name: kebab-case for non-category channels
+        let channelName = trimmedName;
         if (type !== "category") {
             channelName = channelName.toLowerCase().replace(/\s+/g, "-");
         }
 
         try {
-            // Voice channels use a different API endpoint and table
-            if (type === "voice") {
-                await createVoiceChannel(serverId, {
-                    name: channelName,
-                    type: "voice",
-                });
-            } else {
-                // Text and announcement channels
-                await createChannel(serverId, {
-                    name: channelName,
-                    type,
-                    description: description.trim() || undefined,
-                });
-            }
+            // Unified API call for all channel types
+            await createChannel(serverId, {
+                name: channelName,
+                type,
+                description: description.trim() || undefined,
+                parentId: parentId || undefined,
+            });
 
             // Reset form
-            setName("");
-            setType("text");
-            setDescription("");
-
+            resetForm();
             onChannelCreated();
             onClose();
         } catch (err) {
@@ -106,18 +129,29 @@ export function CreateChannelModal({
         }
     };
 
-    const handleClose = () => {
+    const resetForm = () => {
         setName("");
         setType("text");
         setDescription("");
         setError(null);
+    };
+
+    const handleClose = () => {
+        resetForm();
         onClose();
     };
 
     if (!isOpen) return null;
 
+    const getTypeIcon = (t: ChannelType) => {
+        return CHANNEL_TYPES.find((ct) => ct.type === t)?.icon ?? "#";
+    };
+
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={handleClose}>
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+            onClick={handleClose}
+        >
             <div
                 className="w-full max-w-md bg-[#0f0f15] border border-white/10 rounded-2xl shadow-2xl overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
@@ -137,44 +171,45 @@ export function CreateChannelModal({
                         <label className="block text-sm font-medium text-zinc-300 mb-2">
                             Kanal Tipi
                         </label>
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
                             {CHANNEL_TYPES.map((ct) => (
                                 <button
                                     key={ct.type}
                                     type="button"
                                     onClick={() => setType(ct.type)}
-                                    className={`w-full p-3 rounded-lg border text-left transition-all flex items-center gap-3 ${type === ct.type
-                                        ? "border-purple-500 bg-purple-500/10"
-                                        : "border-white/10 bg-white/5 hover:bg-white/10"
+                                    className={`p-2.5 rounded-lg border text-left transition-all ${type === ct.type
+                                            ? "border-purple-500 bg-purple-500/10"
+                                            : "border-white/10 bg-white/5 hover:bg-white/10"
                                         }`}
                                 >
-                                    <span className="text-xl w-8 text-center">{ct.icon}</span>
-                                    <div>
-                                        <div className={`font-medium ${type === ct.type ? "text-purple-400" : "text-white"}`}>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-base">{ct.icon}</span>
+                                        <span
+                                            className={`text-sm font-medium ${type === ct.type ? "text-purple-400" : "text-white"
+                                                }`}
+                                        >
                                             {ct.label}
-                                        </div>
-                                        <div className="text-xs text-zinc-500">{ct.description}</div>
+                                        </span>
                                     </div>
-                                    {type === ct.type && (
-                                        <div className="ml-auto">
-                                            <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                            </svg>
-                                        </div>
-                                    )}
                                 </button>
                             ))}
                         </div>
+                        <p className="text-xs text-zinc-500 mt-2">
+                            {CHANNEL_TYPES.find((ct) => ct.type === type)?.description}
+                        </p>
                     </div>
 
                     {/* Channel Name */}
                     <div>
-                        <label htmlFor="channel-name" className="block text-sm font-medium text-zinc-300 mb-2">
+                        <label
+                            htmlFor="channel-name"
+                            className="block text-sm font-medium text-zinc-300 mb-2"
+                        >
                             Kanal Adı
                         </label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-lg">
-                                {type === "text" ? "#" : type === "voice" ? "🔊" : type === "announcement" ? "📢" : "📁"}
+                                {getTypeIcon(type)}
                             </span>
                             <input
                                 id="channel-name"
@@ -182,29 +217,39 @@ export function CreateChannelModal({
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="genel-sohbet"
+                                maxLength={100}
                                 className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
                                 autoFocus
                             />
                         </div>
                         <p className="text-xs text-zinc-500 mt-1">
-                            {type !== "category" ? "Boşluklar tire (-) ile değiştirilir, küçük harfe çevrilir" : "Kategori isimleri serbest formatta olabilir"}
+                            {type !== "category"
+                                ? "Boşluklar tire (-) ile değiştirilir"
+                                : "Kategori isimleri serbest formatta olabilir"}
                         </p>
                     </div>
 
-                    {/* Description (Optional) */}
-                    <div>
-                        <label htmlFor="channel-desc" className="block text-sm font-medium text-zinc-300 mb-2">
-                            Açıklama <span className="text-zinc-500">(İsteğe bağlı)</span>
-                        </label>
-                        <textarea
-                            id="channel-desc"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            placeholder="Bu kanal ne için?"
-                            rows={2}
-                            className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 resize-none"
-                        />
-                    </div>
+                    {/* Description (Optional) - not shown for category */}
+                    {type !== "category" && (
+                        <div>
+                            <label
+                                htmlFor="channel-desc"
+                                className="block text-sm font-medium text-zinc-300 mb-2"
+                            >
+                                Açıklama{" "}
+                                <span className="text-zinc-500">(İsteğe bağlı)</span>
+                            </label>
+                            <textarea
+                                id="channel-desc"
+                                value={description}
+                                onChange={(e) => setDescription(e.target.value)}
+                                placeholder="Bu kanal ne için?"
+                                maxLength={500}
+                                rows={2}
+                                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 resize-none"
+                            />
+                        </div>
+                    )}
 
                     {/* Error */}
                     {error && (

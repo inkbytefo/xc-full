@@ -250,6 +250,38 @@ type JoinRequestResponse struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
+// BanMemberRequest represents a request to ban a member.
+type BanMemberRequest struct {
+	UserID string `json:"userId" validate:"required"`
+	Reason string `json:"reason"`
+}
+
+// TimeoutMemberRequest represents a request to timeout a member.
+type TimeoutMemberRequest struct {
+	DurationSeconds int    `json:"durationSeconds" validate:"required,gt=0"`
+	Reason          string `json:"reason"`
+}
+
+// CreateRoleRequest represents a request to create a role.
+type CreateRoleRequest struct {
+	Name        string `json:"name" validate:"required,min=1,max=100"`
+	Color       string `json:"color"`
+	Permissions int64  `json:"permissions"`
+}
+
+// UpdateRoleRequest represents a request to update a role.
+type UpdateRoleRequest struct {
+	Name        *string `json:"name,omitempty" validate:"omitempty,min=1,max=100"`
+	Color       *string `json:"color,omitempty"`
+	Permissions *int64  `json:"permissions,omitempty"`
+	Position    *int    `json:"position,omitempty"`
+}
+
+// UpdateMemberRolesRequest represents a request to update member roles.
+type UpdateMemberRolesRequest struct {
+	RoleIDs []string `json:"roleIds"`
+}
+
 // === Channel DTOs ===
 
 // CreateChannelRequest represents a channel creation request.

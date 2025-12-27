@@ -127,8 +127,9 @@ func main() {
 
 	wsHandler := handlers.NewWebSocketHandler(wsHub)
 
-	// Initialize channel message repository
+	// Initialize channel message service and handler
 	channelMessageRepo := postgres.NewChannelMessageRepository(dbPool)
+	messageService := channelApp.NewMessageService(channelMessageRepo, channelRepo, memberRepo, serverRepo)
 
 	// Initialize live streaming repositories
 	streamRepo := postgres.NewStreamRepository(dbPool)
@@ -140,7 +141,7 @@ func main() {
 	serverHandler := handlers.NewServerHandler(serverService, userRepo)
 	serverWallHandler := handlers.NewServerWallHandler(wallPostRepo, memberRepo, serverRepo)
 	channelHandler := handlers.NewChannelHandler(channelService)
-	channelMessageHandler := handlers.NewChannelMessageHandler(channelMessageRepo, channelRepo, memberRepo, serverRepo, wsHandler)
+	channelMessageHandler := handlers.NewChannelMessageHandler(messageService, wsHandler)
 	feedHandler := handlers.NewFeedHandler(feedService)
 	dmHandler := handlers.NewDMHandler(dmService, wsHub, userRepo)
 	liveHandler := handlers.NewLiveHandler(streamRepo, categoryRepo)

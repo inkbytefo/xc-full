@@ -11,6 +11,7 @@ import (
 
 	channelDomain "xcord/internal/domain/channel"
 	"xcord/internal/domain/server"
+	"xcord/internal/pkg/id"
 )
 
 // Service provides server-related operations.
@@ -65,7 +66,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 	}
 
 	srv := &server.Server{
-		ID:           generateID("serv"),
+		ID:           id.Generate("serv"),
 		Name:         cmd.Name,
 		Description:  cmd.Description,
 		IconGradient: iconGradient,
@@ -82,7 +83,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 
 	// Create default @everyone role with default permissions
 	everyoneRole := &server.Role{
-		ID:          generateID("role"),
+		ID:          id.Generate("role"),
 		ServerID:    srv.ID,
 		Name:        "@everyone",
 		Color:       "#99AAB5",
@@ -100,7 +101,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 
 	// Add owner as member
 	member := &server.Member{
-		ID:       generateID("memb"),
+		ID:       id.Generate("memb"),
 		ServerID: srv.ID,
 		UserID:   cmd.OwnerID,
 		JoinedAt: now,
@@ -118,7 +119,7 @@ func (s *Service) Create(ctx context.Context, cmd CreateCommand) (*server.Server
 
 	// Create default "general" channel
 	ch := &channelDomain.Channel{
-		ID:        generateID("chan"),
+		ID:        id.Generate("chan"),
 		ServerID:  srv.ID,
 		Name:      "general",
 		Type:      channelDomain.TypeText,
@@ -264,7 +265,7 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult
 	}
 
 	member := &server.Member{
-		ID:       generateID("memb"),
+		ID:       id.Generate("memb"),
 		ServerID: serverID,
 		UserID:   userID,
 		JoinedAt: time.Now(),
@@ -430,7 +431,7 @@ func (s *Service) AcceptJoinRequest(ctx context.Context, serverID, targetUserID,
 	}
 
 	member := &server.Member{
-		ID:       generateID("memb"),
+		ID:       id.Generate("memb"),
 		ServerID: serverID,
 		UserID:   targetUserID,
 		JoinedAt: time.Now(),
@@ -494,7 +495,7 @@ func (s *Service) BanMember(ctx context.Context, serverID, targetUserID, actorUs
 
 	// 1. Create Ban Record
 	ban := &server.Ban{
-		ID:        generateID("ban"),
+		ID:        id.Generate("ban"),
 		ServerID:  serverID,
 		UserID:    targetUserID,
 		BannedBy:  actorUserID,
@@ -659,7 +660,7 @@ func (s *Service) CreateRole(ctx context.Context, serverID, name, color string, 
 	}
 
 	role := &server.Role{
-		ID:            generateID("role"),
+		ID:            id.Generate("role"),
 		ServerID:      serverID,
 		Name:          name,
 		Color:         color,
@@ -850,7 +851,7 @@ func memberID(ctx context.Context, s *Service, serverID, userID string) string {
 
 func (s *Service) logAudit(ctx context.Context, serverID, actorID, targetID string, action server.AuditLogAction, changes map[string]interface{}) error {
 	log := &server.AuditLog{
-		ID:         generateID("audit"),
+		ID:         id.Generate("audi"),
 		ServerID:   serverID,
 		ActorID:    actorID,
 		TargetID:   targetID,
@@ -988,19 +989,6 @@ func (s *Service) IsOwner(ctx context.Context, serverID, userID string) bool {
 		return false
 	}
 	return srv.OwnerID == userID
-}
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-func generateID(prefix string) string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
 }
 
 func generateGradient() [2]string {

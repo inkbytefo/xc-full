@@ -5,9 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/google/uuid"
-
 	"xcord/internal/domain/dm"
+	"xcord/internal/pkg/id"
 )
 
 // Service provides DM-related operations.
@@ -76,7 +75,7 @@ func (s *Service) StartConversation(ctx context.Context, userID, otherUserID str
 	// Create new conversation
 	now := time.Now()
 	conv := &dm.Conversation{
-		ID:           generateID("conv"),
+		ID:           id.Generate("conv"),
 		Participants: []string{userID, otherUserID},
 		CreatedAt:    now,
 		UpdatedAt:    now,
@@ -125,7 +124,7 @@ func (s *Service) SendMessage(ctx context.Context, cmd SendMessageCommand) (*dm.
 
 	now := time.Now()
 	msg := &dm.Message{
-		ID:             generateID("dmsg"),
+		ID:             id.Generate("dmsg"),
 		ConversationID: cmd.ConversationID,
 		SenderID:       cmd.SenderID,
 		Content:        cmd.Content,
@@ -194,13 +193,4 @@ func (s *Service) MarkAsRead(ctx context.Context, convID, userID string) error {
 	}
 
 	return s.messageRepo.MarkAsRead(ctx, convID, userID, "")
-}
-
-func generateID(prefix string) string {
-	id := uuid.New().String()
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
 }

@@ -11,6 +11,7 @@ import (
 	"xcord/internal/domain/privacy"
 	"xcord/internal/domain/user"
 	"xcord/internal/infrastructure/auth"
+	"xcord/internal/pkg/id"
 )
 
 // Service provides user-related operations.
@@ -93,7 +94,7 @@ func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (*RegisterR
 	// Create user
 	now := time.Now()
 	u := &user.User{
-		ID:             generateID("user"),
+		ID:             id.Generate("user"),
 		Handle:         cmd.Handle,
 		DisplayName:    cmd.DisplayName,
 		Email:          cmd.Email,
@@ -122,7 +123,7 @@ func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (*RegisterR
 
 	// Store session
 	session := &user.Session{
-		ID:           generateID("sess"),
+		ID:           id.Generate("sess"),
 		UserID:       u.ID,
 		RefreshToken: refreshToken,
 		ExpiresAt:    time.Now().Add(s.jwt.GetRefreshTokenDuration()),
@@ -191,7 +192,7 @@ func (s *Service) Login(ctx context.Context, cmd LoginCommand) (*LoginResult, er
 
 	// Store session
 	session := &user.Session{
-		ID:           generateID("sess"),
+		ID:           id.Generate("sess"),
 		UserID:       u.ID,
 		RefreshToken: refreshToken,
 		ExpiresAt:    time.Now().Add(s.jwt.GetRefreshTokenDuration()),
@@ -260,7 +261,7 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string) (*Refre
 
 	// Create new session
 	newSession := &user.Session{
-		ID:           generateID("sess"),
+		ID:           id.Generate("sess"),
 		UserID:       claims.Subject,
 		RefreshToken: newRefreshToken,
 		ExpiresAt:    time.Now().Add(s.jwt.GetRefreshTokenDuration()),
@@ -541,19 +542,6 @@ func (s *Service) GetFollowing(ctx context.Context, userID, cursor string, limit
 	}
 
 	return users, nextCursor, nil
-}
-
-// Helper functions
-
-func generateID(prefix string) string {
-	id := uuid.New().String()
-	// Remove hyphens: 8-4-4-4-12 -> 32 chars
-	clean := id[:8] + id[9:13] + id[14:18] + id[19:23] + id[24:36]
-	// Use first 4 chars of prefix + _ + 21 chars = 26 total
-	if len(prefix) > 4 {
-		prefix = prefix[:4]
-	}
-	return prefix + "_" + clean[:21]
 }
 
 func generateAvatarGradient() [2]string {
