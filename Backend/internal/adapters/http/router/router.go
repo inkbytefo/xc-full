@@ -27,6 +27,8 @@ type Config struct {
 	WebhookHandler        *handlers.WebhookHandler
 	MediaHandler          *handlers.MediaHandler
 	PrivacyHandler        *handlers.PrivacyHandler
+	SettingsHandler       *handlers.SettingsHandler
+	CallHandler           *handlers.CallHandler
 	WebSocketHandler      *handlers.WebSocketHandler
 	HealthHandler         *handlers.HealthHandler
 	AuthMiddleware        *middleware.AuthMiddleware
@@ -75,6 +77,12 @@ func Setup(app *fiber.App, cfg *Config) {
 	protected.Get("/me/follow-requests", cfg.UserHandler.GetPendingRequests)
 	protected.Post("/me/follow-requests/:requesterId/accept", cfg.UserHandler.AcceptFollowRequest)
 	protected.Post("/me/follow-requests/:requesterId/reject", cfg.UserHandler.RejectFollowRequest)
+
+	// Settings routes
+	if cfg.SettingsHandler != nil {
+		protected.Get("/me/settings/notifications", cfg.SettingsHandler.GetNotificationSettings)
+		protected.Put("/me/settings/notifications", cfg.SettingsHandler.UpdateNotificationSettings)
+	}
 
 	// User routes
 	users := protected.Group("/users")
@@ -194,6 +202,7 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// Voice channel routes
 	servers.Get("/:id/voice-channels", cfg.VoiceHandler.GetVoiceChannels)
+	servers.Get("/:id/active-voice-users", cfg.VoiceHandler.GetActiveParticipants)
 	servers.Post("/:id/voice-channels", cfg.VoiceHandler.CreateVoiceChannel)
 
 	voiceChannels := protected.Group("/voice-channels")
@@ -203,6 +212,16 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// LiveKit Webhook (public with signature verification)
 	api.Post("/webhooks/livekit", cfg.WebhookHandler.Handle)
+
+	// Call signaling routes
+	if cfg.CallHandler != nil {
+		calls := protected.Group("/calls")
+		calls.Post("/initiate", cfg.CallHandler.InitiateCall)
+		calls.Post("/:callId/accept", cfg.CallHandler.AcceptCall)
+		calls.Post("/:callId/reject", cfg.CallHandler.RejectCall)
+		calls.Post("/:callId/end", cfg.CallHandler.EndCall)
+		calls.Post("/:callId/cancel", cfg.CallHandler.CancelCall)
+	}
 
 	// Media routes
 	media := protected.Group("/media")

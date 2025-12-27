@@ -23,7 +23,9 @@ export function TypingIndicator({ users }: TypingIndicatorProps) {
                     style={{ animationDelay: "300ms" }}
                 />
             </div>
-            <span>{users.join(", ")} yazıyor...</span>
+            <span>
+                {users.map((u) => u.handle || u.displayName || "Unknown User").join(", ")} yazıyor...
+            </span>
         </div>
     );
 }

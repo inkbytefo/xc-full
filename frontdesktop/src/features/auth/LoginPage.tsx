@@ -8,7 +8,7 @@ export function LoginPage() {
     const location = useLocation();
     const { login, isLoading, error, clearError } = useAuthStore();
 
-    const [email, setEmail] = useState("");
+    const [handle, setHandle] = useState("");
     const [password, setPassword] = useState("");
 
     // Get the intended destination from location state
@@ -18,7 +18,7 @@ export function LoginPage() {
         e.preventDefault();
         clearError();
 
-        const success = await login(email, password);
+        const success = await login(handle, password);
         if (success) {
             navigate(from, { replace: true });
         }
@@ -47,15 +47,15 @@ export function LoginPage() {
                             )}
 
                             <div className="space-y-2">
-                                <label className="block text-sm font-medium text-white/85">Email</label>
+                                <label className="block text-sm font-medium text-white/85">Username</label>
                                 <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    type="text"
+                                    value={handle}
+                                    onChange={(e) => setHandle(e.target.value)}
                                     required
-                                    autoComplete="email"
+                                    autoComplete="username"
                                     className="w-full rounded-xl border border-[var(--border-default)] bg-white/5 px-4 py-3 text-white placeholder:text-white/35 outline-none transition focus:border-[var(--velvet-2)]/60 focus:ring-2 focus:ring-[var(--velvet-2)]/25"
-                                    placeholder="you@example.com"
+                                    placeholder="@myusername"
                                 />
                             </div>
 

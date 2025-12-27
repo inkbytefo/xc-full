@@ -24,6 +24,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Channel } from "../../../api/types";
+import type { ChannelParticipant } from "../../../lib/websocket/types";
 import { HashIcon, ChevronDownIcon, VolumeIcon, VideoIcon, StageIcon } from "./Icons";
 
 // ============================================================================
@@ -98,14 +99,6 @@ interface VoiceParticipant {
     isSpeaking: boolean;
     isMuted: boolean;
     isLocal: boolean;
-}
-
-interface ChannelParticipant {
-    oderId: string;
-    odername: string;
-    avatarGradient?: [string, string];
-    isSpeaking?: boolean;
-    isMuted?: boolean;
 }
 
 interface ChannelSidebarProps {
@@ -876,11 +869,14 @@ function SortableVoiceChannelItem({
             {participants.length > 0 && (
                 <div className="ml-6 mt-1 space-y-0.5">
                     {participants.map((p, idx) => {
-                        const identity = 'identity' in p ? p.identity : p.odername;
-                        const isSpeaking = 'isSpeaking' in p ? p.isSpeaking : false;
-                        const isMuted = 'isMuted' in p ? p.isMuted : false;
+                        const displayName = 'displayName' in p ? p.displayName : ('identity' in p ? p.identity : "Unknown");
+                        const handle = 'handle' in p ? p.handle : null;
+                        const label = handle ? `@${handle}` : displayName;
+
+                        const isSpeaking = 'isSpeaking' in p ? p.isSpeaking : !!p.isSpeaking;
+                        const isMuted = 'isMuted' in p ? p.isMuted : !!p.isMuted;
                         const isLocal = 'isLocal' in p ? p.isLocal : false;
-                        const uniqueKey = 'sid' in p ? p.sid : `${p.oderId}-${idx}`;
+                        const uniqueKey = 'sid' in p ? p.sid : `${'identity' in p ? p.identity : (p as any).userId}-${idx}`;
 
                         return (
                             <div
@@ -891,8 +887,8 @@ function SortableVoiceChannelItem({
                                     className={`w-2 h-2 rounded-full shrink-0 ${isSpeaking ? "bg-green-500 animate-pulse" : "bg-zinc-600"
                                         }`}
                                 />
-                                <span className={`truncate ${isMuted ? "text-zinc-500" : "text-zinc-300"}`}>
-                                    {identity}
+                                <span className={`text-sm truncate ${isSpeaking ? "text-white font-medium shadow-black drop-shadow-md" : "text-zinc-400 group-hover/participant:text-zinc-300"}`}>
+                                    {label}
                                     {isLocal && <span className="text-zinc-500 ml-1">(Sen)</span>}
                                 </span>
                                 {isMuted && (

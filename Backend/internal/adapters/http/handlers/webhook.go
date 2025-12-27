@@ -1,14 +1,20 @@
 package handlers
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"xcord/internal/domain/channel"
+	"xcord/internal/domain/user"
 	"xcord/internal/domain/voice"
+	"xcord/internal/domain/ws"
+	wsInfra "xcord/internal/infrastructure/ws"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,14 +24,26 @@ import (
 // WebhookHandler handles LiveKit webhooks.
 type WebhookHandler struct {
 	participantRepo voice.ParticipantRepository
+	channelRepo     channel.Repository
+	userRepo        user.Repository
+	wsHub           *wsInfra.Hub
 	apiKey          string
 	apiSecret       string
 }
 
 // NewWebhookHandler creates a new WebhookHandler.
-func NewWebhookHandler(participantRepo voice.ParticipantRepository, apiKey, apiSecret string) *WebhookHandler {
+func NewWebhookHandler(
+	participantRepo voice.ParticipantRepository,
+	channelRepo channel.Repository,
+	userRepo user.Repository,
+	wsHub *wsInfra.Hub,
+	apiKey, apiSecret string,
+) *WebhookHandler {
 	return &WebhookHandler{
 		participantRepo: participantRepo,
+		channelRepo:     channelRepo,
+		userRepo:        userRepo,
+		wsHub:           wsHub,
 		apiKey:          apiKey,
 		apiSecret:       apiSecret,
 	}
@@ -96,31 +114,84 @@ func (h *WebhookHandler) Handle(c *fiber.Ctx) error {
 func (h *WebhookHandler) handleParticipantJoined(c *fiber.Ctx, event *livekit.WebhookEvent) {
 	if len(event.Room.Name) > 3 && event.Room.Name[:3] == "vc_" {
 		channelID := event.Room.Name[3:]
+		identity := event.Participant.Identity
+
+		// 1. Update DB
 		p := &voice.Participant{
-			UserID:    event.Participant.Identity,
+			UserID:    identity,
 			ChannelID: channelID,
 			JoinedAt:  time.Now(),
 		}
 		err := h.participantRepo.Join(c.Context(), p)
 		if err != nil {
-			slog.Error("failed to process participant joined", slog.Any("error", err), slog.String("userId", p.UserID))
+			slog.Error("failed to process participant joined", slog.Any("error", err), slog.String("userId", identity))
 		}
+
+		// 2. Fetch details for broadcast
+		h.broadcastVoiceUpdate(c.Context(), channelID, identity, "joined")
 	}
 }
 
 func (h *WebhookHandler) handleParticipantLeft(c *fiber.Ctx, event *livekit.WebhookEvent) {
-	err := h.participantRepo.Leave(c.Context(), event.Participant.Identity)
-	if err != nil {
-		slog.Error("failed to process participant left", slog.Any("error", err), slog.String("userId", event.Participant.Identity))
+	identity := event.Participant.Identity
+
+	// If room active, broadcast leaving
+	if len(event.Room.Name) > 3 && event.Room.Name[:3] == "vc_" {
+		channelID := event.Room.Name[3:]
+
+		err := h.participantRepo.Leave(c.Context(), identity)
+		if err != nil {
+			slog.Error("failed to process participant left", slog.Any("error", err), slog.String("userId", identity))
+		}
+
+		h.broadcastVoiceUpdate(c.Context(), channelID, identity, "left")
 	}
 }
 
 func (h *WebhookHandler) handleRoomFinished(c *fiber.Ctx, event *livekit.WebhookEvent) {
 	if len(event.Room.Name) > 3 && event.Room.Name[:3] == "vc_" {
 		channelID := event.Room.Name[3:]
+		// On room finish, everyone left implicitly?
+		// LiveKit sends left events for participants usually.
 		err := h.participantRepo.DeleteByChannelID(c.Context(), channelID)
 		if err != nil {
 			slog.Error("failed to clear participants on room finish", slog.Any("error", err), slog.String("channelId", channelID))
 		}
 	}
+}
+
+func (h *WebhookHandler) broadcastVoiceUpdate(ctx context.Context, channelID, userID, action string) {
+	// Find Channel to get ServerID
+	ch, err := h.channelRepo.FindByID(ctx, channelID)
+	if err != nil {
+		slog.Error("webhook: channel not found", slog.String("channelId", channelID), slog.Any("error", err))
+		return
+	}
+
+	// Find User to get Handle/Avatar
+	u, err := h.userRepo.FindByID(ctx, userID)
+	if err != nil {
+		slog.Error("webhook: user not found", slog.String("userId", userID), slog.Any("error", err))
+		return
+	}
+
+	avatar := ""
+	if len(u.AvatarGradient) > 0 {
+		avatar = u.AvatarGradient[0] // Simplify/Mock for now or send full array
+	}
+
+	eventData := ws.VoiceStateUpdateEventData{
+		ServerID:        ch.ServerID,
+		ChannelID:       channelID,
+		UserID:          userID,
+		UserHandle:      u.Handle,
+		UserDisplayName: u.DisplayName,
+		UserAvatar:      avatar,
+		Action:          action,
+	}
+
+	msg, _ := ws.NewMessage(ws.EventVoiceStateUpdate, eventData)
+	data, _ := json.Marshal(msg)
+
+	h.wsHub.BroadcastToSubscription(ws.SubServer, ch.ServerID, data)
 }

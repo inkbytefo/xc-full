@@ -19,6 +19,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getVoiceChannels, type VoiceChannel } from "../../voice/voiceApi";
 import { getServerByHandle, getServer } from "../serversApi";
 import { useQuery } from "@tanstack/react-query";
+import { useWebSocketStore } from "../../../lib/websocket/store";
+import { api } from "../../../api/client";
+import type { ChannelParticipant } from "../../../lib/websocket/types";
 
 interface UseServerDataOptions {
     onError?: (message: string) => void;
@@ -41,6 +44,10 @@ interface UseServerDataReturn {
     // Category hierarchy
     categories: Channel[];
     groupedChannels: Map<string | null, Channel[]>;
+
+    // Participants (Voice)
+    // Map<ChannelID, Participants[]>
+    channelParticipants: Map<string, ChannelParticipant[]>;
 
     // Loading states
     loading: boolean;
@@ -68,6 +75,12 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
     }>();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+    const {
+        channelParticipants: storeParticipants,
+        setAllParticipants,
+        subscribeToServer,
+        unsubscribeFromServer
+    } = useWebSocketStore();
 
     // React Query: Servers
     const {
@@ -111,7 +124,7 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
                 .then(server => {
                     setSelectedServer(server.id);
                 })
-                .catch(err => {
+                .catch(_err => {
                     if (options.onError) options.onError("Server not found");
                 });
         }
@@ -173,6 +186,38 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
 
         return groups;
     }, [channels, categories]);
+
+    // Transform store participants (Map<ChannelID, Map<UserID, Participant>>) to Map<ChannelID, Participant[]>
+    const channelParticipants = useMemo(() => {
+        const result = new Map<string, ChannelParticipant[]>();
+        storeParticipants.forEach((userMap, channelId) => {
+            result.set(channelId, Array.from(userMap.values()));
+        });
+        return result;
+    }, [storeParticipants]);
+
+    // Fetch initial participants and subscribe to updates
+    useEffect(() => {
+        if (!selectedServer) return;
+
+        // 1. Subscribe to server events (voice updates)
+        subscribeToServer(selectedServer);
+
+        // 2. Fetch initial active participants
+        api.get<{ data: ChannelParticipant[] }>(`/servers/${selectedServer}/active-voice-users`)
+            .then(res => {
+                if (res.data) {
+                    setAllParticipants(res.data);
+                }
+            })
+            .catch(err => {
+                console.error("Failed to fetch active voice users:", err);
+            });
+
+        return () => {
+            unsubscribeFromServer(selectedServer);
+        };
+    }, [selectedServer, subscribeToServer, unsubscribeFromServer, setAllParticipants]);
 
     // Loading states
     const loading = serversLoading;
@@ -250,11 +295,11 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         if (!selectedServer) return;
 
         const currentPath = window.location.pathname;
-        
+
         // Only sync URL if we're actually on a /servers path
         // This prevents hijacking navigation to other routes like /feed or /dms
         if (!currentPath.startsWith('/servers')) return;
-        
+
         const targetPath = selectedChannel
             ? `/servers/${selectedServer}/channels/${selectedChannel}`
             : `/servers/${selectedServer}`;
@@ -353,6 +398,7 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         textChannels,
         categories,
         groupedChannels,
+        channelParticipants,
         loading,
         isInitialLoadComplete,
         channelsLoading: channelsLoading || voiceLoading,

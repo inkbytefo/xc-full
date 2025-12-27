@@ -11,10 +11,14 @@ import {
 import { getVoiceToken, type VoiceChannel } from "../features/voice/voiceApi";
 import { newClientId } from "../lib/clientId";
 import { useUIStore } from "./uiStore";
+import { playSound } from "../lib/soundService";
 
 export interface ParticipantInfo {
     identity: string;
     sid: string;
+    displayName: string;
+    handle: string;
+    avatarGradient: string[];
     isSpeaking: boolean;
     isMuted: boolean;
     isCameraOn: boolean;
@@ -22,6 +26,20 @@ export interface ParticipantInfo {
     isLocal: boolean;
     cameraTrack?: Track | null;
     screenShareTrack?: Track | null;
+}
+
+function parseMetadata(metadata: string | undefined): { displayName: string; handle: string; avatarGradient: string[] } {
+    try {
+        if (!metadata) return { displayName: "Unknown", handle: "unknown", avatarGradient: ["#333", "#666"] };
+        const data = JSON.parse(metadata);
+        return {
+            displayName: data.displayName || "Unknown",
+            handle: data.handle || "unknown",
+            avatarGradient: data.avatarGradient || ["#333", "#666"],
+        };
+    } catch {
+        return { displayName: "Unknown", handle: "unknown", avatarGradient: ["#333", "#666"] };
+    }
 }
 
 type VoiceRuntimeRole = "owner" | "follower";
@@ -154,6 +172,9 @@ function toSnapshot(state: VoiceState): VoiceStateSnapshot {
     const participants = state.participants.map((p) => ({
         identity: p.identity,
         sid: p.sid,
+        displayName: p.displayName,
+        handle: p.handle,
+        avatarGradient: p.avatarGradient,
         isSpeaking: p.isSpeaking,
         isMuted: p.isMuted,
         isCameraOn: p.isCameraOn,
@@ -165,6 +186,9 @@ function toSnapshot(state: VoiceState): VoiceStateSnapshot {
         ? {
             identity: state.localParticipant.identity,
             sid: state.localParticipant.sid,
+            displayName: state.localParticipant.displayName,
+            handle: state.localParticipant.handle,
+            avatarGradient: state.localParticipant.avatarGradient,
             isSpeaking: state.localParticipant.isSpeaking,
             isMuted: state.localParticipant.isMuted,
             isCameraOn: state.localParticipant.isCameraOn,
@@ -516,6 +540,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
             const participants: ParticipantInfo[] = [];
 
             const local = room.localParticipant;
+            const localMeta = parseMetadata(local.metadata);
             const localTrack = getTrack(local.trackPublications as unknown as Map<string, LocalTrackPublication>);
             const localScreenShareTrack = getScreenShareTrack(
                 local.trackPublications as unknown as Map<string, LocalTrackPublication>
@@ -523,6 +548,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
             const localInfo: ParticipantInfo = {
                 identity: local.identity,
                 sid: local.sid,
+                displayName: localMeta.displayName,
+                handle: localMeta.handle,
+                avatarGradient: localMeta.avatarGradient,
                 isSpeaking: local.isSpeaking,
                 isMuted: !local.isMicrophoneEnabled,
                 isCameraOn: local.isCameraEnabled,
@@ -533,7 +561,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
             };
             participants.push(localInfo);
 
+            participants.push(localInfo);
+
             room.remoteParticipants.forEach((p: RemoteParticipant) => {
+                const meta = parseMetadata(p.metadata);
                 const track = getTrack(p.trackPublications as unknown as Map<string, RemoteTrackPublication>);
                 const screenShareTrack = getScreenShareTrack(
                     p.trackPublications as unknown as Map<string, RemoteTrackPublication>
@@ -541,6 +572,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                 participants.push({
                     identity: p.identity,
                     sid: p.sid,
+                    displayName: meta.displayName,
+                    handle: meta.handle,
+                    avatarGradient: meta.avatarGradient,
                     isSpeaking: p.isSpeaking,
                     isMuted: !p.isMicrophoneEnabled,
                     isCameraOn: p.isCameraEnabled,
@@ -625,6 +659,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                 room.on(RoomEvent.Connected, () => {
                     set({ isConnected: true, isConnecting: false });
                     reconnectInProgress = false;
+                    playSound('voice_connect');
                     up();
                     publishSnapshot();
                 });
@@ -653,8 +688,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                     }
                 });
 
-                room.on(RoomEvent.ParticipantConnected, up);
-                room.on(RoomEvent.ParticipantDisconnected, up);
+                room.on(RoomEvent.ParticipantConnected, () => {
+                    playSound('voice_join');
+                    up();
+                });
+                room.on(RoomEvent.ParticipantDisconnected, () => {
+                    playSound('voice_leave');
+                    up();
+                });
                 room.on(RoomEvent.ActiveSpeakersChanged, up);
                 room.on(RoomEvent.TrackMuted, up);
                 room.on(RoomEvent.TrackUnmuted, up);
@@ -764,6 +805,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
                 activeChannel: null,
                 room: null,
             });
+            playSound('voice_disconnect');
             publishSnapshot();
         },
 
@@ -782,6 +824,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => {
             const newMuted = !get().isMuted;
             await room.localParticipant.setMicrophoneEnabled(!newMuted);
             set({ isMuted: newMuted });
+            playSound(newMuted ? 'mute' : 'unmute');
             get().updateParticipants();
             publishSnapshot();
         },

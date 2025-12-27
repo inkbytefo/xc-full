@@ -151,7 +151,7 @@ func (s *Service) Register(ctx context.Context, cmd RegisterCommand) (*RegisterR
 
 // LoginCommand represents a login request.
 type LoginCommand struct {
-	Email    string
+	Handle   string
 	Password string
 }
 
@@ -166,8 +166,13 @@ type LoginResult struct {
 
 // Login authenticates a user.
 func (s *Service) Login(ctx context.Context, cmd LoginCommand) (*LoginResult, error) {
+	// Strip @ if present
+	if len(cmd.Handle) > 0 && cmd.Handle[0] == '@' {
+		cmd.Handle = cmd.Handle[1:]
+	}
+
 	// Find user
-	u, err := s.userRepo.FindByEmail(ctx, cmd.Email)
+	u, err := s.userRepo.FindByHandle(ctx, cmd.Handle)
 	if err != nil {
 		if errors.Is(err, user.ErrNotFound) {
 			return nil, user.ErrInvalidPassword

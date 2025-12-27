@@ -34,7 +34,15 @@ export type EventType =
     | "member_join"
     | "member_leave"
     // Notification
-    | "notification";
+    | "notification"
+    // Call signaling
+    | "call_incoming"
+    | "call_accepted"
+    | "call_rejected"
+    | "call_ended"
+    | "call_missed"
+    // Voice
+    | "voice_state_update";
 
 export type SubscriptionType = "user" | "conversation" | "channel" | "server";
 
@@ -55,7 +63,31 @@ export interface TypingEventData {
     conversationId?: string;
     channelId?: string;
     userId: string;
+    userHandle?: string;
+    userDisplayName?: string;
     isTyping: boolean;
+}
+
+export interface ChannelParticipant {
+    userId: string;
+    handle: string;
+    displayName: string;
+    avatar?: string;
+    isMuted?: boolean;
+    isDeafened?: boolean;
+    isSpeaking?: boolean;
+    isScreening?: boolean;
+    isVideoOn?: boolean;
+}
+
+export interface VoiceStateUpdateEventData {
+    serverId: string;
+    channelId: string;
+    userId: string;
+    userHandle: string;
+    userDisplayName: string;
+    userAvatar: string;
+    action: "joined" | "left";
 }
 
 export interface PresenceEventData {
@@ -77,4 +109,15 @@ export interface ChannelMessageEventData {
 export interface ConnectedEventData {
     clientId: string;
     userId: string;
+}
+
+export interface CallEventData {
+    callId: string;
+    callerId: string;
+    callerName: string;
+    callerAvatar?: string;
+    calleeId: string;
+    calleeName?: string;
+    callType: "voice" | "video";
+    roomName?: string;
 }

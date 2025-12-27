@@ -45,4 +45,7 @@ type ParticipantRepository interface {
 
 	// DeleteByChannelID deletes all participants in a channel.
 	DeleteByChannelID(ctx context.Context, channelID string) error
+
+	// FindByServerID finds all participants in a server (requires join).
+	FindByServerID(ctx context.Context, serverID string) ([]*Participant, error)
 }

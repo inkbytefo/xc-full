@@ -11,6 +11,10 @@ interface UIState {
     setAudioInputDeviceId: (deviceId: string | null) => void;
     audioOutputDeviceId: string | null;
     setAudioOutputDeviceId: (deviceId: string | null) => void;
+
+    // Notification sound volume (0-100)
+    notificationVolume: number;
+    setNotificationVolume: (volume: number) => void;
 }
 
 export const useUIStore = create<UIState>()(
@@ -23,6 +27,9 @@ export const useUIStore = create<UIState>()(
             setAudioInputDeviceId: (deviceId) => set({ audioInputDeviceId: deviceId }),
             audioOutputDeviceId: null,
             setAudioOutputDeviceId: (deviceId) => set({ audioOutputDeviceId: deviceId }),
+
+            notificationVolume: 50,
+            setNotificationVolume: (volume) => set({ notificationVolume: Math.max(0, Math.min(100, volume)) }),
         }),
         {
             name: "xcord-ui",

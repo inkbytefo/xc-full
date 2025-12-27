@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"time"
@@ -9,18 +10,20 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	"xcord/internal/application/user"
 	"xcord/internal/domain/ws"
 	wsInfra "xcord/internal/infrastructure/ws"
 )
 
 // WebSocketHandler handles WebSocket connections.
 type WebSocketHandler struct {
-	hub *wsInfra.Hub
+	hub         *wsInfra.Hub
+	userService *user.Service
 }
 
 // NewWebSocketHandler creates a new WebSocketHandler.
-func NewWebSocketHandler(hub *wsInfra.Hub) *WebSocketHandler {
-	return &WebSocketHandler{hub: hub}
+func NewWebSocketHandler(hub *wsInfra.Hub, userService *user.Service) *WebSocketHandler {
+	return &WebSocketHandler{hub: hub, userService: userService}
 }
 
 // Upgrade is the middleware to upgrade HTTP to WebSocket.
@@ -177,6 +180,12 @@ func (h *WebSocketHandler) handleTyping(client *wsInfra.Client, msg ws.Message) 
 
 	typingData.UserID = client.UserID
 	typingData.IsTyping = msg.Type == ws.EventTypingStart
+
+	// Fetch user details to display name/handle instead of ID
+	if u, err := h.userService.GetByID(context.Background(), client.UserID); err == nil {
+		typingData.UserHandle = u.Handle
+		typingData.UserDisplayName = u.DisplayName
+	}
 
 	// Broadcast to conversation or channel subscribers
 	broadcastMsg, _ := ws.NewMessage(msg.Type, typingData)

@@ -43,13 +43,13 @@ export function useChannelSubscription(channelId: string | null) {
 }
 
 // Hook to get typing users for a conversation/channel
-export function useTypingUsers(targetId: string | null): string[] {
+export function useTypingUsers(targetId: string | null): { userId: string; handle?: string; displayName?: string }[] {
     const typingUsers = useWebSocketStore((state) => state.typingUsers);
 
     if (!targetId) return [];
 
     const users = typingUsers.get(targetId);
-    return users ? Array.from(users) : [];
+    return users ? Array.from(users.values()) : [];
 }
 
 // Hook to send typing indicators

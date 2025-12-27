@@ -92,7 +92,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	result, err := h.userService.Login(c.Context(), user.LoginCommand{
-		Email:    req.Email,
+		Handle:   req.Handle,
 		Password: req.Password,
 	})
 

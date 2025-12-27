@@ -15,6 +15,7 @@ CREATE TABLE users (
     bio             TEXT,
     is_verified     BOOLEAN NOT NULL DEFAULT FALSE,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    metadata        JSONB DEFAULT '{}'::jsonb,
     -- Denormalized counters for performance (Instagram-style)
     followers_count INT NOT NULL DEFAULT 0,
     following_count INT NOT NULL DEFAULT 0,
@@ -45,6 +46,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_handle ON users(handle);
 CREATE INDEX idx_users_created_at ON users(created_at DESC);
 CREATE INDEX idx_users_is_active ON users(is_active) WHERE is_active = TRUE;
+CREATE INDEX idx_users_metadata ON users USING gin (metadata);
 
 CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);

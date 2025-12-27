@@ -138,3 +138,36 @@ func (r *VoiceParticipantRepository) DeleteByChannelID(ctx context.Context, chan
 
 	return nil
 }
+
+func (r *VoiceParticipantRepository) FindByServerID(ctx context.Context, serverID string) ([]*voice.Participant, error) {
+	query := `
+		SELECT p.user_id, p.channel_id, p.is_muted, p.is_deafened, p.is_video_on, p.is_screening, p.joined_at,
+		       u.handle, u.display_name, u.avatar_gradient
+		FROM voice_participants p
+		JOIN channels c ON p.channel_id = c.id
+		JOIN users u ON p.user_id = u.id
+		WHERE c.server_id = $1
+		ORDER BY p.joined_at ASC
+	`
+
+	rows, err := r.pool.Query(ctx, query, serverID)
+	if err != nil {
+		return nil, fmt.Errorf("query voice participants by server: %w", err)
+	}
+	defer rows.Close()
+
+	var participants []*voice.Participant
+	for rows.Next() {
+		var p voice.Participant
+		err := rows.Scan(
+			&p.UserID, &p.ChannelID, &p.IsMuted, &p.IsDeafened, &p.IsVideoOn, &p.IsScreening, &p.JoinedAt,
+			&p.Handle, &p.DisplayName, &p.AvatarGradient,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("scan voice participant: %w", err)
+		}
+		participants = append(participants, &p)
+	}
+
+	return participants, nil
+}

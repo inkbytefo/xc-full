@@ -125,7 +125,7 @@ func main() {
 	go wsHub.Run()
 	logger.Info("WebSocket hub started")
 
-	wsHandler := handlers.NewWebSocketHandler(wsHub)
+	wsHandler := handlers.NewWebSocketHandler(wsHub, userService)
 
 	// Initialize channel message service and handler
 	channelMessageRepo := postgres.NewChannelMessageRepository(dbPool)
@@ -173,14 +173,18 @@ func main() {
 		logger.Warn("LiveKit not configured, voice features will be unavailable")
 	}
 
-	voiceHandler := handlers.NewVoiceHandler(channelRepo, memberRepo, serverRepo, userRepo, livekitService)
-	webhookHandler := handlers.NewWebhookHandler(voiceParticipantRepo, livekitAPIKey, livekitAPISecret)
+	voiceHandler := handlers.NewVoiceHandler(channelRepo, memberRepo, serverRepo, userRepo, voiceParticipantRepo, livekitService)
+	webhookHandler := handlers.NewWebhookHandler(voiceParticipantRepo, channelRepo, userRepo, wsHub, livekitAPIKey, livekitAPISecret)
 	mediaRepo := postgres.NewMediaRepository(dbPool)
 	uploadDir := "./uploads"
 	baseURL := "http://localhost:" + cfg.HTTP.Port
 	mediaHandler := handlers.NewMediaHandler(mediaRepo, uploadDir, baseURL)
 	privacyHandler := handlers.NewPrivacyHandler(privacyService)
+	settingsHandler := handlers.NewSettingsHandler(userRepo)
 	healthHandler := handlers.NewHealthHandler(dbPool, redisClient)
+
+	// Initialize call handler for voice/video call signaling
+	callHandler := handlers.NewCallHandler(wsHandler, userRepo)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(userService)
@@ -227,6 +231,8 @@ func main() {
 		WebhookHandler:        webhookHandler,
 		MediaHandler:          mediaHandler,
 		PrivacyHandler:        privacyHandler,
+		SettingsHandler:       settingsHandler,
+		CallHandler:           callHandler,
 		WebSocketHandler:      wsHandler,
 		HealthHandler:         healthHandler,
 		AuthMiddleware:        authMiddleware,

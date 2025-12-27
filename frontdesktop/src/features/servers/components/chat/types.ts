@@ -80,7 +80,7 @@ export interface MessageInputProps extends ChatVariant {
 // ============================================================================
 
 export interface TypingIndicatorProps {
-    users: string[];
+    users: { userId: string; handle?: string; displayName?: string }[];
 }
 
 // ============================================================================

@@ -18,7 +18,7 @@ interface AuthState {
     error: string | null;
 
     // Actions
-    login: (email: string, password: string) => Promise<boolean>;
+    login: (handle: string, password: string) => Promise<boolean>;
     register: (data: { handle: string; displayName: string; email: string; password: string }) => Promise<boolean>;
     logout: () => void;
     checkAuth: () => Promise<boolean>;
@@ -35,11 +35,11 @@ export const useAuthStore = create<AuthState>()(
             isInitialized: false,
             error: null,
 
-            login: async (email, password) => {
+            login: async (handle, password) => {
                 set({ isLoading: true, error: null });
                 try {
                     // Backend returns { data: AuthResponse }
-                    const response = await api.post<{ data: AuthResponse }>("/api/v1/auth/login", { email, password });
+                    const response = await api.post<{ data: AuthResponse }>("/api/v1/auth/login", { handle, password });
                     const res = response.data;
 
                     // Cookies are set by backend

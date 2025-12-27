@@ -27,7 +27,7 @@ func NewUserRepository(pool *pgxpool.Pool) *UserRepository {
 func (r *UserRepository) FindByID(ctx context.Context, id string) (*user.User, error) {
 	query := `
 		SELECT id, handle, display_name, email, password_hash, 
-		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active,
+		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active, metadata,
 		       last_seen_at, created_at, updated_at
 		FROM users
 		WHERE id = $1
@@ -51,6 +51,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*user.User, e
 		&bio,
 		&u.IsVerified,
 		&u.IsActive,
+		&u.Metadata,
 		&lastSeenAt,
 		&u.CreatedAt,
 		&u.UpdatedAt,
@@ -84,7 +85,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*user.User, e
 func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user.User, error) {
 	query := `
 		SELECT id, handle, display_name, email, password_hash, 
-		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active,
+		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active, metadata,
 		       last_seen_at, created_at, updated_at
 		FROM users
 		WHERE email = $1
@@ -108,6 +109,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user.U
 		&bio,
 		&u.IsVerified,
 		&u.IsActive,
+		&u.Metadata,
 		&lastSeenAt,
 		&u.CreatedAt,
 		&u.UpdatedAt,
@@ -141,7 +143,7 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (*user.U
 func (r *UserRepository) FindByHandle(ctx context.Context, handle string) (*user.User, error) {
 	query := `
 		SELECT id, handle, display_name, email, password_hash, 
-		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active,
+		       avatar_gradient, avatar_url, banner_url, bio, is_verified, is_active, metadata,
 		       last_seen_at, created_at, updated_at
 		FROM users
 		WHERE handle = $1
@@ -165,6 +167,7 @@ func (r *UserRepository) FindByHandle(ctx context.Context, handle string) (*user
 		&bio,
 		&u.IsVerified,
 		&u.IsActive,
+		&u.Metadata,
 		&lastSeenAt,
 		&u.CreatedAt,
 		&u.UpdatedAt,
@@ -199,9 +202,9 @@ func (r *UserRepository) Create(ctx context.Context, u *user.User) error {
 	query := `
 		INSERT INTO users (
 			id, handle, display_name, email, password_hash,
-			avatar_gradient, bio, is_verified, is_active,
+			avatar_gradient, bio, is_verified, is_active, metadata,
 			created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	var bio *string
@@ -219,6 +222,7 @@ func (r *UserRepository) Create(ctx context.Context, u *user.User) error {
 		bio,
 		u.IsVerified,
 		u.IsActive,
+		u.Metadata,
 		u.CreatedAt,
 		u.UpdatedAt,
 	)
@@ -251,6 +255,7 @@ func (r *UserRepository) Update(ctx context.Context, u *user.User) error {
 			bio = $8,
 			is_verified = $9,
 			is_active = $10,
+			metadata = $11,
 			updated_at = NOW()
 		WHERE id = $1
 	`
@@ -279,6 +284,7 @@ func (r *UserRepository) Update(ctx context.Context, u *user.User) error {
 		bio,
 		u.IsVerified,
 		u.IsActive,
+		u.Metadata,
 	)
 
 	if err != nil {

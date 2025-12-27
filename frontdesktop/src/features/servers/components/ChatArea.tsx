@@ -29,7 +29,7 @@ interface ChatAreaProps {
     onEditMessage?: (messageId: string, content: string) => Promise<void>;
     onDeleteMessage?: (messageId: string) => Promise<void>;
     onTyping?: () => void;
-    typingUsers?: string[];
+    typingUsers?: { userId: string; handle?: string; displayName?: string }[];
     canSend?: boolean; // Permission to send messages in this channel
 }
 

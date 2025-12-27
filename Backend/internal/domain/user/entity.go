@@ -34,6 +34,7 @@ type User struct {
 	Bio            string
 	IsVerified     bool
 	IsActive       bool
+	Metadata       map[string]interface{} // Flexible metadata for settings
 	// Denormalized counters (Instagram-style)
 	FollowersCount int64
 	FollowingCount int64

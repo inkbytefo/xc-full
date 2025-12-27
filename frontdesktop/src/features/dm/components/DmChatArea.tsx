@@ -10,6 +10,7 @@ import { useOnlineStatus } from "../../../lib/websocket/useOnlineStatus";
 import { EmojiPicker } from "../../../components/EmojiPicker";
 import { VideoIcon, VolumeIcon } from "../../servers/components/Icons";
 import { ControlButton } from "../../servers/components/ControlButton";
+import { useCallStore } from "../../../store/callStore";
 
 interface DmChatAreaProps {
     conversation: Conversation;
@@ -57,9 +58,18 @@ export function DmChatArea({
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [callNotice, setCallNotice] = useState<string | null>(null);
 
-    const showCallNotAvailable = (kind: "voice" | "video") => {
-        setCallNotice(kind === "voice" ? "DM sesli arama henüz aktif değil." : "DM görüntülü arama henüz aktif değil.");
-        window.setTimeout(() => setCallNotice(null), 2500);
+    // Call
+    const initiateCall = useCallStore((s) => s.initiateCall);
+
+    const handleCall = async (kind: "voice" | "video") => {
+        if (!conversation.otherUser?.id) return;
+        try {
+            await initiateCall(conversation.otherUser.id, kind);
+        } catch (error) {
+            console.error("Call failed:", error);
+            setCallNotice("Arama başlatılamadı.");
+            setTimeout(() => setCallNotice(null), 3000);
+        }
     };
 
     const virtualizer = useVirtualizer({
@@ -143,13 +153,13 @@ export function DmChatArea({
                     <ControlButton
                         icon={VolumeIcon}
                         label="Sesli arama"
-                        onClick={() => showCallNotAvailable("voice")}
+                        onClick={() => handleCall("voice")}
                         className="!p-2 !rounded-xl"
                     />
                     <ControlButton
                         icon={VideoIcon}
                         label="Görüntülü arama"
-                        onClick={() => showCallNotAvailable("video")}
+                        onClick={() => handleCall("video")}
                         className="!p-2 !rounded-xl"
                     />
                 </div>
@@ -237,8 +247,8 @@ export function DmChatArea({
                                             ) : (
                                                 <div
                                                     className={`px-4 py-2 rounded-2xl mt-1 ${isOwn
-                                                            ? "bg-purple-600 text-white rounded-tr-md"
-                                                            : "bg-white/10 text-zinc-100 rounded-tl-md"
+                                                        ? "bg-purple-600 text-white rounded-tr-md"
+                                                        : "bg-white/10 text-zinc-100 rounded-tl-md"
                                                         }`}
                                                 >
                                                     <p className="break-words">{msg.content}</p>

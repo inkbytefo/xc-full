@@ -12,8 +12,13 @@ redis:
     address: redis:6379
 
 keys:
-    apik_8J2mP9xL4nQ5vR: sec_9kL32jH57mN21pQ68rS94tV75wX30yZ81aB64cD52eF43
+    ea73317c045a01c963d37b5078cfdf85: 2810614d8d1350cb89d202a0d60867d7ce019b34985a360ba266785c0577aa58
 
 logging:
     json: true
     level: info
+
+webhook:
+    api_key: ea73317c045a01c963d37b5078cfdf85
+    urls:
+        - http://xcord-api:8080/api/webhooks/livekit

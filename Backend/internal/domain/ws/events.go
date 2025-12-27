@@ -48,6 +48,16 @@ const (
 
 	// Notification events
 	EventNotification EventType = "notification"
+
+	// Call signaling events
+	EventCallIncoming EventType = "call_incoming"
+	EventCallAccepted EventType = "call_accepted"
+	EventCallRejected EventType = "call_rejected"
+	EventCallEnded    EventType = "call_ended"
+	EventCallMissed   EventType = "call_missed"
+
+	// Voice events
+	EventVoiceStateUpdate EventType = "voice_state_update"
 )
 
 // Message represents a WebSocket message.
@@ -104,10 +114,12 @@ type UnsubscribeRequest struct {
 
 // TypingEvent represents a typing indicator event.
 type TypingEventData struct {
-	ConversationID string `json:"conversationId,omitempty"`
-	ChannelID      string `json:"channelId,omitempty"`
-	UserID         string `json:"userId"`
-	IsTyping       bool   `json:"isTyping"`
+	ConversationID  string `json:"conversationId,omitempty"`
+	ChannelID       string `json:"channelId,omitempty"`
+	UserID          string `json:"userId"`
+	UserHandle      string `json:"userHandle"`
+	UserDisplayName string `json:"userDisplayName"`
+	IsTyping        bool   `json:"isTyping"`
 }
 
 // PresenceEvent represents a presence change event.
@@ -127,4 +139,27 @@ type ChannelMessageEventData struct {
 	ChannelID string                 `json:"channelId"`
 	ServerID  string                 `json:"serverId"`
 	Message   map[string]interface{} `json:"message"`
+}
+
+// CallEventData represents a voice/video call signaling event.
+type CallEventData struct {
+	CallID       string `json:"callId"`
+	CallerID     string `json:"callerId"`
+	CallerName   string `json:"callerName"`
+	CallerAvatar string `json:"callerAvatar,omitempty"`
+	CalleeID     string `json:"calleeId"`
+	CalleeName   string `json:"calleeName,omitempty"`
+	CallType     string `json:"callType"` // "voice" | "video"
+	RoomName     string `json:"roomName,omitempty"`
+}
+
+// VoiceStateUpdateEventData represents a voice state update.
+type VoiceStateUpdateEventData struct {
+	ServerID        string `json:"serverId"`
+	ChannelID       string `json:"channelId"`
+	UserID          string `json:"userId"`
+	UserHandle      string `json:"userHandle"`
+	UserDisplayName string `json:"userDisplayName"`
+	UserAvatar      string `json:"userAvatar"` // gradient URL or similar
+	Action          string `json:"action"`     // "joined" or "left"
 }

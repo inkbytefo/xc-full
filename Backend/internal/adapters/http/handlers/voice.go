@@ -12,17 +12,19 @@ import (
 	"xcord/internal/adapters/http/dto"
 	"xcord/internal/domain/channel"
 	"xcord/internal/domain/server"
-	"xcord/internal/domain/user"
+	"xcord/internal/domain/user" // Added as per instruction, though it's a duplicate
+	"xcord/internal/domain/voice"
 	"xcord/internal/infrastructure/livekit"
 )
 
 // VoiceHandler handles voice/video channel requests using unified channel system.
 type VoiceHandler struct {
-	channelRepo channel.Repository
-	memberRepo  server.MemberRepository
-	serverRepo  server.Repository
-	userRepo    user.Repository
-	livekit     *livekit.Service
+	channelRepo     channel.Repository
+	memberRepo      server.MemberRepository
+	serverRepo      server.Repository
+	userRepo        user.Repository
+	participantRepo voice.ParticipantRepository
+	livekit         *livekit.Service
 }
 
 // NewVoiceHandler creates a new VoiceHandler.
@@ -31,15 +33,66 @@ func NewVoiceHandler(
 	memberRepo server.MemberRepository,
 	serverRepo server.Repository,
 	userRepo user.Repository,
+	participantRepo voice.ParticipantRepository,
 	livekit *livekit.Service,
 ) *VoiceHandler {
 	return &VoiceHandler{
-		channelRepo: channelRepo,
-		memberRepo:  memberRepo,
-		serverRepo:  serverRepo,
-		userRepo:    userRepo,
-		livekit:     livekit,
+		channelRepo:     channelRepo,
+		memberRepo:      memberRepo,
+		serverRepo:      serverRepo,
+		userRepo:        userRepo,
+		participantRepo: participantRepo,
+		livekit:         livekit,
 	}
+}
+
+// GetActiveParticipants returns all active voice participants in the server.
+// GET /servers/:id/active-voice-users
+func (h *VoiceHandler) GetActiveParticipants(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	serverID := c.Params("id")
+
+	// Verify membership
+	_, err := h.memberRepo.FindByServerAndUser(c.Context(), serverID, userID)
+	if err != nil {
+		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
+			"FORBIDDEN",
+			"Not a server member",
+		))
+	}
+
+	participants, err := h.participantRepo.FindByServerID(c.Context(), serverID)
+	if err != nil {
+		slog.Error("get active participants error", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to get active participants",
+		))
+	}
+
+	// Map to DTO
+	result := make([]fiber.Map, len(participants))
+	for i, p := range participants {
+		// Use gradient for avatar if available
+		avatar := ""
+		if len(p.AvatarGradient) > 0 {
+			avatar = p.AvatarGradient[0]
+		}
+
+		result[i] = fiber.Map{
+			"userId":      p.UserID,
+			"channelId":   p.ChannelID,
+			"handle":      p.Handle,
+			"displayName": p.DisplayName,
+			"avatar":      avatar,
+			"isMuted":     p.IsMuted,
+			"isDeafened":  p.IsDeafened,
+			"isVideoOn":   p.IsVideoOn,
+			"isScreening": p.IsScreening,
+		}
+	}
+
+	return c.JSON(fiber.Map{"data": result})
 }
 
 // GetVoiceChannels returns voice channels for a server.
@@ -230,6 +283,18 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 	if err != nil {
 		slog.Error("find user error", slog.Any("error", err), slog.String("userId", userID))
 		// Continue with empty metadata or handle error
+	}
+
+	// Ensure LiveKit room name exists (for legacy channels)
+	if channel.LiveKitRoom == "" {
+		channel.LiveKitRoom = generateVoiceChannelID()
+		if err := h.channelRepo.UpdateLiveKitRoom(c.Context(), channel.ID, channel.LiveKitRoom); err != nil {
+			slog.Error("failed to update missing livekit room", slog.Any("error", err))
+			return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+				"INTERNAL_ERROR",
+				"Failed to prepare voice channel",
+			))
+		}
 	}
 
 	metadata := ""

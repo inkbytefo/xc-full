@@ -33,7 +33,7 @@ interface UseDmMessagesReturn {
     // Typing
     handleTyping: () => void;
     stopTypingNow: () => void;
-    typingUsers: string[];
+    typingUsers: { userId: string; handle?: string; displayName?: string }[];
 }
 
 export function useDmMessages({

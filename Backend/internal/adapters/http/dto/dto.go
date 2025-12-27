@@ -28,7 +28,7 @@ type RegisterRequest struct {
 
 // LoginRequest represents a login request.
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
+	Handle   string `json:"handle" validate:"required"`
 	Password string `json:"password" validate:"required"`
 }
 

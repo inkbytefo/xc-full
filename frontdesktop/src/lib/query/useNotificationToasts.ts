@@ -8,7 +8,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocketEvent } from '../websocket/hooks';
 import { useToast } from '../../features/overlay/NotificationToast';
 import { useAuthStore } from '../../store/authStore';
-import type { DMMessageEventData, ChannelMessageEventData } from '../websocket/types';
+import { useCallStore } from '../../store/callStore';
+import { playSound, stopLoopingSound } from '../soundService';
+import type { DMMessageEventData, ChannelMessageEventData, CallEventData } from '../websocket/types';
 
 interface NotificationEventData {
     id: string;
@@ -45,6 +47,7 @@ export function useNotificationToasts() {
         const content = String(message?.content || '');
 
         if (senderId && senderId !== currentUserId) {
+            playSound('message_dm');
             addToast({
                 type: 'info',
                 title: senderName,
@@ -93,6 +96,7 @@ export function useNotificationToasts() {
         const content = String(message?.content || '');
 
         if (senderId && senderId !== currentUserId) {
+            playSound('message_channel');
             addToast({
                 type: 'info',
                 title: senderName,
@@ -122,6 +126,7 @@ export function useNotificationToasts() {
         const title = data.title || typeToTitle[data.type] || 'Notification';
         const message = data.message || data.actorName || '';
 
+        playSound('notification');
         addToast({
             type: data.type === 'system' ? 'warning' : 'info',
             title,
@@ -129,6 +134,66 @@ export function useNotificationToasts() {
             duration: 5000,
         });
     }, [queryClient, addToast]);
+
+    // ========================================================================
+    // Call Signaling Events
+    // ========================================================================
+
+    // Call: Incoming call
+    useWebSocketEvent<CallEventData>('call_incoming', (data) => {
+        playSound('ringtone');
+        useCallStore.getState().handleCallIncoming(data);
+    }, []);
+
+    // Call: Accepted
+    useWebSocketEvent<CallEventData>('call_accepted', (data) => {
+        stopLoopingSound();
+        playSound('call_connect');
+        useCallStore.getState().handleCallAccepted(data);
+    }, []);
+
+    // Call: Rejected
+    useWebSocketEvent<CallEventData>('call_rejected', (data) => {
+        stopLoopingSound();
+        playSound('call_rejected');
+        useCallStore.getState().handleCallRejected(data);
+        addToast({
+            type: 'info',
+            title: '📵 Arama Reddedildi',
+            message: `${data.calleeName || 'Kullanıcı'} aramayı reddetti`,
+            duration: 4000,
+        });
+    }, [addToast]);
+
+    // Call: Ended
+    useWebSocketEvent<CallEventData>('call_ended', (data) => {
+        stopLoopingSound();
+        playSound('call_end');
+        useCallStore.getState().handleCallEnded(data);
+    }, []);
+
+    // Call: Missed
+    useWebSocketEvent<CallEventData>('call_missed', (data) => {
+        useCallStore.getState().handleCallMissed(data);
+
+        // Show missed call toast to callee
+        if (data.calleeId === currentUserId) {
+            addToast({
+                type: 'warning',
+                title: '📵 Cevapsız Arama',
+                message: `${data.callerName} sizi aradı`,
+                duration: 6000,
+            });
+        } else {
+            // Show "no answer" to caller
+            addToast({
+                type: 'info',
+                title: '📵 Cevap Yok',
+                message: `${data.calleeName || 'Kullanıcı'} aramayı cevaplayamadı`,
+                duration: 4000,
+            });
+        }
+    }, [addToast, currentUserId]);
 }
 
 // ============================================================================

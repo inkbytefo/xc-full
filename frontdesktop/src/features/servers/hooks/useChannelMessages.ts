@@ -34,7 +34,7 @@ interface UseChannelMessagesReturn {
     messagesEndRef: React.RefObject<HTMLDivElement>;
     // Typing
     handleTyping: () => void;
-    typingUsers: string[];
+    typingUsers: { userId: string; handle?: string; displayName?: string }[];
 }
 
 export function useChannelMessages({
