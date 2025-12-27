@@ -25,6 +25,7 @@ import {
   VolumeIcon,
   VideoIcon,
 } from "./components";
+import { HybridChatArea } from "./components/HybridChatArea";
 
 // Modals
 import { MembersModal } from "./MembersModal";
@@ -562,25 +563,43 @@ export function ServersPage() {
             className={`flex-1 flex flex-col relative ${serverData.currentServer &&
               voiceStore.activeChannel &&
               voiceStore.activeChannel.serverId === serverData.currentServer.id &&
-              (voiceStore.isConnected || voiceStore.isConnecting)
+              (voiceStore.isConnected || voiceStore.isConnecting) &&
+              serverData.currentChannel?.type !== "hybrid"
               ? "pb-[76px]"
               : ""
               }`}
           >
-            <ChatArea
-              channel={serverData.currentChannel}
-              messages={chatMessages.messages}
-              messagesLoading={chatMessages.messagesLoading}
-              sending={chatMessages.sending}
-              messageText={chatMessages.messageText}
-              messagesEndRef={chatMessages.messagesEndRef}
-              onMessageChange={chatMessages.setMessageText}
-              onSend={chatMessages.handleSend}
-              onEditMessage={chatMessages.handleEdit}
-              onDeleteMessage={chatMessages.handleDelete}
-              onTyping={chatMessages.handleTyping}
-              typingUsers={chatMessages.typingUsers}
-            />
+            {serverData.currentChannel.type === "hybrid" ? (
+              <HybridChatArea
+                channel={serverData.currentChannel}
+                messages={chatMessages.messages}
+                messagesLoading={chatMessages.messagesLoading}
+                sending={chatMessages.sending}
+                messageText={chatMessages.messageText}
+                messagesEndRef={chatMessages.messagesEndRef}
+                onMessageChange={chatMessages.setMessageText}
+                onSend={chatMessages.handleSend}
+                onEditMessage={chatMessages.handleEdit}
+                onDeleteMessage={chatMessages.handleDelete}
+                onTyping={chatMessages.handleTyping}
+                typingUsers={chatMessages.typingUsers}
+              />
+            ) : (
+              <ChatArea
+                channel={serverData.currentChannel}
+                messages={chatMessages.messages}
+                messagesLoading={chatMessages.messagesLoading}
+                sending={chatMessages.sending}
+                messageText={chatMessages.messageText}
+                messagesEndRef={chatMessages.messagesEndRef}
+                onMessageChange={chatMessages.setMessageText}
+                onSend={chatMessages.handleSend}
+                onEditMessage={chatMessages.handleEdit}
+                onDeleteMessage={chatMessages.handleDelete}
+                onTyping={chatMessages.handleTyping}
+                typingUsers={chatMessages.typingUsers}
+              />
+            )}
             {serverData.currentServer &&
               voiceStore.activeChannel &&
               voiceStore.activeChannel.serverId === serverData.currentServer.id &&
