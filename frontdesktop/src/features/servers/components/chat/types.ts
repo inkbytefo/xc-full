@@ -71,6 +71,8 @@ export interface MessageInputProps extends ChatVariant {
     onSend: () => void;
     placeholder: string;
     disabled?: boolean;
+    readOnly?: boolean;
+    readOnlyMessage?: string;
 }
 
 // ============================================================================

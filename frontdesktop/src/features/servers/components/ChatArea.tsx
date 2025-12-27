@@ -170,6 +170,8 @@ export function ChatArea({
                 placeholder={`Message #${channel.name}`}
                 disabled={sending}
                 variant={variant}
+                readOnly={channel.type === "announcement"}
+                readOnlyMessage="Bu bir duyuru kanalıdır. Sadece yöneticiler mesaj gönderebilir."
             />
 
             {/* Context Menu */}
