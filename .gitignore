@@ -35,7 +35,6 @@ Backend/coverage.html
 frontdesktop/dist/
 frontdesktop/dist-ssr/
 frontdesktop/*.local
-
 # --- Rust / Tauri ---
 frontdesktop/src-tauri/target/
 frontdesktop/src-tauri/gen/schemas/

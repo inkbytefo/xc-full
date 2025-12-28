@@ -5,7 +5,11 @@ import (
 	"context"
 	"time"
 
+	"regexp"
+
+	"pink/internal/domain/notification"
 	"pink/internal/domain/post"
+	"pink/internal/domain/user"
 	"pink/internal/pkg/id"
 )
 
@@ -13,16 +17,22 @@ import (
 type Service struct {
 	postRepo     post.Repository
 	reactionRepo post.ReactionRepository
+	userRepo     user.Repository
+	notifRepo    notification.Repository
 }
 
 // NewService creates a new feed service.
 func NewService(
 	postRepo post.Repository,
 	reactionRepo post.ReactionRepository,
+	userRepo user.Repository,
+	notifRepo notification.Repository,
 ) *Service {
 	return &Service{
 		postRepo:     postRepo,
 		reactionRepo: reactionRepo,
+		userRepo:     userRepo,
+		notifRepo:    notifRepo,
 	}
 }
 
@@ -73,12 +83,62 @@ func (s *Service) CreatePost(ctx context.Context, cmd CreatePostCommand) (*post.
 		return nil, err
 	}
 
+	// Handle mentions asynchronously
+	go s.processMentions(context.Background(), p)
+
 	// Increment reply count if this is a reply
 	if cmd.ReplyToID != nil {
 		_ = s.postRepo.IncrementCount(ctx, *cmd.ReplyToID, "reply_count", 1)
 	}
 
 	return p, nil
+}
+
+// processMentions parses mentions and creates notifications.
+func (s *Service) processMentions(ctx context.Context, p *post.Post) {
+	re := regexp.MustCompile(`@(\w+)`)
+	matches := re.FindAllStringSubmatch(p.Content, -1)
+
+	mentioned := make(map[string]struct{})
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		handle := match[1]
+		if _, exists := mentioned[handle]; exists {
+			continue
+		}
+		mentioned[handle] = struct{}{}
+
+		// Find user by handle
+		u, err := s.userRepo.FindByHandle(ctx, handle)
+		if err != nil {
+			continue
+		}
+
+		// Don't notify self
+		if u.ID == p.AuthorID {
+			continue
+		}
+
+		// Create notification
+		notif := &notification.Notification{
+			ID:         id.Generate("notif"),
+			UserID:     u.ID,
+			Type:       notification.TypeMention,
+			ActorID:    &p.AuthorID,
+			TargetType: stringPtr("post"),
+			TargetID:   &p.ID,
+			Message:    "mentioned you in a post",
+			CreatedAt:  time.Now(),
+		}
+
+		_ = s.notifRepo.Create(ctx, notif)
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
 }
 
 // GetPost retrieves a post by ID.

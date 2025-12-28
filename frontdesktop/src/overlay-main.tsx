@@ -8,7 +8,13 @@ import { ToastProvider } from './features/overlay/NotificationToast';
 import { RealtimeNotifications } from './components/RealtimeNotifications';
 import { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
-import { useVoiceStore } from './store/voiceStore';
+
+// New media session components
+import {
+    IncomingCallModal,
+    PiPContainer,
+    useIncomingCallTimeout,
+} from './features/media-session';
 
 function OverlayRoot() {
     const checkAuth = useAuthStore((s) => s.checkAuth);
@@ -21,13 +27,20 @@ function OverlayRoot() {
         <WebSocketProvider>
             <ToastProvider>
                 <RealtimeNotifications />
+                <MediaSessionManager />
+                <IncomingCallModal />
+                <PiPContainer />
                 <OverlayApp />
             </ToastProvider>
         </WebSocketProvider>
     );
 }
 
-useVoiceStore.getState().initRuntime("follower");
+// Global call timeout cleanup
+function MediaSessionManager() {
+    useIncomingCallTimeout();
+    return null;
+}
 
 ReactDOM.createRoot(document.getElementById('overlay-root')!).render(
     <React.StrictMode>

@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useWebSocketEvent } from '../websocket/hooks';
 import { useToast } from '../../features/overlay/NotificationToast';
 import { useAuthStore } from '../../store/authStore';
-import { useCallStore } from '../../store/callStore';
+import { useMediaSessionStore } from '../../store/mediaSessionStore';
 import { playSound, stopLoopingSound } from '../soundService';
 import type { DMMessageEventData, ChannelMessageEventData, CallEventData } from '../websocket/types';
 
@@ -136,27 +136,39 @@ export function useNotificationToasts() {
     }, [queryClient, addToast]);
 
     // ========================================================================
-    // Call Signaling Events
+    // Call Signaling Events - Using mediaSessionStore
     // ========================================================================
 
     // Call: Incoming call
     useWebSocketEvent<CallEventData>('call_incoming', (data) => {
-        playSound('ringtone');
-        useCallStore.getState().handleCallIncoming(data);
+        // Use the new mediaSessionStore to handle incoming call
+        useMediaSessionStore.getState().receiveIncomingCall({
+            id: data.callId || crypto.randomUUID(),
+            type: (data.callType as 'voice' | 'video') || 'voice',
+            from: {
+                userId: data.callerId,
+                displayName: data.callerName || 'Unknown',
+                handle: data.callerName ? `@${data.callerName.toLowerCase().replace(/\s/g, '')}` : 'unknown',
+                avatarGradient: ['#667eea', '#764ba2'], // Default gradient
+            },
+            conversationId: data.callId || '', // Use callId as fallback
+        });
     }, []);
 
     // Call: Accepted
-    useWebSocketEvent<CallEventData>('call_accepted', (data) => {
+    useWebSocketEvent<CallEventData>('call_accepted', () => {
         stopLoopingSound();
         playSound('call_connect');
-        useCallStore.getState().handleCallAccepted(data);
+        // Accept is handled by the callee, this is for the caller to know
+        // The mediaSessionStore will manage the actual connection
     }, []);
 
     // Call: Rejected
     useWebSocketEvent<CallEventData>('call_rejected', (data) => {
         stopLoopingSound();
         playSound('call_rejected');
-        useCallStore.getState().handleCallRejected(data);
+        // End the session if we have one
+        useMediaSessionStore.getState().endSession();
         addToast({
             type: 'info',
             title: '📵 Arama Reddedildi',
@@ -166,15 +178,16 @@ export function useNotificationToasts() {
     }, [addToast]);
 
     // Call: Ended
-    useWebSocketEvent<CallEventData>('call_ended', (data) => {
+    useWebSocketEvent<CallEventData>('call_ended', () => {
         stopLoopingSound();
         playSound('call_end');
-        useCallStore.getState().handleCallEnded(data);
+        useMediaSessionStore.getState().endSession();
     }, []);
 
     // Call: Missed
     useWebSocketEvent<CallEventData>('call_missed', (data) => {
-        useCallStore.getState().handleCallMissed(data);
+        // Clean up any incoming calls
+        useMediaSessionStore.getState().cleanupExpiredCalls();
 
         // Show missed call toast to callee
         if (data.calleeId === currentUserId) {

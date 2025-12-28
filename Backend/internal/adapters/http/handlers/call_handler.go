@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"log/slog"
 	"sync"
 	"time"
@@ -10,12 +11,14 @@ import (
 
 	"pink/internal/domain/user"
 	"pink/internal/domain/ws"
+	"pink/internal/infrastructure/livekit"
 )
 
 // CallHandler handles voice/video call signaling.
 type CallHandler struct {
 	wsHandler   *WebSocketHandler
 	userRepo    user.Repository
+	livekit     *livekit.Service
 	activeCalls sync.Map // map[callID]*activeCall
 }
 
@@ -33,10 +36,11 @@ type activeCall struct {
 }
 
 // NewCallHandler creates a new CallHandler.
-func NewCallHandler(wsHandler *WebSocketHandler, userRepo user.Repository) *CallHandler {
+func NewCallHandler(wsHandler *WebSocketHandler, userRepo user.Repository, livekit *livekit.Service) *CallHandler {
 	h := &CallHandler{
 		wsHandler: wsHandler,
 		userRepo:  userRepo,
+		livekit:   livekit,
 	}
 	// Start cleanup goroutine for missed calls
 	go h.cleanupMissedCalls()
@@ -304,6 +308,70 @@ func (h *CallHandler) CancelCall(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"success": true,
+	})
+}
+
+// GetCallToken generates a LiveKit token for joining a DM call.
+// POST /api/v1/calls/:callId/token
+func (h *CallHandler) GetCallToken(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+	callID := c.Params("callId")
+
+	val, ok := h.activeCalls.Load(callID)
+	if !ok {
+		return fiber.NewError(fiber.StatusNotFound, "Call not found")
+	}
+
+	call := val.(*activeCall)
+
+	// Verify participant
+	if call.CallerID != userID && call.CalleeID != userID {
+		return fiber.NewError(fiber.StatusForbidden, "Not a participant in this call")
+	}
+
+	// Fetch user for metadata
+	u, err := h.userRepo.FindByID(c.Context(), userID)
+	if err != nil {
+		slog.Error("find user error", slog.Any("error", err), slog.String("userId", userID))
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to get user info")
+	}
+
+	metadata := ""
+	if u != nil {
+		// Use proper JSON encoding to prevent injection
+		type voiceMetadata struct {
+			DisplayName    string   `json:"displayName"`
+			AvatarGradient []string `json:"avatarGradient"`
+			Handle         string   `json:"handle"`
+		}
+		metaStruct := voiceMetadata{
+			DisplayName:    u.DisplayName,
+			AvatarGradient: []string{u.AvatarGradient[0], u.AvatarGradient[1]},
+			Handle:         u.Handle,
+		}
+		if metaBytes, err := json.Marshal(metaStruct); err == nil {
+			metadata = string(metaBytes)
+		}
+	}
+
+	// Generate token using existing LiveKit service interface
+	// Note: We need access to LiveKit service here.
+	// Currently CallHandler doesn't have LiveKit service injected.
+	// TODO: Update CallHandler struct to include LiveKit service.
+
+	// Generate token
+	token, err := h.livekit.GenerateToken(userID, call.RoomName, metadata, true, true, 24*time.Hour)
+	if err != nil {
+		slog.Error("generate token error", slog.Any("error", err))
+		return fiber.NewError(fiber.StatusInternalServerError, "Failed to generate token")
+	}
+
+	return c.JSON(fiber.Map{
+		"data": fiber.Map{
+			"token":    token,
+			"roomName": call.RoomName,
+			"callId":   call.ID,
+		},
 	})
 }
 

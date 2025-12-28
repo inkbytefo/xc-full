@@ -8,9 +8,9 @@ import type { Message, Conversation } from "../../../api/types";
 import { useAuthStore } from "../../../store/authStore";
 import { useOnlineStatus } from "../../../lib/websocket/useOnlineStatus";
 import { EmojiPicker } from "../../../components/EmojiPicker";
-import { VideoIcon, VolumeIcon } from "../../servers/components/Icons";
-import { ControlButton } from "../../servers/components/ControlButton";
-import { useCallStore } from "../../../store/callStore";
+import { VideoIcon, VolumeIcon, ControlButton } from "../../../components/icons";
+
+import { useMediaSession } from "../../media-session";
 
 interface DmChatAreaProps {
     conversation: Conversation;
@@ -58,13 +58,19 @@ export function DmChatArea({
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [callNotice, setCallNotice] = useState<string | null>(null);
 
-    // Call
-    const initiateCall = useCallStore((s) => s.initiateCall);
+    // Call - using new mediaSessionStore
+    const { startDMCall } = useMediaSession();
 
     const handleCall = async (kind: "voice" | "video") => {
         if (!conversation.otherUser?.id) return;
         try {
-            await initiateCall(conversation.otherUser.id, kind);
+            await startDMCall({
+                conversationId: conversation.id,
+                otherUserId: conversation.otherUser.id,
+                otherUserName: conversation.otherUser.displayName || conversation.otherUser.handle || "Kullanıcı",
+                otherUserAvatar: conversation.otherUser.avatarGradient || ["#667", "#999"],
+                type: kind,
+            });
         } catch (error) {
             console.error("Call failed:", error);
             setCallNotice("Arama başlatılamadı.");
@@ -151,17 +157,19 @@ export function DmChatArea({
                 </div>
                 <div className="flex items-center gap-2">
                     <ControlButton
-                        icon={VolumeIcon}
-                        label="Sesli arama"
+                        title="Sesli arama"
                         onClick={() => handleCall("voice")}
                         className="!p-2 !rounded-xl"
-                    />
+                    >
+                        <VolumeIcon className="w-5 h-5" />
+                    </ControlButton>
                     <ControlButton
-                        icon={VideoIcon}
-                        label="Görüntülü arama"
+                        title="Görüntülü arama"
                         onClick={() => handleCall("video")}
                         className="!p-2 !rounded-xl"
-                    />
+                    >
+                        <VideoIcon className="w-5 h-5" />
+                    </ControlButton>
                 </div>
             </div>
             {callNotice && (

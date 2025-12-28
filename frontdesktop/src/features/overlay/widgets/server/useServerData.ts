@@ -3,7 +3,7 @@ import { fetchServers, fetchChannels, fetchChannelMessages, sendChannelMessage }
 import type { Server, Channel, ChannelMessage } from '../../../../api/types';
 import { subscribeToEvent, useWebSocketStore } from '../../../../lib/websocket/store';
 import type { ChannelMessageEventData } from '../../../../lib/websocket/types';
-import { getVoiceChannels, type VoiceChannel } from '../../../voice/voiceApi';
+import { getVoiceChannels } from '../../../media-session/api/serverVoiceApi';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
@@ -66,7 +66,7 @@ export function useServerData() {
     const [servers, setServers] = useState<Server[]>([]);
     const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
     const [channels, setChannels] = useState<Channel[]>([]);
-    const [voiceChannels, setVoiceChannels] = useState<VoiceChannel[]>([]);
+    const [voiceChannels, setVoiceChannels] = useState<Channel[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [messages, setMessages] = useState<ChannelMessage[]>([]);
     const [loadingMessages, setLoadingMessages] = useState(false);
@@ -104,7 +104,7 @@ export function useServerData() {
             try {
                 const [textChannels, voiceChannels] = await Promise.all([
                     fetchChannels(selectedServerId),
-                    getVoiceChannels(selectedServerId).catch(() => [] as VoiceChannel[]),
+                    getVoiceChannels(selectedServerId).catch(() => [] as Channel[]),
                 ]);
 
                 setChannels(textChannels);

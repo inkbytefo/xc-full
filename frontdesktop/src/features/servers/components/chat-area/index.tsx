@@ -1,1 +1,0 @@
-export { ChatArea } from "./ChatArea";

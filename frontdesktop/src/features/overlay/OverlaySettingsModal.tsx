@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AudioDeviceSettings } from "../voice/components/VoiceSettings";
+import { AudioDeviceSettings } from "../settings/components/AudioDeviceSettings";
 import { keyEventToBinding, type KeyBinding, useOverlaySettings } from "./stores/overlaySettingsStore";
 
 const CloseIcon = ({ className = "w-5 h-5" }: { className?: string }) => (

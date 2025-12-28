@@ -4,15 +4,25 @@ import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
 import { AuthInitializer } from "./components/AuthGuard";
 import { RealtimeNotifications } from "./components/RealtimeNotifications";
-import { IncomingCallContainer } from "./components/call/IncomingCallModal";
-import { OutgoingCallContainer } from "./components/call/OutgoingCallModal";
 import { WebSocketProvider } from "./lib/websocket/WebSocketProvider";
 import { QueryProvider } from "./lib/query/QueryProvider";
 import { ToastProvider } from "./features/overlay/NotificationToast";
-import { useVoiceStore } from "./store/voiceStore";
+
+// New media session components
+import {
+  IncomingCallModal,
+  ActiveSessionOverlay,
+  PiPContainer,
+  useIncomingCallTimeout,
+} from "./features/media-session";
+
 import "./index.css";
 
-useVoiceStore.getState().initRuntime("owner");
+// Global call timeout cleanup component
+function MediaSessionManager() {
+  useIncomingCallTimeout();
+  return null;
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -21,8 +31,11 @@ createRoot(document.getElementById("root")!).render(
         <AuthInitializer>
           <WebSocketProvider>
             <RealtimeNotifications />
-            <IncomingCallContainer />
-            <OutgoingCallContainer />
+            {/* New unified media session UI */}
+            <MediaSessionManager />
+            <IncomingCallModal />
+            <ActiveSessionOverlay />
+            <PiPContainer />
             <RouterProvider router={router} />
           </WebSocketProvider>
         </AuthInitializer>

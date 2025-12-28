@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { getMyStream, updateMyStream, startStream, regenerateStreamKey, fetchCategories, fetchStreams } from "../liveApi";
-import type { Stream, Category } from "../../../api/types";
+import { getMyStream, updateMyStream, startStream, regenerateStreamKey, fetchCategories } from "../liveApi";
+// Types used by API calls - Stream and Category are inferred from API responses
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { liveKeys } from "../hooks/liveKeys";
 

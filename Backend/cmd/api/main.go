@@ -108,6 +108,7 @@ func main() {
 	wallPostRepo := postgres.NewWallPostRepository(dbPool)
 	banRepo := postgres.NewBanRepository(dbPool)
 	auditRepo := postgres.NewAuditLogRepository(dbPool)
+	notificationRepo := postgres.NewNotificationRepository(dbPool)
 
 	// Initialize services
 	privacyRepo := postgres.NewPrivacyRepository(dbPool)
@@ -115,7 +116,7 @@ func main() {
 	userService := userApp.NewService(userRepo, sessionRepo, followRepo, privacyRepo, passwordHasher, jwtService)
 	serverService := serverApp.NewService(serverRepo, memberRepo, roleRepo, channelRepo, joinRequestRepo, banRepo, auditRepo)
 	channelService := channelApp.NewService(channelRepo, memberRepo, serverRepo, readStateRepo)
-	feedService := feedApp.NewService(postRepo, reactionRepo)
+	feedService := feedApp.NewService(postRepo, reactionRepo, userRepo, notificationRepo)
 	dmService := dmApp.NewService(convRepo, dmMessageRepo)
 
 	// Initialize privacy service
@@ -151,7 +152,6 @@ func main() {
 	feedHandler := handlers.NewFeedHandler(feedService)
 	dmHandler := handlers.NewDMHandler(dmService, wsHub, userRepo)
 	liveHandler := handlers.NewLiveHandler(streamRepo, streamMessageRepo, categoryRepo, memberRepo, recordingRepo)
-	notificationRepo := postgres.NewNotificationRepository(dbPool)
 	notificationHandler := handlers.NewNotificationHandler(notificationRepo)
 	searchRepo := postgres.NewSearchRepository(dbPool)
 	searchHandler := handlers.NewSearchHandler(searchRepo)
@@ -200,7 +200,7 @@ func main() {
 	omeWebhookHandler := handlers.NewOMEWebhookHandler(streamRepo, followRepo, notificationRepo, recordingRepo, omeSecretKey, logger)
 
 	// Initialize call handler for voice/video call signaling
-	callHandler := handlers.NewCallHandler(wsHandler, userRepo)
+	callHandler := handlers.NewCallHandler(wsHandler, userRepo, livekitService)
 
 	// Initialize middleware
 	authMiddleware := middleware.NewAuthMiddleware(userService)

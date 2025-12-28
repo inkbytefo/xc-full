@@ -4,7 +4,7 @@ import { BackgroundLayer } from "./components/BackgroundLayer";
 import { MainSidebar } from "./components/MainSidebar";
 import { WindowControls } from "./components/TitleBar";
 import { ProtectedRoute, PublicRoute } from "./components/AuthGuard";
-import { GlobalVoiceSessionModal } from "./features/voice/components/GlobalVoiceSessionModal";
+import { GlobalVoiceSessionModal } from "./features/media-session/components/GlobalVoiceSessionModal";
 import { PageLoader } from "./components/PageLoader";
 
 // Lazy load pages
@@ -16,7 +16,6 @@ const LivePage = lazy(() => import("./features/live/LivePage").then(module => ({
 const NotificationsPage = lazy(() => import("./features/notifications/NotificationsPage").then(module => ({ default: module.NotificationsPage })));
 const ProfilePage = lazy(() => import("./features/profile/ProfilePage").then(module => ({ default: module.ProfilePage })));
 const ServersPage = lazy(() => import("./features/servers/ServersPage").then(module => ({ default: module.ServersPage })));
-const ServerProfilePage = lazy(() => import("./features/servers/ServerProfilePage").then(module => ({ default: module.ServerProfilePage })));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(module => ({ default: module.SettingsPage })));
 const DashboardPage = lazy(() => import("./features/live/DashboardPage").then(module => ({ default: module.DashboardPage })));
 
@@ -126,7 +125,7 @@ export const router = createBrowserRouter([
             },
             {
                 path: "servers/:serverId/profile",
-                element: <ServerProfilePage />,
+                element: <ServersPage />,
             },
             {
                 path: "live",

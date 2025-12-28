@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Rnd } from 'react-rnd';
 import { invoke } from '@tauri-apps/api/core';
 import { useGameDetection } from '../hooks/useGameDetection';
-import { useVoiceStore } from '../../../store/voiceStore';
+import { useMediaControls } from '../../media-session';
 import { useWidgetStore } from '../stores/widgetStore';
 import {
     ServerIcon,
@@ -23,7 +23,7 @@ interface ActionBarProps {
 
 export function ActionBar({ onSettingsClick }: ActionBarProps) {
     const { runningGame } = useGameDetection();
-    const { isMuted, isDeafened, toggleMute, toggleDeafen } = useVoiceStore();
+    const { isMuted, isDeafened, toggleMute, toggleDeafen } = useMediaControls();
     const { widgets, toggleWidget } = useWidgetStore();
 
     // UI State
@@ -122,12 +122,12 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
             style={{ zIndex: 9999, transition: isDragging ? 'none' : 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)' }}
         >
             <div className={`
-                relative flex items-center gap-2 h-[70px] w-[760px] p-2 rounded-[22px]
-                bg-[linear-gradient(180deg,rgba(22,22,26,0.88),rgba(10,10,12,0.72))]
-                backdrop-blur-[52px] border border-white/10 shadow-[0_18px_70px_rgba(0,0,0,0.74)]
-                transition-all duration-300 ease-out
+                relative flex items - center gap - 2 h - [70px] w - [760px] p - 2 rounded - [22px]
+bg - [linear - gradient(180deg, rgba(22, 22, 26, 0.88), rgba(10, 10, 12, 0.72))]
+backdrop - blur - [52px] border border - white / 10 shadow - [0_18px_70px_rgba(0, 0, 0, 0.74)]
+transition - all duration - 300 ease - out
                 ${isDragging ? 'scale-[0.985] border-white/20 shadow-[0_14px_50px_rgba(0,0,0,0.70)]' : 'hover:border-white/15'}
-            `}>
+`}>
 
                 {/* SECTION 1: BRANDING & TIME */}
                 <div className="dock-handle flex items-center gap-4 px-4 h-[54px] rounded-[18px] bg-white/[0.03] border border-white/[0.08] cursor-grab active:cursor-grabbing">

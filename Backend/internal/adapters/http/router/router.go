@@ -236,6 +236,7 @@ func Setup(app *fiber.App, cfg *Config) {
 		calls.Post("/:callId/reject", cfg.CallHandler.RejectCall)
 		calls.Post("/:callId/end", cfg.CallHandler.EndCall)
 		calls.Post("/:callId/cancel", cfg.CallHandler.CancelCall)
+		calls.Post("/:callId/token", cfg.CallHandler.GetCallToken)
 	}
 
 	// Media routes

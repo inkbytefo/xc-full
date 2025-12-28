@@ -5,19 +5,17 @@
 // ============================================================================
 
 import { useEffect, useState, useRef } from 'react';
-import { useVoiceStore } from '../../../store/voiceStore';
+import { useMediaSession, useMediaControls } from '../../media-session';
 import { useWidgetStore } from '../stores/widgetStore';
 import { useOverlayMode } from '../hooks/useOverlayMode';
 import { Rnd } from 'react-rnd';
 import {
     HeadphonesIcon,
-    HeadphonesOffIcon,
+    DeafenIcon as HeadphonesOffIcon,
     MicIcon,
     MicOffIcon,
-    PhoneOffIcon,
-    ScreenShareIcon,
     SettingsIcon
-} from '../../servers/components/Icons';
+} from '../../../components/icons';
 
 // Signal bars icon
 const SignalIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -41,21 +39,42 @@ interface AudioDevice {
     label: string;
 }
 
+// Phone off / Screen share icons - inline since not in shared icons
+const PhoneOffIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-3.28a1 1 0 00-.684-.948l-4.493-1.498a1 1 0 00-1.21.502l-1.13 2.257a11.042 11.042 0 01-5.516-5.517l2.257-1.128a1 1 0 00.502-1.21L9.228 3.683A1 1 0 008.279 3H5z" />
+    </svg>
+);
+
+const ScreenShareIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+);
+
 export function VoiceWidget() {
     const { pinnedView } = useOverlayMode();
+
+    // Use new media session store
     const {
-        isConnected,
+        sessionType: _sessionType,
+        context,
+        connection,
+        participants,
+        endSession,
+    } = useMediaSession();
+
+    const {
         isMuted,
         isDeafened,
         isScreenSharing,
         toggleMute,
         toggleDeafen,
         toggleScreenShare,
-        disconnect,
-        participants,
-        activeChannel,
-        ownerAvailable
-    } = useVoiceStore();
+    } = useMediaControls();
+
+    const isConnected = connection === "connected";
+    const activeChannelName = context.channelName || context.streamTitle || "Voice Channel";
 
     const { widgets, openWidget, closeWidget, updatePosition, registerWidget } = useWidgetStore();
     const widgetState = widgets['voice'];
@@ -130,7 +149,7 @@ export function VoiceWidget() {
         return null;
     }
 
-    const controlsDisabled = !ownerAvailable;
+    const controlsDisabled = false; // No owner check needed with new store
     const currentUser = participants.find(p => p.isLocal);
     const position = widgetState?.position || { x: window.innerWidth / 2 - 200, y: window.innerHeight - 120 };
 
@@ -183,7 +202,7 @@ export function VoiceWidget() {
                                 color: 'rgba(255,255,255,0.5)',
                                 lineHeight: 1.2
                             }}>
-                                {activeChannel?.name || 'Voice Channel'}
+                                {activeChannelName}
                             </div>
                         </div>
                     </div>
@@ -214,7 +233,7 @@ export function VoiceWidget() {
 
                         {/* Disconnect Button */}
                         <button
-                            onClick={disconnect}
+                            onClick={endSession}
                             style={{
                                 background: 'rgba(239, 68, 68, 0.15)',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',

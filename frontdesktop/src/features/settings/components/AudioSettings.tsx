@@ -2,7 +2,7 @@
 // Audio Settings Tab
 // ============================================================================
 
-import { AudioDeviceSettings } from '../../voice/components/VoiceSettings';
+import { AudioDeviceSettings } from './AudioDeviceSettings';
 import { SettingsCard } from './SettingsCard';
 import { VolumeSlider } from './VolumeSlider';
 

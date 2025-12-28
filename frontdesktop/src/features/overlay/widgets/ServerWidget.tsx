@@ -7,7 +7,7 @@ import { BaseWidget } from './BaseWidget';
 import { ServerRail } from './server/ServerRail';
 import { ChannelSidebar } from './server/ChannelSidebar';
 import { useServerData } from './server/useServerData';
-import { useVoiceStore } from '../../../store/voiceStore';
+import { useMediaSession } from '../../media-session';
 import { useWidgetStore } from '../stores/widgetStore';
 import { useActiveChatStore } from '../stores/activeChatStore';
 
@@ -31,8 +31,8 @@ export function ServerWidget() {
         selectedServer
     } = useServerData();
 
-    const connect = useVoiceStore((s) => s.connect);
-    const activeVoiceChannelId = useVoiceStore((s) => s.activeChannelId);
+    const { joinServerChannel, context } = useMediaSession();
+    const activeVoiceChannelId = context.channelId;
     const openWidget = useWidgetStore((s) => s.openWidget);
     const bringToFront = useWidgetStore((s) => s.bringToFront);
     const openChannelChat = useActiveChatStore((s) => s.openChannelChat);
@@ -131,7 +131,15 @@ export function ServerWidget() {
                         voiceChannels={voiceChannels}
                         activeVoiceChannelId={activeVoiceChannelId}
                         onVoiceChannelJoin={async (channel) => {
-                            await connect(channel);
+                            if (selectedServer) {
+                                await joinServerChannel({
+                                    serverId: selectedServer.id,
+                                    serverName: selectedServer.name,
+                                    channelId: channel.id,
+                                    channelName: channel.name,
+                                    channelType: channel.type === 'video' ? 'video' : 'voice',
+                                });
+                            }
                             openWidget('voice');
                             bringToFront('voice');
                         }}
