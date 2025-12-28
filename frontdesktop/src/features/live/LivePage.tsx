@@ -5,6 +5,7 @@ import {
   LiveLoadingSpinner,
   LiveStreamDetail,
   LiveStreamsGrid,
+  StartStreamModal,
 } from "./components";
 import { LiveHero } from "./components/LiveHero";
 import { LiveCategoryRail } from "./components/LiveCategoryRail";
@@ -14,6 +15,7 @@ export function LivePage() {
   const { streamId } = useParams<{ streamId?: string }>();
   const navigate = useNavigate();
 
+  const [isStartStreamModalOpen, setIsStartStreamModalOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const streamsQuery = useLiveStreams({ limit: 40 });
@@ -87,6 +89,12 @@ export function LivePage() {
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <span className="text-purple-400">#</span> Explore Categories
             </h2>
+            <button
+              onClick={() => setIsStartStreamModalOpen(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-sm font-bold rounded-lg shadow-lg shadow-purple-600/20 transition-all flex items-center gap-2"
+            >
+              <span className="text-lg">📹</span> Go Live
+            </button>
           </div>
           {categoriesQuery.isLoading ? (
             <div className="h-12 w-full bg-white/5 animate-pulse rounded-xl" />
@@ -121,6 +129,11 @@ export function LivePage() {
         </section>
 
       </div>
+
+      <StartStreamModal
+        isOpen={isStartStreamModalOpen}
+        onClose={() => setIsStartStreamModalOpen(false)}
+      />
     </div>
   );
 }

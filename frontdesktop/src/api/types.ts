@@ -248,6 +248,8 @@ export interface Stream {
     name: string;
     slug: string;
   };
+  ingestUrl?: string;
+  playbackUrl?: string;
 }
 
 export interface Category {

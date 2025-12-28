@@ -98,6 +98,7 @@ export async function getMyStream(): Promise<Stream> {
 
 export async function updateMyStream(data: {
     title?: string;
+    description?: string;
     categoryId?: string;
     isNsfw?: boolean;
 }): Promise<Stream> {

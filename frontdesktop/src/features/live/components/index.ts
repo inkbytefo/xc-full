@@ -7,3 +7,4 @@ export * from "./LiveErrorBanner";
 export * from "./LiveEmptyState";
 export * from "./VideoPlayer";
 export * from "./StreamChat";
+export * from "./StartStreamModal";
