@@ -15,10 +15,18 @@ export function useOverlayMode() {
             setPinnedView(window.__PINK_PINNED_VIEW === true);
         };
 
+        const handleFocus = () => {
+            // @ts-expect-error - set by Rust overlay.rs
+            window.__PINK_PINNED_VIEW = false;
+            setPinnedView(false);
+        };
+
         window.addEventListener('overlayPinnedViewChanged', handlePinnedViewChange);
+        window.addEventListener('focus', handleFocus);
 
         return () => {
             window.removeEventListener('overlayPinnedViewChanged', handlePinnedViewChange);
+            window.removeEventListener('focus', handleFocus);
         };
     }, []);
 

@@ -28,16 +28,43 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
 
     // UI State
     const [currentTime, setCurrentTime] = useState(new Date());
-    const [position, setPosition] = useState({
-        x: (window.innerWidth / 2) - 380,
+    const barWidth = 760;
+    const barHeight = 70;
+
+    const clampPosition = (pos: { x: number; y: number }) => {
+        const margin = 16;
+        const maxX = Math.max(margin, window.innerWidth - barWidth - margin);
+        const maxY = Math.max(margin, window.innerHeight - barHeight - margin);
+        return {
+            x: Math.min(Math.max(pos.x, margin), maxX),
+            y: Math.min(Math.max(pos.y, margin), maxY)
+        };
+    };
+
+    const [position, setPosition] = useState(() => clampPosition({
+        x: (window.innerWidth / 2) - (barWidth / 2),
         y: 20
-    });
+    }));
     const [isDragging, setIsDragging] = useState(false);
 
     // Update clock every second
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
+        const applyClamp = () => setPosition((p) => clampPosition(p));
+
+        const raf = window.requestAnimationFrame(applyClamp);
+        window.addEventListener('resize', applyClamp);
+        window.addEventListener('focus', applyClamp);
+
+        return () => {
+            window.cancelAnimationFrame(raf);
+            window.removeEventListener('resize', applyClamp);
+            window.removeEventListener('focus', applyClamp);
+        };
     }, []);
 
     const handleMinimize = async () => {

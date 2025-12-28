@@ -233,6 +233,7 @@ export interface Stream {
   status: "offline" | "live";
   viewerCount: number;
   isNsfw?: boolean;
+  streamKey?: string; // Only present for owner
   startedAt?: string;
   createdAt: string;
   streamer?: {
@@ -256,6 +257,37 @@ export interface Category {
   description?: string;
   iconUrl?: string;
   streamCount?: number;
+}
+
+export interface StreamChatMessage {
+  id: string;
+  streamId: string;
+  userId: string;
+  content: string;
+  createdAt: string;
+  user: {
+    id: string;
+    handle: string;
+    displayName: string;
+    avatarGradient: [string, string];
+  };
+}
+
+export interface Recording {
+  id: string;
+  streamId: string;
+  userId: string;
+  filePath: string;
+  duration: string;
+  thumbnailUrl?: string;
+  createdAt: string;
+}
+
+export interface StreamAnalytics {
+  currentViewers: number;
+  totalViews: number; // Placeholder for now
+  followersGained: number; // Placeholder
+  duration: string;
 }
 
 // === API Response ===

@@ -18,6 +18,7 @@ const ProfilePage = lazy(() => import("./features/profile/ProfilePage").then(mod
 const ServersPage = lazy(() => import("./features/servers/ServersPage").then(module => ({ default: module.ServersPage })));
 const ServerProfilePage = lazy(() => import("./features/servers/ServerProfilePage").then(module => ({ default: module.ServerProfilePage })));
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(module => ({ default: module.SettingsPage })));
+const DashboardPage = lazy(() => import("./features/live/DashboardPage").then(module => ({ default: module.DashboardPage })));
 
 /**
  * Root layout that wraps protected routes.
@@ -130,6 +131,10 @@ export const router = createBrowserRouter([
             {
                 path: "live",
                 element: <LivePage />,
+            },
+            {
+                path: "live/dashboard",
+                element: <DashboardPage />,
             },
             {
                 path: "live/:streamId",

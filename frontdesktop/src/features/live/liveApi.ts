@@ -78,3 +78,53 @@ export async function fetchCategoryStreams(categoryId: string, params?: {
         limit: params?.limit ?? 20,
     });
 }
+
+// ============================================================================
+// Chat Endpoints
+// ============================================================================
+
+export async function fetchChatHistory(streamId: string): Promise<ListResponse<import("../../api/types").StreamChatMessage>> {
+    return api.get<ListResponse<import("../../api/types").StreamChatMessage>>(`/api/v1/live/streams/${streamId}/messages`);
+}
+
+// ============================================================================
+// Dashboard Endpoints
+// ============================================================================
+
+export async function getMyStream(): Promise<Stream> {
+    const res = await api.get<{ data: Stream }>("/api/v1/live/me");
+    return res.data;
+}
+
+export async function updateMyStream(data: {
+    title?: string;
+    categoryId?: string;
+    isNsfw?: boolean;
+}): Promise<Stream> {
+    const res = await api.put<{ data: Stream }>("/api/v1/live/me", data);
+    return res.data;
+}
+
+export async function regenerateStreamKey(): Promise<{ streamKey: string }> {
+    const res = await api.post<{ data: { streamKey: string } }>("/api/v1/live/me/regenerate-key");
+    return res.data;
+}
+
+export async function getWebsocketToken(): Promise<string> {
+    const res = await api.get<{ token: string }>("/api/v1/auth/ws-token");
+    return res.token;
+}
+
+export async function getStreamAnalytics(): Promise<import("../../api/types").StreamAnalytics> {
+    const res = await api.get<{ data: import("../../api/types").StreamAnalytics }>("/api/v1/live/me/analytics");
+    return res.data;
+}
+
+// ============================================================================
+// VOD Endpoints
+// ============================================================================
+
+export async function fetchStreamRecordings(streamId: string): Promise<import("../../api/types").Recording[]> {
+    const res = await api.get<{ data: import("../../api/types").Recording[] }>(`/api/v1/live/streams/${streamId}/vods`);
+    return res.data;
+}

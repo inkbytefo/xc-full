@@ -21,45 +21,67 @@ export function LiveStreamsGrid({ streams, onOpenStream }: LiveStreamsGridProps)
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
       {streams.map((stream) => (
-        <button
+        <div
           key={stream.id}
-          type="button"
           onClick={() => onOpenStream(stream.id)}
-          className="bg-white/5 backdrop-blur-sm rounded-lg overflow-hidden hover:bg-white/10 transition-colors text-left group border border-white/5"
+          className="group cursor-pointer flex flex-col gap-3"
         >
-          <div className="aspect-video bg-black/30 relative flex items-center justify-center">
-            <div className="absolute inset-0 bg-gradient-to-b from-white/0 to-black/40" />
-            <div className="relative text-4xl">🎮</div>
-            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-red-600 text-white text-xs font-bold">
-              CANLI
+          {/* Thumbnail Container */}
+          <div className="relative aspect-video rounded-xl overflow-hidden bg-black/40 ring-1 ring-white/10 transition-transform duration-300 group-hover:ring-purple-500/50 group-hover:-translate-y-1 shadow-lg shadow-black/20">
+            {/* Thumbnail Gradient Placeholder */}
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110"
+              style={{
+                // Fallback gradient until we have real thumbnails
+                backgroundImage: `linear-gradient(45deg, #1a1a1a, #2a2a2a)`
+              }}
+            />
+
+            {/* Hover Play Icon */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center">
+                <div className="w-0 h-0 border-t-[8px] border-t-transparent border-l-[14px] border-l-white border-b-[8px] border-b-transparent ml-1" />
+              </div>
             </div>
-            <div className="absolute bottom-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-white text-xs">
-              {stream.viewerCount.toLocaleString()} izleyici
+
+            <div className="absolute top-3 left-3 px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-bold tracking-wider uppercase shadow-sm">
+              Live
             </div>
-            {stream.isNsfw ? (
-              <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-orange-600 text-white text-xs font-bold">
+
+            <div className="absolute bottom-3 left-3 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md text-white text-xs font-medium">
+              {stream.viewerCount.toLocaleString()} viewers
+            </div>
+
+            {stream.isNsfw && (
+              <div className="absolute top-3 right-3 px-1.5 py-0.5 rounded bg-orange-500/90 text-white text-[10px] font-bold">
                 18+
               </div>
-            ) : null}
+            )}
           </div>
 
-          <div className="p-3 flex gap-3">
-            <StreamAvatar stream={stream} />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-white truncate group-hover:text-purple-300 transition-colors">
+          {/* Info Section */}
+          <div className="flex gap-3 px-1">
+            <div className="shrink-0">
+              <StreamAvatar stream={stream} />
+            </div>
+            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+              <h3 className="font-bold text-white text-base leading-tight truncate group-hover:text-purple-400 transition-colors">
                 {stream.title}
-              </p>
-              <p className="text-sm text-zinc-400 truncate">
+              </h3>
+              <div className="text-zinc-400 text-sm truncate flex items-center gap-1">
                 {stream.streamer?.displayName ?? "Unknown"}
-              </p>
-              {stream.category ? (
-                <p className="text-xs text-zinc-500 truncate mt-1">{stream.category.name}</p>
-              ) : null}
+                {stream.streamer?.isVerified && <span className="text-purple-400 text-xs">✓</span>}
+              </div>
+              {stream.category && (
+                <div className="text-zinc-500 text-xs hover:text-zinc-300 transition-colors w-fit">
+                  {stream.category.name}
+                </div>
+              )}
             </div>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );

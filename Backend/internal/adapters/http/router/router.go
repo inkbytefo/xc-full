@@ -65,6 +65,9 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// Protected routes
 	protected := api.Group("", cfg.AuthMiddleware.Authenticate())
+	// Allow getting WS token if authenticated
+	protected.Get("/auth/ws-token", cfg.AuthHandler.GetWebsocketToken)
+
 	protected.Get("/me", cfg.UserHandler.GetMe)
 	protected.Patch("/me", cfg.UserHandler.UpdateMe)
 

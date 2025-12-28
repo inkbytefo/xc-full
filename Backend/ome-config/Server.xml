@@ -39,6 +39,16 @@
                 </Names>
             </Host>
 
+            <AdmissionWebhooks>
+                <ControlServerUrl>http://pink-api:8080/api/webhooks/ome</ControlServerUrl>
+                <SecretKey>pink-ome-secret</SecretKey>
+                <Timeout>3000</Timeout>
+                <Enables>
+                    <Providers>rtmp</Providers>
+                    <Publishers>webrtc</Publishers>
+                </Enables>
+            </AdmissionWebhooks>
+
             <Applications>
                 <Application>
                     <Name>live</Name>
@@ -46,19 +56,15 @@
 
                     <Providers>
                         <RTMP>
-                            <Enabled>true</Enabled>
                         </RTMP>
                         <SRT>
-                            <Enabled>true</Enabled>
                         </SRT>
                         <WebRTC>
-                            <Enabled>true</Enabled>
                         </WebRTC>
                     </Providers>
 
                     <Publishers>
                         <LLHLS>
-                            <Enabled>true</Enabled>
                             <ChunkDuration>0.5</ChunkDuration>
                             <SegmentDuration>6</SegmentDuration>
                             <SegmentCount>10</SegmentCount>
@@ -67,25 +73,18 @@
                             </CrossDomains>
                         </LLHLS>
                         <WebRTC>
-                            <Enabled>true</Enabled>
                         </WebRTC>
+                        <!--
                         <File>
-                            <Enabled>true</Enabled>
                             <RootPath>/opt/ovenmediaengine/recordings</RootPath>
                             <FilePath>${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDD_HHmmss}.mp4</FilePath>
                             <InfoPath>${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDD_HHmmss}.xml</InfoPath>
                         </File>
+                        -->
                     </Publishers>
 
                     <!-- Stream Key Authentication Webhook -->
-                    <AdmissionWebhooks>
-                        <ControlServerUrl>http://pink-api:8080/api/webhooks/ome</ControlServerUrl>
-                        <SecretKey>pink-ome-secret</SecretKey>
-                        <Timeout>3000</Timeout>
-                        <Enables>
-                            <Providers>true</Providers>
-                        </Enables>
-                    </AdmissionWebhooks>
+
 
                     <OutputProfiles>
                         <OutputProfile>

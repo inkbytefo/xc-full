@@ -266,6 +266,24 @@ func getCookieSameSite(isProd bool) string {
 	}
 }
 
+// GetWebsocketToken returns a token for WebSocket connection.
+// GET /auth/ws-token
+func (h *AuthHandler) GetWebsocketToken(c *fiber.Ctx) error {
+	// The standard auth middleware ensures the user is authenticated via cookie.
+	// We simply return the access token from the cookie to the client so it can be passed in the WS URL.
+	token := c.Cookies("access_token")
+	if token == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.NewErrorResponse(
+			"UNAUTHORIZED",
+			"No access token found",
+		))
+	}
+
+	return c.JSON(fiber.Map{
+		"token": token,
+	})
+}
+
 // handleError maps domain errors to HTTP responses.
 func (h *AuthHandler) handleError(c *fiber.Ctx, err error) error {
 	switch {

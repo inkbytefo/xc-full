@@ -33,19 +33,54 @@ export const useWidgetStore = create<WidgetStore>()(
             activeZIndex: 100,
 
             registerWidget: (id, defaultPos, defaultSize) => {
-                const state = get().widgets[id];
-                if (!state) {
+                const existing = get().widgets[id];
+
+                const hasValidPosition =
+                    !!existing?.position &&
+                    typeof existing.position.x === 'number' &&
+                    Number.isFinite(existing.position.x) &&
+                    typeof existing.position.y === 'number' &&
+                    Number.isFinite(existing.position.y);
+
+                const hasValidSize =
+                    !!existing?.size &&
+                    typeof existing.size.width === 'number' &&
+                    Number.isFinite(existing.size.width) &&
+                    typeof existing.size.height === 'number' &&
+                    Number.isFinite(existing.size.height);
+
+                const normalized: WidgetState = {
+                    id,
+                    isOpen: typeof existing?.isOpen === 'boolean' ? existing.isOpen : true,
+                    isPinned: typeof existing?.isPinned === 'boolean' ? existing.isPinned : false,
+                    position: hasValidPosition ? existing!.position : defaultPos,
+                    size: hasValidSize ? existing!.size : defaultSize,
+                    zIndex: typeof existing?.zIndex === 'number' && Number.isFinite(existing.zIndex) ? existing.zIndex : 1
+                };
+
+                if (!existing) {
                     set((s) => ({
                         widgets: {
                             ...s.widgets,
-                            [id]: {
-                                id,
-                                isOpen: true, // Default open for main widgets
-                                isPinned: false,
-                                position: defaultPos,
-                                size: defaultSize,
-                                zIndex: 1
-                            }
+                            [id]: normalized
+                        }
+                    }));
+                    return;
+                }
+
+                const needsRepair =
+                    existing.id !== normalized.id ||
+                    existing.isOpen !== normalized.isOpen ||
+                    existing.isPinned !== normalized.isPinned ||
+                    !hasValidPosition ||
+                    !hasValidSize ||
+                    existing.zIndex !== normalized.zIndex;
+
+                if (needsRepair) {
+                    set((s) => ({
+                        widgets: {
+                            ...s.widgets,
+                            [id]: normalized
                         }
                     }));
                 }
