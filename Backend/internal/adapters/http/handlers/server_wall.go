@@ -8,6 +8,7 @@ import (
 
 	"pink/internal/adapters/http/dto"
 	"pink/internal/domain/server"
+	"pink/internal/pkg/text"
 )
 
 // ServerWallHandler handles server wall post requests.
@@ -157,6 +158,7 @@ func (h *ServerWallHandler) CreateWallPost(c *fiber.Ctx) error {
 		AuthorID:  userID,
 		Content:   req.Content,
 		IsPinned:  false,
+		Hashtags:  text.ExtractHashtags(req.Content),
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

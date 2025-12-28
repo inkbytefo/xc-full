@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"pink/internal/domain/server"
+	"pink/internal/pkg/id"
 )
 
 // WallPostRepository implements server.WallPostRepository using PostgreSQL.
@@ -51,6 +52,10 @@ func (r *WallPostRepository) Create(ctx context.Context, post *server.WallPost) 
 
 	if err != nil {
 		return fmt.Errorf("insert wall post: %w", err)
+	}
+
+	if err := r.saveHashtags(ctx, post.ID, post.Hashtags); err != nil {
+		return err
 	}
 
 	return nil
@@ -123,6 +128,10 @@ func (r *WallPostRepository) FindByServer(ctx context.Context, serverID string, 
 	if len(posts) > limit {
 		nextCursor = posts[limit-1].ID
 		posts = posts[:limit]
+	}
+
+	if err := r.populateHashtags(ctx, posts); err != nil {
+		return nil, "", err
 	}
 
 	return posts, nextCursor, nil
@@ -208,6 +217,73 @@ func (r *WallPostRepository) CountByServer(ctx context.Context, serverID string)
 	}
 
 	return count, nil
+}
+
+func (r *WallPostRepository) saveHashtags(ctx context.Context, postID string, tags []string) error {
+	if len(tags) == 0 {
+		return nil
+	}
+
+	for _, tag := range tags {
+		var hashtagID string
+		// 1. Insert or get hashtag ID
+		err := r.pool.QueryRow(ctx, `
+			INSERT INTO hashtags (id, tag)
+			VALUES ($1, $2)
+			ON CONFLICT (tag) DO UPDATE SET tag = EXCLUDED.tag
+			RETURNING id
+		`, id.Generate("hash"), tag).Scan(&hashtagID)
+		if err != nil {
+			return fmt.Errorf("upsert hashtag %s: %w", tag, err)
+		}
+
+		// 2. Link post to hashtag
+		_, err = r.pool.Exec(ctx, `
+			INSERT INTO wall_post_hashtags (wall_post_id, hashtag_id)
+			VALUES ($1, $2)
+			ON CONFLICT DO NOTHING
+		`, postID, hashtagID)
+		if err != nil {
+			return fmt.Errorf("link hashtag %s: %w", tag, err)
+		}
+	}
+	return nil
+}
+
+func (r *WallPostRepository) populateHashtags(ctx context.Context, posts []*server.WallPost) error {
+	if len(posts) == 0 {
+		return nil
+	}
+
+	postIDs := make([]string, len(posts))
+	postMap := make(map[string]*server.WallPost)
+	for i, p := range posts {
+		postIDs[i] = p.ID
+		postMap[p.ID] = p
+	}
+
+	rows, err := r.pool.Query(ctx, `
+		SELECT wph.wall_post_id, h.tag
+		FROM wall_post_hashtags wph
+		JOIN hashtags h ON wph.hashtag_id = h.id
+		WHERE wph.wall_post_id = ANY($1)
+	`, postIDs)
+	if err != nil {
+		return fmt.Errorf("query hashtags: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var postID, tag string
+		if err := rows.Scan(&postID, &tag); err != nil {
+			continue
+		}
+		if p, ok := postMap[postID]; ok {
+			p.Hashtags = append(p.Hashtags, tag)
+		}
+	}
+
+	return nil
 }
 
 func generateWallPostID() string {

@@ -9,6 +9,7 @@ import (
 	"pink/internal/adapters/http/dto"
 	feedApp "pink/internal/application/feed"
 	"pink/internal/domain/post"
+	"pink/internal/pkg/text"
 )
 
 // FeedHandler handles feed-related requests.
@@ -77,6 +78,7 @@ func (h *FeedHandler) CreatePost(c *fiber.Ctx) error {
 		ServerID:   req.ServerID,
 		ReplyToID:  req.ReplyToID,
 		MediaURLs:  req.MediaURLs,
+		Hashtags:   text.ExtractHashtags(req.Content),
 	})
 
 	if err != nil {
@@ -264,6 +266,7 @@ func postToDTO(p *post.Post) dto.PostResponse {
 		IsLiked:      p.IsLiked,
 		IsReposted:   p.IsReposted,
 		IsBookmarked: p.IsBookmarked,
+		Hashtags:     p.Hashtags,
 		CreatedAt:    p.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
 	}
 

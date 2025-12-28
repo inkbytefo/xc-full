@@ -12,6 +12,7 @@ export interface ServerWallPost {
     authorId: string;
     content: string;
     isPinned: boolean;
+    hashtags?: string[];
     createdAt: string;
     updatedAt: string;
     // Author info (populated by frontend)

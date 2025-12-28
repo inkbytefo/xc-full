@@ -34,6 +34,7 @@ type CreatePostCommand struct {
 	ServerID   *string
 	ReplyToID  *string
 	MediaURLs  []string
+	Hashtags   []string
 }
 
 // CreatePost creates a new post.
@@ -60,6 +61,7 @@ func (s *Service) CreatePost(ctx context.Context, cmd CreatePostCommand) (*post.
 		ServerID:    cmd.ServerID,
 		ReplyToID:   cmd.ReplyToID,
 		MediaURLs:   cmd.MediaURLs,
+		Hashtags:    cmd.Hashtags,
 		LikeCount:   0,
 		RepostCount: 0,
 		ReplyCount:  0,

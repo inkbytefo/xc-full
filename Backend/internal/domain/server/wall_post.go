@@ -12,6 +12,7 @@ type WallPost struct {
 	AuthorID  string
 	Content   string
 	IsPinned  bool
+	Hashtags  []string // Extracted from content
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

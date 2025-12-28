@@ -42,6 +42,7 @@ type Post struct {
 	ReplyToID   *string // Optional, for replies
 	RepostOfID  *string // Optional, for reposts
 	MediaURLs   []string
+	Hashtags    []string // Extracted from content
 	LikeCount   int
 	RepostCount int
 	ReplyCount  int

@@ -34,6 +34,8 @@ export interface Post {
   id: string;
   authorId: string;
   content: string;
+  mediaUrls?: string[];
+  hashtags?: string[];
   visibility: "public" | "friends" | "server";
   serverId?: string;
   likeCount: number;

@@ -206,7 +206,16 @@ export function PostCard({
 
           {/* Content */}
           <div className="mt-2 whitespace-pre-wrap break-words text-sm leading-relaxed text-zinc-200">
-            {post.content}
+            {post.content.split(/(#\w+)/g).map((part, i) => {
+              if (part.startsWith("#")) {
+                return (
+                  <span key={i} className="text-pink-400 font-medium cursor-pointer hover:underline">
+                    {part}
+                  </span>
+                );
+              }
+              return part;
+            })}
           </div>
 
           {/* Actions */}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Server } from "../../../api/types";
 import type { ServerMember } from "../hooks/useServerMembers";
+import { ServerWallTab } from "./ServerWallTab";
 
 type ServerProfileTab = "about" | "channels" | "wall";
 
@@ -235,13 +236,7 @@ export function ServerProfileView({
                 )}
 
                 {activeTab === "wall" && (
-                    <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
-                        <div className="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                            <span className="text-2xl">📋</span>
-                        </div>
-                        <p className="font-medium">Sunucu duvarı</p>
-                        <p className="text-sm mt-1 text-zinc-600">Yakında duyurular ve paylaşımlar burada görünecek</p>
-                    </div>
+                    <ServerWallTab serverId={server.id} members={members} />
                 )}
             </div>
         </div>

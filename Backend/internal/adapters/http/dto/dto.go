@@ -120,13 +120,14 @@ type UpdateProfileRequest struct {
 
 // ServerWallPostResponse represents a server wall post.
 type ServerWallPostResponse struct {
-	ID        string `json:"id"`
-	ServerID  string `json:"serverId"`
-	AuthorID  string `json:"authorId"`
-	Content   string `json:"content"`
-	IsPinned  bool   `json:"isPinned"`
-	CreatedAt string `json:"createdAt"`
-	UpdatedAt string `json:"updatedAt"`
+	ID        string   `json:"id"`
+	ServerID  string   `json:"serverId"`
+	AuthorID  string   `json:"authorId"`
+	Content   string   `json:"content"`
+	IsPinned  bool     `json:"isPinned"`
+	Hashtags  []string `json:"hashtags" validate:"max=5"`
+	CreatedAt string   `json:"createdAt"`
+	UpdatedAt string   `json:"updatedAt"`
 }
 
 // CreateWallPostRequest represents a request to create a wall post.
@@ -349,6 +350,7 @@ type PostResponse struct {
 	ReplyToID    *string             `json:"replyToId,omitempty"`
 	RepostOfID   *string             `json:"repostOfId,omitempty"`
 	MediaURLs    []string            `json:"mediaUrls,omitempty"`
+	Hashtags     []string            `json:"hashtags,omitempty"`
 	LikeCount    int                 `json:"likeCount"`
 	RepostCount  int                 `json:"repostCount"`
 	ReplyCount   int                 `json:"replyCount"`
