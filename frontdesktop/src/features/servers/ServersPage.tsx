@@ -5,12 +5,17 @@ import { useVoiceStore } from "../../store/voiceStore";
 import type { Channel } from "../../api/types";
 
 // Custom Hooks
-import { useServerData, useChannelMessages, useServerMembers, useServerPermissions } from "./hooks";
+import {
+  useServerData,
+  useChannelMessages,
+  useServerMembers,
+  useServerPermissions,
+  useVoiceChannelNavigation,
+} from "./hooks";
 
 // Components
 import { MembersPanel } from "./components";
-import { EditChannelModal } from "./components/EditChannelModal";
-import { InviteServerModal } from "./components/InviteServerModal";
+import { ServersPageModals } from "./components/ServersPageModals";
 
 // Views
 import { ServerSelectionView } from "./views/ServerSelectionView";
@@ -18,12 +23,6 @@ import { ServerSelectionView } from "./views/ServerSelectionView";
 import { ServerChannelView } from "./views/ServerChannelView";
 import { ServerContentArea } from "./views/ServerContentArea";
 
-// Modals
-import { MembersModal } from "./MembersModal";
-import { CreateChannelModal } from "./CreateChannelModal";
-import { CreateServerModal } from "./CreateServerModal";
-import { ExploreServersModal } from "./ExploreServersModal";
-import { ServerSettingsModal } from "./ServerSettingsModal";
 import { deleteChannel, reorderChannels } from "./serversApi";
 import { deleteVoiceChannel } from "../voice/voiceApi";
 
@@ -54,9 +53,20 @@ export function ServersPage() {
   const [showExploreModal, setShowExploreModal] = useState(false);
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false);
   const [showServerProfile, setShowServerProfile] = useState(false);
-  const [isViewingVoiceRoom, setIsViewingVoiceRoom] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+
+  const {
+    isViewingVoiceRoom,
+    setIsViewingVoiceRoom,
+    handleVoiceChannelClick,
+    handleSelectChannel,
+  } = useVoiceChannelNavigation({
+    voiceChannels: serverData.voiceChannels,
+    voiceStore,
+    onSelectChannel: serverData.handleSelectChannel,
+    onAfterSelectChannel: () => setShowServerProfile(false),
+  });
 
   const chatMessages = useChannelMessages({
     serverId: serverData.selectedServer,
@@ -130,32 +140,6 @@ export function ServersPage() {
     [reorderChannels, serverData.currentServer, serverData.refreshChannels]
   );
 
-  // Voice channel handlers
-  const handleVoiceChannelClick = useCallback(
-    (channelId: string) => {
-      const channel = serverData.voiceChannels.find((c) => c.id === channelId);
-      if (!channel) return;
-
-      if (voiceStore.isConnected && voiceStore.activeChannelId === channelId) {
-        setIsViewingVoiceRoom(!isViewingVoiceRoom);
-        return;
-      }
-
-      voiceStore.connect(channel);
-      setIsViewingVoiceRoom(true);
-    },
-    [voiceStore, serverData.voiceChannels, isViewingVoiceRoom]
-  );
-
-  const handleSelectChannel = useCallback(
-    (channelId: string) => {
-      serverData.handleSelectChannel(channelId);
-      setIsViewingVoiceRoom(false);
-      setShowServerProfile(false); // Close server profile when selecting a channel
-    },
-    [serverData]
-  );
-
   const voiceChatChannel = useMemo<Channel | null>(() => {
     const vc = voiceStore.activeChannel;
     if (!vc) return null;
@@ -197,77 +181,32 @@ export function ServersPage() {
 
   return (
     <div className="flex h-[calc(100vh-0px)]">
-      {/* Modals */}
-      <ExploreServersModal
-        isOpen={showExploreModal}
-        onClose={() => setShowExploreModal(false)}
-        onJoin={handleJoinServer}
-      />
-
-      <CreateServerModal
-        isOpen={showCreateServerModal}
-        onClose={() => setShowCreateServerModal(false)}
-        onServerCreated={serverData.handleServerCreated}
-      />
-
-      <EditChannelModal
-        isOpen={editingChannel !== null}
-        serverId={serverData.currentServer?.id ?? null}
-        channel={editingChannel}
+      <ServersPageModals
+        currentServer={serverData.currentServer}
         categories={serverData.categories}
-        onClose={() => setEditingChannel(null)}
-        onSaved={serverData.refreshChannels}
+        refreshChannels={serverData.refreshChannels}
+        handleServerCreated={serverData.handleServerCreated}
+        setServers={serverData.setServers}
+        setSelectedServer={serverData.setSelectedServer}
+        isAdmin={isAdmin}
+        isModerator={isModerator}
+        showExploreModal={showExploreModal}
+        setShowExploreModal={setShowExploreModal}
+        showCreateServerModal={showCreateServerModal}
+        setShowCreateServerModal={setShowCreateServerModal}
+        showCreateChannelModal={showCreateChannelModal}
+        setShowCreateChannelModal={setShowCreateChannelModal}
+        showServerSettingsModal={showServerSettingsModal}
+        setShowServerSettingsModal={setShowServerSettingsModal}
+        showMembersModal={showMembersModal}
+        setShowMembersModal={setShowMembersModal}
+        showInviteModal={showInviteModal}
+        setShowInviteModal={setShowInviteModal}
+        editingChannel={editingChannel}
+        setEditingChannel={setEditingChannel}
+        onJoinServer={handleJoinServer}
+        onNavigate={navigate}
       />
-
-      <InviteServerModal
-        isOpen={showInviteModal}
-        server={serverData.currentServer}
-        onClose={() => setShowInviteModal(false)}
-        onOpenProfile={() => {
-          if (!serverData.currentServer) return;
-          navigate(serverData.currentServer.handle ? `/s/${serverData.currentServer.handle}` : `/servers/${serverData.currentServer.id}`);
-          setShowInviteModal(false);
-        }}
-      />
-
-      {serverData.currentServer && (
-        <>
-          <CreateChannelModal
-            isOpen={showCreateChannelModal}
-            onClose={() => setShowCreateChannelModal(false)}
-            serverId={serverData.currentServer.id}
-            onChannelCreated={serverData.refreshChannels}
-          />
-
-          <ServerSettingsModal
-            isOpen={showServerSettingsModal}
-            onClose={() => setShowServerSettingsModal(false)}
-            server={serverData.currentServer}
-            onServerUpdated={(updated) => {
-              serverData.setServers((prev) =>
-                prev.map((s) => (s.id === updated.id ? updated : s))
-              );
-            }}
-            onServerDeleted={() => {
-              serverData.setServers((prev) =>
-                prev.filter((s) => s.id !== serverData.currentServer!.id)
-              );
-              serverData.setSelectedServer(null);
-              navigate("/servers");
-            }}
-          />
-
-          <MembersModal
-            isOpen={showMembersModal}
-            onClose={() => setShowMembersModal(false)}
-            serverId={serverData.currentServer.id}
-            serverName={serverData.currentServer.name}
-            ownerId={serverData.currentServer.ownerId}
-            isAdmin={isAdmin}
-            isModerator={isModerator}
-          />
-        </>
-      )}
 
       {/* ================================================================
           UNIFIED SIDEBAR - Server List or Channel View

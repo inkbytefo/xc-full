@@ -19,6 +19,9 @@ type StreamRepository interface {
 	// FindByCategoryID finds live streams by category.
 	FindByCategoryID(ctx context.Context, categoryID string, cursor string, limit int) ([]*Stream, string, error)
 
+	// FindByServerID finds streams by server ID.
+	FindByServerID(ctx context.Context, serverID string, cursor string, limit int) ([]*Stream, string, error)
+
 	// Create creates a new stream.
 	Create(ctx context.Context, stream *Stream) error
 

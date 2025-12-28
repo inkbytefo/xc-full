@@ -26,6 +26,7 @@ func (r *StreamRepository) FindByID(ctx context.Context, id string) (*live.Strea
 	query := `
 		SELECT s.id, s.user_id, s.title, s.description, s.category_id, s.thumbnail_url, 
 		       s.stream_key, s.status, s.viewer_count, s.is_nsfw, s.started_at, s.ended_at, s.created_at, s.updated_at,
+		       s.type, s.server_id, s.ingest_url, s.playback_url, s.max_quality,
 		       u.id, u.handle, u.display_name, u.avatar_gradient, u.is_verified,
 		       c.id, c.name, c.slug
 		FROM streams s
@@ -42,6 +43,7 @@ func (r *StreamRepository) FindByID(ctx context.Context, id string) (*live.Strea
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&stream.ID, &stream.UserID, &stream.Title, &stream.Description, &stream.CategoryID, &stream.ThumbnailURL,
 		&stream.StreamKey, &stream.Status, &stream.ViewerCount, &stream.IsNSFW, &stream.StartedAt, &stream.EndedAt, &stream.CreatedAt, &stream.UpdatedAt,
+		&stream.Type, &stream.ServerID, &stream.IngestURL, &stream.PlaybackURL, &stream.MaxQuality,
 		&streamer.ID, &streamer.Handle, &streamer.DisplayName, &gradient, &streamer.IsVerified,
 		&catID, &catName, &catSlug,
 	)
@@ -106,6 +108,7 @@ func (r *StreamRepository) FindLive(ctx context.Context, cursor string, limit in
 	query := `
 		SELECT s.id, s.user_id, s.title, s.description, s.category_id, s.thumbnail_url, 
 		       s.stream_key, s.status, s.viewer_count, s.is_nsfw, s.started_at, s.ended_at, s.created_at, s.updated_at,
+		       s.type, s.server_id, s.ingest_url, s.playback_url, s.max_quality,
 		       u.id, u.handle, u.display_name, u.avatar_gradient, u.is_verified,
 		       c.id, c.name, c.slug
 		FROM streams s
@@ -134,6 +137,7 @@ func (r *StreamRepository) FindByCategoryID(ctx context.Context, categoryID, cur
 	query := `
 		SELECT s.id, s.user_id, s.title, s.description, s.category_id, s.thumbnail_url, 
 		       s.stream_key, s.status, s.viewer_count, s.is_nsfw, s.started_at, s.ended_at, s.created_at, s.updated_at,
+		       s.type, s.server_id, s.ingest_url, s.playback_url, s.max_quality,
 		       u.id, u.handle, u.display_name, u.avatar_gradient, u.is_verified,
 		       c.id, c.name, c.slug
 		FROM streams s
@@ -153,6 +157,35 @@ func (r *StreamRepository) FindByCategoryID(ctx context.Context, categoryID, cur
 	return r.scanStreams(rows, limit)
 }
 
+// FindByServerID finds streams by server ID.
+func (r *StreamRepository) FindByServerID(ctx context.Context, serverID, cursor string, limit int) ([]*live.Stream, string, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+
+	query := `
+		SELECT s.id, s.user_id, s.title, s.description, s.category_id, s.thumbnail_url, 
+		       s.stream_key, s.status, s.viewer_count, s.is_nsfw, s.started_at, s.ended_at, s.created_at, s.updated_at,
+		       s.type, s.server_id, s.ingest_url, s.playback_url, s.max_quality,
+		       u.id, u.handle, u.display_name, u.avatar_gradient, u.is_verified,
+		       c.id, c.name, c.slug
+		FROM streams s
+		JOIN users u ON s.user_id = u.id
+		LEFT JOIN stream_categories c ON s.category_id = c.id
+		WHERE s.server_id = $1
+		ORDER BY s.status DESC, s.viewer_count DESC
+		LIMIT $2
+	`
+
+	rows, err := r.pool.Query(ctx, query, serverID, limit+1)
+	if err != nil {
+		return nil, "", fmt.Errorf("query server streams: %w", err)
+	}
+	defer rows.Close()
+
+	return r.scanStreams(rows, limit)
+}
+
 func (r *StreamRepository) scanStreams(rows pgx.Rows, limit int) ([]*live.Stream, string, error) {
 	var streams []*live.Stream
 
@@ -165,6 +198,7 @@ func (r *StreamRepository) scanStreams(rows pgx.Rows, limit int) ([]*live.Stream
 		err := rows.Scan(
 			&stream.ID, &stream.UserID, &stream.Title, &stream.Description, &stream.CategoryID, &stream.ThumbnailURL,
 			&stream.StreamKey, &stream.Status, &stream.ViewerCount, &stream.IsNSFW, &stream.StartedAt, &stream.EndedAt, &stream.CreatedAt, &stream.UpdatedAt,
+			&stream.Type, &stream.ServerID, &stream.IngestURL, &stream.PlaybackURL, &stream.MaxQuality,
 			&streamer.ID, &streamer.Handle, &streamer.DisplayName, &gradient, &streamer.IsVerified,
 			&catID, &catName, &catSlug,
 		)
@@ -196,13 +230,18 @@ func (r *StreamRepository) scanStreams(rows pgx.Rows, limit int) ([]*live.Stream
 // Create creates a new stream.
 func (r *StreamRepository) Create(ctx context.Context, stream *live.Stream) error {
 	query := `
-		INSERT INTO streams (id, user_id, title, description, category_id, thumbnail_url, stream_key, status, viewer_count, is_nsfw, started_at, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO streams (
+			id, user_id, title, description, category_id, thumbnail_url, stream_key, 
+			status, viewer_count, is_nsfw, started_at, created_at, updated_at,
+			type, server_id, ingest_url, playback_url, max_quality
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		stream.ID, stream.UserID, stream.Title, stream.Description, stream.CategoryID, stream.ThumbnailURL,
 		stream.StreamKey, stream.Status, stream.ViewerCount, stream.IsNSFW, stream.StartedAt, stream.CreatedAt, stream.UpdatedAt,
+		stream.Type, stream.ServerID, stream.IngestURL, stream.PlaybackURL, stream.MaxQuality,
 	)
 
 	if err != nil {

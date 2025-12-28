@@ -10,7 +10,7 @@ use overlay::{
     QuickChatShortcutState,
 };
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -70,6 +70,16 @@ pub fn run() {
                 if let Ok(mut s) = state.0.lock() {
                     *s = Some(quick_chat_shortcut);
                 }
+            }
+
+            if let Some(overlay_window) = app.get_webview_window("overlay") {
+                let overlay_window_for_handler = overlay_window.clone();
+                overlay_window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        let _ = overlay_window_for_handler.hide();
+                        api.prevent_close();
+                    }
+                });
             }
 
             Ok(())

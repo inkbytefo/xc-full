@@ -58,6 +58,9 @@ const (
 
 	// Voice events
 	EventVoiceStateUpdate EventType = "voice_state_update"
+
+	// Stream events
+	EventStreamChatMsg EventType = "stream_chat_message"
 )
 
 // Message represents a WebSocket message.
@@ -94,6 +97,7 @@ const (
 	SubConversation SubscriptionType = "conversation"
 	SubChannel      SubscriptionType = "channel"
 	SubServer       SubscriptionType = "server"
+	SubStream       SubscriptionType = "stream"
 )
 
 // Subscription represents a client subscription.
@@ -162,4 +166,10 @@ type VoiceStateUpdateEventData struct {
 	UserDisplayName string `json:"userDisplayName"`
 	UserAvatar      string `json:"userAvatar"` // gradient URL or similar
 	Action          string `json:"action"`     // "joined" or "left"
+}
+
+// StreamMessageEventData represents a stream chat message event.
+type StreamMessageEventData struct {
+	StreamID string                 `json:"streamId"`
+	Message  map[string]interface{} `json:"message"`
 }

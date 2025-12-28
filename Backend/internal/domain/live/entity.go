@@ -25,6 +25,14 @@ const (
 	StatusEnding  StreamStatus = "ending"
 )
 
+// StreamType represents the type of stream.
+type StreamType string
+
+const (
+	StreamTypeUser   StreamType = "user"   // Personal profile stream
+	StreamTypeServer StreamType = "server" // Server-based professional stream
+)
+
 // Stream represents a live stream.
 type Stream struct {
 	ID           string
@@ -41,6 +49,15 @@ type Stream struct {
 	EndedAt      *time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+
+	// Stream type and server association
+	Type     StreamType // user or server
+	ServerID *string    // Only for server streams
+
+	// OvenMediaEngine integration
+	IngestURL   string // RTMP push URL (e.g., rtmp://host/app/stream_key)
+	PlaybackURL string // HLS playback URL
+	MaxQuality  string // 1080p, 720p, 480p
 
 	// Joined fields
 	Streamer *StreamerInfo

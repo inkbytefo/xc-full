@@ -167,7 +167,7 @@ export function MainSidebar() {
     <>
       <nav
         aria-label="Ana navigasyon"
-        className="fixed left-0 top-0 z-20 flex h-screen w-[72px] flex-col items-center border-r border-white/5 bg-[#050505]/60 py-3 backdrop-blur-md"
+        className="fixed left-0 top-0 z-20 flex h-screen w-[72px] flex-col items-center border-r border-white/5 bg-[#050505]/45 py-3 backdrop-blur-md"
       >
         <div className="flex w-full flex-col items-center gap-3">
           <div className="group relative flex h-[48px] w-[48px] items-center justify-center">

@@ -1,6 +1,9 @@
-# XC Live Streaming Roadmap
+# Pink Live Streaming Roadmap
 
 Twitch/Kick benzeri profesyonel yayıncılık altyapısı için teknik analiz ve yol haritası.
+
+> **Son Güncelleme:** 28.12.2025  
+> **Durum:** Faz 3 - Stream Chat System (Aktif)
 
 ---
 
@@ -268,46 +271,46 @@ export function StreamChat({ streamId }: StreamChatProps) {
 
 ## 6. Yol Haritası
 
-### Faz 1: Media Server Kurulumu (1 Hafta)
+### Faz 1: Media Server Kurulumu (1 Hafta) ✅
+
+| Görev | Açıklama | Durum |
+|:---|:---|:---:|
+| OvenMediaEngine Docker | RTMP/SRT ingest container | ✅ |
+| Server.xml Konfigürasyonu | LL-HLS output, webhook ayarları | ✅ |
+| Stream key auth webhook | Pink backend callback endpoint | ✅ |
+| Stream entity güncelleme | IngestURL, PlaybackURL alanları | ✅ |
+| HLS proxy endpoint | CDN-ready playback URL | ✅ |
+| Database migration | Yeni alanlar için SQL | ✅ |
+
+### Faz 2: Backend Entegrasyonu (2 Hafta) ✅
 
 | Görev | Açıklama |
 |:---|:---|
-| OvenMediaEngine Docker | RTMP/SRT ingest |
-| Stream key auth webhook | XC backend entegrasyonu |
-| HLS output konfig | Low-latency HLS |
+| Stream lifecycle | Start/End events ✅ |
+| Go Live notification | Push notification ✅ |
+| Viewer Count Tracking | Real-time sayaç ✅ |
+| HLS proxy endpoint | CDN ready (Deferred) |
 
-### Faz 2: Backend Entegrasyonu (2 Hafta)
+### Phase 3: Stream Chat System (Completed)
+- [x] **Stream Chat Message Entity**: Define `ChatMessage` struct and repository interface.
+- [x] **WebSocket Chat Endpoint**: Implement `STREAM_CHAT` event handling in WebSocket hub.
+- [x] **Chat Message Repository**: Implement persistence for chat messages.
+- [x] **Stream Chat History**: `GET /live/streams/:id/messages` endpoint.
 
-| Görev | Açıklama |
-|:---|:---|
-| Stream lifecycle | Start/End events |
-| Go Live notification | Push notification |
-| Viewer count tracking | Real-time sayaç |
-| HLS proxy endpoint | CDN ready |
-
-### Faz 3: Frontend Player (1 Hafta)
+### Phase 4: Creator Dashboard (Completed)
 
 | Görev | Açıklama |
 |:---|:---|
-| HLS.js entegrasyonu | Video player |
-| Quality selector | ABR kontrolü |
-| Stream chat | WebSocket chat |
-| Theater mode | Geniş ekran modu |
+| Stream key yönetimi | Regenerate key (`POST /live/me/regenerate-key`) ✅ |
+| Yayın bilgisi düzenleme | Title, category (`PUT /live/me`) ✅ |
+| Temel analytics | Viewer graphs (`GET /live/me/analytics`) ✅ |
 
-### Faz 4: Creator Dashboard (1 Hafta)
-
-| Görev | Açıklama |
-|:---|:---|
-| Stream key yönetimi | Regenerate key |
-| Yayın bilgisi düzenleme | Title, category |
-| Temel analytics | Viewer graphs |
-
-### Faz 5: Gelişmiş Özellikler (2+ Hafta)
+### Faz 5: Gelişmiş Özellikler (Devam Ediyor)
 
 | Görev | Açıklama |
 |:---|:---|
+| VOD kayıt | Yayın arşivi (`recordings` table + OME File Publisher) ✅ |
 | Clipping sistemi | Son 30sn kesme |
-| VOD kayıt | Yayın arşivi |
 | CDN entegrasyonu | Cloudflare/AWS |
 | Transcode kalite seçenekleri | 1080p/720p/480p |
 

@@ -12,19 +12,32 @@ import (
 
 	"pink/internal/adapters/http/dto"
 	"pink/internal/domain/live"
+	"pink/internal/domain/server"
 )
 
 // LiveHandler handles live streaming requests.
 type LiveHandler struct {
-	streamRepo   live.StreamRepository
-	categoryRepo live.CategoryRepository
+	streamRepo    live.StreamRepository
+	streamMsgRepo live.StreamMessageRepository
+	categoryRepo  live.CategoryRepository
+	memberRepo    server.MemberRepository
+	recordingRepo live.RecordingRepository
 }
 
 // NewLiveHandler creates a new LiveHandler.
-func NewLiveHandler(streamRepo live.StreamRepository, categoryRepo live.CategoryRepository) *LiveHandler {
+func NewLiveHandler(
+	streamRepo live.StreamRepository,
+	streamMsgRepo live.StreamMessageRepository,
+	categoryRepo live.CategoryRepository,
+	memberRepo server.MemberRepository,
+	recordingRepo live.RecordingRepository,
+) *LiveHandler {
 	return &LiveHandler{
-		streamRepo:   streamRepo,
-		categoryRepo: categoryRepo,
+		streamRepo:    streamRepo,
+		streamMsgRepo: streamMsgRepo,
+		categoryRepo:  categoryRepo,
+		memberRepo:    memberRepo,
+		recordingRepo: recordingRepo,
 	}
 }
 
@@ -69,6 +82,167 @@ func (h *LiveHandler) GetStream(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": streamToDTO(stream)})
 }
 
+// GetChatHistory returns chat messages for a stream.
+// GET /live/streams/:id/messages
+func (h *LiveHandler) GetChatHistory(c *fiber.Ctx) error {
+	id := c.Params("id")
+	limit := c.QueryInt("limit", 50)
+	before := c.Query("before")
+
+	messages, err := h.streamMsgRepo.FindByStreamID(c.Context(), id, limit, before)
+	if err != nil {
+		slog.Error("get chat history error", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to get chat history",
+		))
+	}
+
+	response := make([]map[string]interface{}, len(messages))
+	for i, msg := range messages {
+		response[i] = chatMessageToDTO(msg)
+	}
+
+	return c.JSON(fiber.Map{"data": response})
+}
+
+// GetStreamRecordings returns recordings for a stream.
+// GET /live/streams/:id/vods
+func (h *LiveHandler) GetStreamRecordings(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	recordings, err := h.recordingRepo.FindByStreamID(c.Context(), id)
+	if err != nil {
+		slog.Error("get recordings error", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to get recordings",
+		))
+	}
+
+	return c.JSON(fiber.Map{"data": recordings})
+}
+
+// GetMyStream returns the authenticated user's stream.
+// GET /live/me
+func (h *LiveHandler) GetMyStream(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+
+	stream, err := h.streamRepo.FindByUserID(c.Context(), userID)
+	if err != nil {
+		if errors.Is(err, live.ErrStreamNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(dto.NewErrorResponse(
+				"NOT_FOUND",
+				"You don't have a stream completely set up yet",
+			))
+		}
+		return h.handleError(c, err)
+	}
+
+	return c.JSON(fiber.Map{"data": streamToDTO(stream)})
+}
+
+// UpdateMyStream updates the authenticated user's stream.
+// PUT /live/me
+func (h *LiveHandler) UpdateMyStream(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+
+	stream, err := h.streamRepo.FindByUserID(c.Context(), userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	var req dto.UpdateStreamRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+			"BAD_REQUEST",
+			"Invalid request body",
+		))
+	}
+
+	if req.Title != "" {
+		stream.Title = req.Title
+	}
+	if req.Description != nil {
+		stream.Description = *req.Description
+	}
+	if req.CategoryID != nil {
+		stream.CategoryID = req.CategoryID
+	}
+	if req.IsNSFW != nil {
+		stream.IsNSFW = *req.IsNSFW
+	}
+
+	if err := h.streamRepo.Update(c.Context(), stream); err != nil {
+		slog.Error("update my stream error", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to update stream",
+		))
+	}
+
+	return c.JSON(fiber.Map{"data": streamToDTO(stream)})
+}
+
+// RegenerateStreamKey generates a new stream key.
+// POST /live/me/regenerate-key
+func (h *LiveHandler) RegenerateStreamKey(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+
+	stream, err := h.streamRepo.FindByUserID(c.Context(), userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	newKey := generateStreamKey()
+	stream.StreamKey = newKey
+
+	// Update ingestion/verification URLs if they contain the key
+	omeHost := "localhost" // TODO: Config
+	stream.IngestURL = "rtmp://" + omeHost + ":1935/live/" + newKey
+	stream.PlaybackURL = "http://" + omeHost + ":3333/live/" + newKey + "/llhls.m3u8"
+
+	if err := h.streamRepo.Update(c.Context(), stream); err != nil {
+		slog.Error("regenerate key error", slog.Any("error", err))
+		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
+			"INTERNAL_ERROR",
+			"Failed to update stream key",
+		))
+	}
+
+	return c.JSON(fiber.Map{
+		"streamKey": newKey,
+		"ingestUrl": stream.IngestURL,
+	})
+}
+
+// GetStreamAnalytics returns analytics for the user's stream.
+// GET /live/me/analytics
+func (h *LiveHandler) GetStreamAnalytics(c *fiber.Ctx) error {
+	userID := c.Locals("userID").(string)
+
+	stream, err := h.streamRepo.FindByUserID(c.Context(), userID)
+	if err != nil {
+		return h.handleError(c, err)
+	}
+
+	resp := dto.StreamAnalyticsResponse{
+		StreamID:    stream.ID,
+		ViewerCount: stream.ViewerCount,
+		Status:      string(stream.Status),
+	}
+
+	if stream.StartedAt != nil {
+		resp.StartedAt = stream.StartedAt.Format("2006-01-02T15:04:05.000Z")
+		if stream.Status == live.StatusLive {
+			duration := time.Since(*stream.StartedAt)
+			resp.Duration = duration.String()
+		}
+	}
+
+	return c.JSON(fiber.Map{"data": resp})
+}
+
 // StartStream starts a new stream.
 // POST /live/streams
 func (h *LiveHandler) StartStream(c *fiber.Ctx) error {
@@ -98,6 +272,48 @@ func (h *LiveHandler) StartStream(c *fiber.Ctx) error {
 		))
 	}
 
+	// Handle stream type and permissions
+	streamType := live.StreamTypeUser
+	var serverID *string
+
+	if req.Type == "server" {
+		if req.ServerID == nil {
+			return c.Status(fiber.StatusBadRequest).JSON(dto.NewErrorResponse(
+				"BAD_REQUEST",
+				"Server ID is required for server streams",
+			))
+		}
+
+		// Check permissions
+		member, err := h.memberRepo.FindByServerAndUserWithRoles(c.Context(), *req.ServerID, userID)
+		if err != nil {
+			if errors.Is(err, server.ErrNotMember) {
+				return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
+					"FORBIDDEN",
+					"Not a member of this server",
+				))
+			}
+			return h.handleError(c, err)
+		}
+
+		if !member.HasPermission(server.PermissionStream) {
+			return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
+				"FORBIDDEN",
+				"You do not have permission to stream in this server",
+			))
+		}
+
+		streamType = live.StreamTypeServer
+		serverID = req.ServerID
+	}
+
+	streamKey := generateStreamKey()
+	// Generate RTMP/SRT/HLS URLs
+	// TODO: Use config/env vars for OME host
+	omeHost := "localhost" // Assuming client can resolve this or using public IP
+	ingestURL := "rtmp://" + omeHost + ":1935/live/" + streamKey
+	playbackURL := "http://" + omeHost + ":3333/live/" + streamKey + "/llhls.m3u8"
+
 	now := time.Now()
 	stream := &live.Stream{
 		ID:          generateStreamID(),
@@ -105,10 +321,15 @@ func (h *LiveHandler) StartStream(c *fiber.Ctx) error {
 		Title:       req.Title,
 		Description: req.Description,
 		CategoryID:  req.CategoryID,
-		StreamKey:   generateStreamKey(),
+		StreamKey:   streamKey,
 		Status:      live.StatusOffline,
 		ViewerCount: 0,
 		IsNSFW:      req.IsNSFW,
+		Type:        streamType,
+		ServerID:    serverID,
+		IngestURL:   ingestURL,
+		PlaybackURL: playbackURL,
+		MaxQuality:  "720p", // Default
 		CreatedAt:   now,
 		UpdatedAt:   now,
 	}
@@ -328,6 +549,12 @@ func streamToDTO(stream *live.Stream) dto.StreamResponse {
 		Status:      string(stream.Status),
 		ViewerCount: stream.ViewerCount,
 		IsNSFW:      stream.IsNSFW,
+		Type:        string(stream.Type),
+		ServerID:    stream.ServerID,
+		IngestURL:   stream.IngestURL,
+		PlaybackURL: stream.PlaybackURL,
+		StreamKey:   stream.StreamKey, // Only sent to owner ideally, but here simplifies for now
+		MaxQuality:  stream.MaxQuality,
 		CreatedAt:   stream.CreatedAt.Format("2006-01-02T15:04:05.000Z"),
 	}
 
@@ -380,4 +607,26 @@ func generateStreamKey() string {
 		return uuid.New().String()
 	}
 	return hex.EncodeToString(b)
+}
+
+func chatMessageToDTO(msg *live.ChatMessage) map[string]interface{} {
+	resp := map[string]interface{}{
+		"id":         msg.ID,
+		"stream_id":  msg.StreamID,
+		"user_id":    msg.UserID,
+		"content":    msg.Content,
+		"created_at": msg.CreatedAt,
+	}
+
+	if msg.User != nil {
+		resp["user"] = map[string]interface{}{
+			"id":              msg.User.ID,
+			"handle":          msg.User.Handle,
+			"display_name":    msg.User.DisplayName,
+			"avatar_gradient": msg.User.AvatarGradient,
+			"is_verified":     msg.User.IsVerified,
+		}
+	}
+
+	return resp
 }

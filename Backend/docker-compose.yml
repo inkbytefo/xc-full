@@ -59,6 +59,7 @@ services:
     volumes:
       - ./keys:/app/keys:ro
       - ./uploads:/app/uploads
+      - ./recordings:/app/recordings
     depends_on:
       postgres:
         condition: service_healthy
@@ -84,6 +85,23 @@ services:
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml
 
+    restart: unless-stopped
+
+  # OvenMediaEngine (Professional Live Streaming)
+  ome:
+    image: airensoft/ovenmediaengine:latest
+    container_name: pink-ome
+    ports:
+      - "1935:1935" # RTMP ingest
+      - "9999:9999" # SRT ingest  
+      - "3333:3333" # LL-HLS output
+      - "3478:3478" # Signaling API
+      - "10000-10005:10000-10005/udp" # WebRTC
+    volumes:
+      - ./ome-config:/opt/ovenmediaengine/bin/origin_conf
+      - ./recordings:/opt/ovenmediaengine/recordings
+    environment:
+      OME_API_ACCESS_TOKEN: pink-ome-secret
     restart: unless-stopped
 
   # Redis Commander (GUI) - Development only

@@ -27,6 +27,7 @@ import (
 	"pink/internal/infrastructure/auth"
 	"pink/internal/infrastructure/cache"
 	"pink/internal/infrastructure/livekit"
+	"pink/internal/infrastructure/ome"
 	"pink/internal/infrastructure/postgres"
 	wsInfra "pink/internal/infrastructure/ws"
 )
@@ -125,15 +126,20 @@ func main() {
 	go wsHub.Run()
 	logger.Info("WebSocket hub started")
 
-	wsHandler := handlers.NewWebSocketHandler(wsHub, userService)
+	// Initialize live streaming repositories
+	streamRepo := postgres.NewStreamRepository(dbPool)
+	streamMessageRepo := postgres.NewStreamMessageRepository(dbPool)
+
+	wsHandler := handlers.NewWebSocketHandler(wsHub, userService, streamMessageRepo)
 
 	// Initialize channel message service and handler
 	channelMessageRepo := postgres.NewChannelMessageRepository(dbPool)
 	messageService := channelApp.NewMessageService(channelMessageRepo, channelRepo, memberRepo, serverRepo)
 
 	// Initialize live streaming repositories
-	streamRepo := postgres.NewStreamRepository(dbPool)
+	// streamRepo already initialized above
 	categoryRepo := postgres.NewCategoryRepository(dbPool)
+	recordingRepo := postgres.NewRecordingRepository(dbPool)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userService)
@@ -144,7 +150,7 @@ func main() {
 	channelMessageHandler := handlers.NewChannelMessageHandler(messageService, wsHandler)
 	feedHandler := handlers.NewFeedHandler(feedService)
 	dmHandler := handlers.NewDMHandler(dmService, wsHub, userRepo)
-	liveHandler := handlers.NewLiveHandler(streamRepo, categoryRepo)
+	liveHandler := handlers.NewLiveHandler(streamRepo, streamMessageRepo, categoryRepo, memberRepo, recordingRepo)
 	notificationRepo := postgres.NewNotificationRepository(dbPool)
 	notificationHandler := handlers.NewNotificationHandler(notificationRepo)
 	searchRepo := postgres.NewSearchRepository(dbPool)
@@ -182,6 +188,16 @@ func main() {
 	privacyHandler := handlers.NewPrivacyHandler(privacyService)
 	settingsHandler := handlers.NewSettingsHandler(userRepo)
 	healthHandler := handlers.NewHealthHandler(dbPool, redisClient)
+
+	// Initialize OME integration
+	omeSecretKey := os.Getenv("OME_SECRET_KEY")
+	omeAPIURL := os.Getenv("OME_API_URL")
+	omeAccessToken := os.Getenv("OME_ACCESS_TOKEN")
+	omeClient := ome.NewClient(omeAPIURL, omeAccessToken)
+	omeWorker := ome.NewWorker(omeClient, streamRepo, logger)
+	go omeWorker.Start(ctx)
+
+	omeWebhookHandler := handlers.NewOMEWebhookHandler(streamRepo, followRepo, notificationRepo, recordingRepo, omeSecretKey, logger)
 
 	// Initialize call handler for voice/video call signaling
 	callHandler := handlers.NewCallHandler(wsHandler, userRepo)
@@ -229,6 +245,7 @@ func main() {
 		SearchHandler:         searchHandler,
 		VoiceHandler:          voiceHandler,
 		WebhookHandler:        webhookHandler,
+		OMEWebhookHandler:     omeWebhookHandler,
 		MediaHandler:          mediaHandler,
 		PrivacyHandler:        privacyHandler,
 		SettingsHandler:       settingsHandler,

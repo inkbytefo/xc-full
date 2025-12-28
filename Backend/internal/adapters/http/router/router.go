@@ -25,6 +25,7 @@ type Config struct {
 	SearchHandler         *handlers.SearchHandler
 	VoiceHandler          *handlers.VoiceHandler
 	WebhookHandler        *handlers.WebhookHandler
+	OMEWebhookHandler     *handlers.OMEWebhookHandler
 	MediaHandler          *handlers.MediaHandler
 	PrivacyHandler        *handlers.PrivacyHandler
 	SettingsHandler       *handlers.SettingsHandler
@@ -176,12 +177,18 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// Live streaming routes
 	live := protected.Group("/live")
+	live.Get("/me", cfg.LiveHandler.GetMyStream)
+	live.Put("/me", cfg.LiveHandler.UpdateMyStream)
+	live.Post("/me/regenerate-key", cfg.LiveHandler.RegenerateStreamKey)
+	live.Get("/me/analytics", cfg.LiveHandler.GetStreamAnalytics)
 	live.Get("/streams", cfg.LiveHandler.GetStreams)
 	live.Post("/streams", cfg.LiveHandler.StartStream)
 	live.Get("/streams/:id", cfg.LiveHandler.GetStream)
 	live.Patch("/streams/:id", cfg.LiveHandler.UpdateStream)
 	live.Post("/streams/:id/live", cfg.LiveHandler.GoLive)
 	live.Delete("/streams/:id", cfg.LiveHandler.EndStream)
+	live.Get("/streams/:id/messages", cfg.LiveHandler.GetChatHistory)
+	live.Get("/streams/:id/vods", cfg.LiveHandler.GetStreamRecordings)
 	live.Get("/categories", cfg.LiveHandler.GetCategories)
 	live.Get("/categories/:id/streams", cfg.LiveHandler.GetCategoryStreams)
 
@@ -212,6 +219,11 @@ func Setup(app *fiber.App, cfg *Config) {
 
 	// LiveKit Webhook (public with signature verification)
 	api.Post("/webhooks/livekit", cfg.WebhookHandler.Handle)
+
+	// OvenMediaEngine Webhook (public with signature verification)
+	if cfg.OMEWebhookHandler != nil {
+		api.Post("/webhooks/ome", cfg.OMEWebhookHandler.HandleAdmission)
+	}
 
 	// Call signaling routes
 	if cfg.CallHandler != nil {

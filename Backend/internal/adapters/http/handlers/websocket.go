@@ -11,19 +11,25 @@ import (
 	"github.com/google/uuid"
 
 	"pink/internal/application/user"
+	"pink/internal/domain/live"
 	"pink/internal/domain/ws"
 	wsInfra "pink/internal/infrastructure/ws"
 )
 
 // WebSocketHandler handles WebSocket connections.
 type WebSocketHandler struct {
-	hub         *wsInfra.Hub
-	userService *user.Service
+	hub           *wsInfra.Hub
+	userService   *user.Service
+	streamMsgRepo live.StreamMessageRepository
 }
 
 // NewWebSocketHandler creates a new WebSocketHandler.
-func NewWebSocketHandler(hub *wsInfra.Hub, userService *user.Service) *WebSocketHandler {
-	return &WebSocketHandler{hub: hub, userService: userService}
+func NewWebSocketHandler(hub *wsInfra.Hub, userService *user.Service, streamMsgRepo live.StreamMessageRepository) *WebSocketHandler {
+	return &WebSocketHandler{
+		hub:           hub,
+		userService:   userService,
+		streamMsgRepo: streamMsgRepo,
+	}
 }
 
 // Upgrade is the middleware to upgrade HTTP to WebSocket.
@@ -136,6 +142,9 @@ func (h *WebSocketHandler) handleMessage(client *wsInfra.Client, data []byte) {
 
 	case ws.EventTypingStart, ws.EventTypingStop:
 		h.handleTyping(client, msg)
+
+	case ws.EventStreamChatMsg:
+		h.handleStreamChatMessage(client, msg)
 
 	default:
 		slog.Debug("Unknown message type", slog.String("type", string(msg.Type)))
@@ -255,4 +264,48 @@ func toMap(v interface{}) map[string]interface{} {
 	var result map[string]interface{}
 	_ = json.Unmarshal(data, &result)
 	return result
+}
+
+func (h *WebSocketHandler) handleStreamChatMessage(client *wsInfra.Client, msg ws.Message) {
+	var input struct {
+		StreamID string `json:"streamId"`
+		Content  string `json:"content"`
+	}
+	if err := json.Unmarshal(msg.Data, &input); err != nil {
+		return
+	}
+
+	if input.StreamID == "" || input.Content == "" {
+		return
+	}
+
+	// Persist message
+	chatMsg := &live.ChatMessage{
+		ID:        uuid.New().String(),
+		StreamID:  input.StreamID,
+		UserID:    client.UserID,
+		Content:   input.Content,
+		CreatedAt: time.Now(),
+	}
+
+	if err := h.streamMsgRepo.Create(context.Background(), chatMsg); err != nil {
+		slog.Error("Failed to save stream chat message", "error", err)
+		return
+	}
+
+	// Fetch user details for broadcast
+	if u, err := h.userService.GetByID(context.Background(), client.UserID); err == nil {
+		chatMsg.User = u
+	}
+
+	// Broadcast
+	broadcastData := ws.StreamMessageEventData{
+		StreamID: input.StreamID,
+		Message:  toMap(chatMsg),
+	}
+
+	outMsg, _ := ws.NewMessage(ws.EventStreamChatMsg, broadcastData)
+	data, _ := json.Marshal(outMsg)
+
+	h.hub.BroadcastToSubscription(ws.SubStream, input.StreamID, data)
 }

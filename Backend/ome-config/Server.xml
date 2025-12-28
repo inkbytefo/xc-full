@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Server version="8">
+    <Name>PinkOME</Name>
+    <Type>origin</Type>
+    <IP>*</IP>
+    <PrivacyProtection>false</PrivacyProtection>
+
+    <Bind>
+        <Providers>
+            <RTMP>
+                <Port>1935</Port>
+            </RTMP>
+            <SRT>
+                <Port>9999</Port>
+            </SRT>
+        </Providers>
+        <Publishers>
+            <LLHLS>
+                <Port>3333</Port>
+            </LLHLS>
+            <WebRTC>
+                <Signalling>
+                    <Port>3478</Port>
+                </Signalling>
+                <IceCandidates>
+                    <IceCandidate>*:10000-10005/udp</IceCandidate>
+                </IceCandidates>
+            </WebRTC>
+        </Publishers>
+    </Bind>
+
+    <VirtualHosts>
+        <VirtualHost>
+            <Name>default</Name>
+
+            <Host>
+                <Names>
+                    <Name>*</Name>
+                </Names>
+            </Host>
+
+            <Applications>
+                <Application>
+                    <Name>live</Name>
+                    <Type>live</Type>
+
+                    <Providers>
+                        <RTMP>
+                            <Enabled>true</Enabled>
+                        </RTMP>
+                        <SRT>
+                            <Enabled>true</Enabled>
+                        </SRT>
+                        <WebRTC>
+                            <Enabled>true</Enabled>
+                        </WebRTC>
+                    </Providers>
+
+                    <Publishers>
+                        <LLHLS>
+                            <Enabled>true</Enabled>
+                            <ChunkDuration>0.5</ChunkDuration>
+                            <SegmentDuration>6</SegmentDuration>
+                            <SegmentCount>10</SegmentCount>
+                            <CrossDomains>
+                                <Url>*</Url>
+                            </CrossDomains>
+                        </LLHLS>
+                        <WebRTC>
+                            <Enabled>true</Enabled>
+                        </WebRTC>
+                        <File>
+                            <Enabled>true</Enabled>
+                            <RootPath>/opt/ovenmediaengine/recordings</RootPath>
+                            <FilePath>${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDD_HHmmss}.mp4</FilePath>
+                            <InfoPath>${VirtualHost}/${Application}/${Stream}/${StartTime:YYYYMMDD_HHmmss}.xml</InfoPath>
+                        </File>
+                    </Publishers>
+
+                    <!-- Stream Key Authentication Webhook -->
+                    <AdmissionWebhooks>
+                        <ControlServerUrl>http://pink-api:8080/api/webhooks/ome</ControlServerUrl>
+                        <SecretKey>pink-ome-secret</SecretKey>
+                        <Timeout>3000</Timeout>
+                        <Enables>
+                            <Providers>true</Providers>
+                        </Enables>
+                    </AdmissionWebhooks>
+
+                    <OutputProfiles>
+                        <OutputProfile>
+                            <Name>default</Name>
+                            <OutputStreamName>${OriginStreamName}</OutputStreamName>
+
+                            <Encodes>
+                                <!-- Passthrough original stream -->
+                                <Video>
+                                    <Bypass>true</Bypass>
+                                </Video>
+                                <Audio>
+                                    <Bypass>true</Bypass>
+                                </Audio>
+                            </Encodes>
+                        </OutputProfile>
+                    </OutputProfiles>
+                </Application>
+            </Applications>
+        </VirtualHost>
+    </VirtualHosts>
+</Server>

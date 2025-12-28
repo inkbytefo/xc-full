@@ -29,7 +29,7 @@ function RootLayout() {
             <WindowControls />
             <BackgroundLayer />
             <MainSidebar />
-            <main className="relative z-10 h-full pl-[72px] overflow-hidden">
+            <main className="relative z-10 h-full pl-[72px] overflow-hidden bg-canvas-visible">
                 <Suspense fallback={<PageLoader />}>
                     <Outlet />
                 </Suspense>

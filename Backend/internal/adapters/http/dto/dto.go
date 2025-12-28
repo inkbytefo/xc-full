@@ -465,6 +465,8 @@ type StartStreamRequest struct {
 	Description string  `json:"description"`
 	CategoryID  *string `json:"categoryId,omitempty"`
 	IsNSFW      bool    `json:"isNsfw"`
+	Type        string  `json:"type" validate:"omitempty,oneof=user server"`
+	ServerID    *string `json:"serverId,omitempty"`
 }
 
 // UpdateStreamRequest represents a request to update a stream.
@@ -485,6 +487,12 @@ type StreamResponse struct {
 	Status      string            `json:"status"`
 	ViewerCount int               `json:"viewerCount"`
 	IsNSFW      bool              `json:"isNsfw"`
+	Type        string            `json:"type"`
+	ServerID    *string           `json:"serverId,omitempty"`
+	IngestURL   string            `json:"ingestUrl,omitempty"`   // Private, only for streamer
+	PlaybackURL string            `json:"playbackUrl,omitempty"` // Public HLS URL
+	StreamKey   string            `json:"streamKey,omitempty"`   // Private
+	MaxQuality  string            `json:"maxQuality,omitempty"`
 	StartedAt   *string           `json:"startedAt,omitempty"`
 	CreatedAt   string            `json:"createdAt"`
 	Streamer    *StreamerResponse `json:"streamer,omitempty"`
@@ -508,6 +516,15 @@ type CategoryResponse struct {
 	Description string  `json:"description,omitempty"`
 	IconURL     *string `json:"iconUrl,omitempty"`
 	StreamCount int     `json:"streamCount,omitempty"`
+}
+
+// StreamAnalyticsResponse represents stream analytics data.
+type StreamAnalyticsResponse struct {
+	StreamID    string `json:"streamId"`
+	ViewerCount int    `json:"viewerCount"`
+	Status      string `json:"status"`
+	StartedAt   string `json:"startedAt,omitempty"`
+	Duration    string `json:"duration,omitempty"` // "2h 15m" etc.
 }
 
 // === Notification DTOs ===

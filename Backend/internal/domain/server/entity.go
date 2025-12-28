@@ -53,6 +53,9 @@ const (
 	PermissionDeafenMembers Permission = 1 << 24 // Deafen others in voice
 	PermissionMoveMembers   Permission = 1 << 25 // Move members between voice channels
 
+	// Live Streaming Permissions
+	PermissionStream Permission = 1 << 26 // Professional broadcasting (OBS/RTMP)
+
 	// Default permissions for @everyone role
 	PermissionDefaultEveryone = PermissionViewChannel | PermissionSendMessages | PermissionConnect | PermissionSpeak | PermissionVideo
 
@@ -62,7 +65,8 @@ const (
 		PermissionViewChannel | PermissionSendMessages | PermissionManageMessages |
 		PermissionEmbedLinks | PermissionAttachFiles | PermissionMentionEveryone |
 		PermissionConnect | PermissionSpeak | PermissionVideo |
-		PermissionMuteMembers | PermissionDeafenMembers | PermissionMoveMembers
+		PermissionMuteMembers | PermissionDeafenMembers | PermissionMoveMembers |
+		PermissionStream
 )
 
 // Has checks if the permission set has a specific permission.
