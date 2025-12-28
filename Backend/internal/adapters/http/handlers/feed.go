@@ -6,9 +6,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	feedApp "xcord/internal/application/feed"
-	"xcord/internal/domain/post"
+	"pink/internal/adapters/http/dto"
+	feedApp "pink/internal/application/feed"
+	"pink/internal/domain/post"
 )
 
 // FeedHandler handles feed-related requests.

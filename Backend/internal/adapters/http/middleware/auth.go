@@ -6,8 +6,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/application/user"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/application/user"
 )
 
 // AuthMiddleware provides JWT authentication middleware.

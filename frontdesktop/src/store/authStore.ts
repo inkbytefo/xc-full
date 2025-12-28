@@ -1,5 +1,5 @@
 // ============================================================================
-// XCORD Auth Store - Professional Token Management
+// Pink Auth Store - Professional Token Management
 // ============================================================================
 
 import { create } from "zustand";
@@ -131,7 +131,7 @@ export const useAuthStore = create<AuthState>()(
             setUser: (user) => set({ user }),
         }),
         {
-            name: "xcord-auth",
+            name: "pink-auth",
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 user: state.user,

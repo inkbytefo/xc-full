@@ -10,11 +10,11 @@ import (
 	"net/http"
 	"time"
 
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/user"
-	"xcord/internal/domain/voice"
-	"xcord/internal/domain/ws"
-	wsInfra "xcord/internal/infrastructure/ws"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/user"
+	"pink/internal/domain/voice"
+	"pink/internal/domain/ws"
+	wsInfra "pink/internal/infrastructure/ws"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"

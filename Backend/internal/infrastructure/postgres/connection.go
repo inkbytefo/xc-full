@@ -7,7 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/config"
+	"pink/internal/config"
 )
 
 // NewPool creates a new PostgreSQL connection pool.

@@ -6,7 +6,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"xcord/internal/domain/user"
+	"pink/internal/domain/user"
 )
 
 const (

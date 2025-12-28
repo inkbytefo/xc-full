@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/media"
+	"pink/internal/domain/media"
 )
 
 // MediaRepository implements media.Repository using PostgreSQL.

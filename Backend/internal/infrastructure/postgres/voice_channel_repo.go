@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/voice"
+	"pink/internal/domain/voice"
 )
 
 // VoiceChannelRepository implements voice.ChannelRepository using PostgreSQL.

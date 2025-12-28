@@ -10,9 +10,9 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/application/user"
-	userDomain "xcord/internal/domain/user"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/application/user"
+	userDomain "pink/internal/domain/user"
 )
 
 // AuthHandler handles authentication-related requests.

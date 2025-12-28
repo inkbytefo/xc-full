@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/dm"
-	"xcord/internal/pkg/id"
+	"pink/internal/domain/dm"
+	"pink/internal/pkg/id"
 )
 
 // ConversationRepository implements dm.ConversationRepository using PostgreSQL.

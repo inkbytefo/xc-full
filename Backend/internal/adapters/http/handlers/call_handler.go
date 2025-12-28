@@ -8,8 +8,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/domain/user"
-	"xcord/internal/domain/ws"
+	"pink/internal/domain/user"
+	"pink/internal/domain/ws"
 )
 
 // CallHandler handles voice/video call signaling.

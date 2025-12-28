@@ -8,12 +8,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	dmApp "xcord/internal/application/dm"
-	"xcord/internal/domain/dm"
-	"xcord/internal/domain/user"
-	"xcord/internal/domain/ws"
-	wsInfra "xcord/internal/infrastructure/ws"
+	"pink/internal/adapters/http/dto"
+	dmApp "pink/internal/application/dm"
+	"pink/internal/domain/dm"
+	"pink/internal/domain/user"
+	"pink/internal/domain/ws"
+	wsInfra "pink/internal/infrastructure/ws"
 )
 
 // DMHandler handles DM-related requests.
@@ -145,8 +145,15 @@ func (h *DMHandler) SendMessage(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Broadcast new message to conversation subscribers
-	go h.broadcastDMMessage(convID, ws.EventDMMessage, msg)
+	// Broadcast new message to conversation subscribers with panic recovery
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in broadcastDMMessage", slog.Any("panic", r), slog.String("convId", convID))
+			}
+		}()
+		h.broadcastDMMessage(convID, ws.EventDMMessage, msg)
+	}()
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"data": messageToDTO(msg),
@@ -172,8 +179,15 @@ func (h *DMHandler) EditMessage(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Broadcast edited message to conversation subscribers
-	go h.broadcastDMMessage(msg.ConversationID, ws.EventDMMessageEdited, msg)
+	// Broadcast edited message to conversation subscribers with panic recovery
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in broadcastDMMessage", slog.Any("panic", r), slog.String("convId", msg.ConversationID))
+			}
+		}()
+		h.broadcastDMMessage(msg.ConversationID, ws.EventDMMessageEdited, msg)
+	}()
 
 	return c.JSON(fiber.Map{
 		"data": messageToDTO(msg),
@@ -191,9 +205,16 @@ func (h *DMHandler) DeleteMessage(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Broadcast deleted message to conversation subscribers
+	// Broadcast deleted message to conversation subscribers with panic recovery
 	if convID != "" {
-		go h.broadcastDMMessage(convID, ws.EventDMMessageDeleted, &dm.Message{ID: messageID, ConversationID: convID})
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					slog.Error("panic in broadcastDMMessage", slog.Any("panic", r), slog.String("convId", convID))
+				}
+			}()
+			h.broadcastDMMessage(convID, ws.EventDMMessageDeleted, &dm.Message{ID: messageID, ConversationID: convID})
+		}()
 	}
 
 	return c.SendStatus(fiber.StatusNoContent)
@@ -209,8 +230,15 @@ func (h *DMHandler) MarkAsRead(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Broadcast read receipt to conversation subscribers
-	go h.broadcastDMRead(convID, userID)
+	// Broadcast read receipt to conversation subscribers with panic recovery
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("panic in broadcastDMRead", slog.Any("panic", r), slog.String("convId", convID))
+			}
+		}()
+		h.broadcastDMRead(convID, userID)
+	}()
 
 	return c.SendStatus(fiber.StatusNoContent)
 }

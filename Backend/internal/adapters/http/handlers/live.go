@@ -10,8 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/live"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/live"
 )
 
 // LiveHandler handles live streaming requests.

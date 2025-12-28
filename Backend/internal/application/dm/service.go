@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"xcord/internal/domain/dm"
-	"xcord/internal/pkg/id"
+	"pink/internal/domain/dm"
+	"pink/internal/pkg/id"
 )
 
 // Service provides DM-related operations.

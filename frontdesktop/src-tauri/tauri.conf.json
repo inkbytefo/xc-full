@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "xcord",
+  "productName": "pink",
   "version": "0.1.0",
-  "identifier": "com.oxis.xcord",
+  "identifier": "com.oxis.pink",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "XC",
+        "title": "Pink",
         "width": 1200,
         "height": 800,
         "minWidth": 1024,
@@ -24,7 +24,7 @@
       },
       {
         "label": "overlay",
-        "title": "XC Overlay",
+        "title": "Pink Overlay",
         "url": "overlay.html",
         "decorations": false,
         "transparent": true,

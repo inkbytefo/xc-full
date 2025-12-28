@@ -10,9 +10,9 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/application/user"
-	"xcord/internal/domain/ws"
-	wsInfra "xcord/internal/infrastructure/ws"
+	"pink/internal/application/user"
+	"pink/internal/domain/ws"
+	wsInfra "pink/internal/infrastructure/ws"
 )
 
 // WebSocketHandler handles WebSocket connections.

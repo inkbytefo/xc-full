@@ -5,9 +5,9 @@ import (
 	"context"
 	"time"
 
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
-	"xcord/internal/pkg/id"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/server"
+	"pink/internal/pkg/id"
 )
 
 // MessageService provides channel message-related operations.

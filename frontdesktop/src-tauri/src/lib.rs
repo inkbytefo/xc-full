@@ -1,4 +1,4 @@
-// XC Overlay - Rust Backend
+// Pink Overlay - Rust Backend
 // Tauri commands for overlay toggle, ghost mode, game detection, and quick chat
 
 mod overlay;

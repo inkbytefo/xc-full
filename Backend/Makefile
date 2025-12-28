@@ -6,7 +6,7 @@ GOBUILD=$(GOCMD) build
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
-BINARY_NAME=xcord-api
+BINARY_NAME=pink-api
 BINARY_PATH=bin/$(BINARY_NAME)
 GOOS := $(shell go env GOOS)
 RACE_FLAG := -race
@@ -19,7 +19,7 @@ endif
 DOCKER_COMPOSE=docker compose
 
 # Database
-DATABASE_URL ?= postgres://xcord:xcord@localhost:5432/xcord?sslmode=disable
+DATABASE_URL ?= postgres://pink:pink@localhost:5432/pink?sslmode=disable
 MIGRATE=migrate -path ./migrations -database "$(DATABASE_URL)"
 
 # Build flags
@@ -108,7 +108,7 @@ docker-logs:
 	$(DOCKER_COMPOSE) logs -f
 
 docker-build:
-	docker build -t xcord-api:latest -f deployments/docker/Dockerfile .
+	docker build -t pink-api:latest -f deployments/docker/Dockerfile .
 
 docker-clean:
 	$(DOCKER_COMPOSE) down -v --remove-orphans
@@ -129,7 +129,7 @@ clean:
 # ===== Help =====
 
 help:
-	@echo "XCORD Backend Makefile Commands:"
+	@echo "Pink Backend Makefile Commands:"
 	@echo ""
 	@echo "Development:"
 	@echo "  dev              - Start development server with hot reload"

@@ -286,7 +286,7 @@ export const useOverlaySettings = create<OverlaySettingsStore>()(
             }
         }),
         {
-            name: 'xc-overlay-settings',
+            name: 'pink-overlay-settings',
             version: 6, // Bumped version for Shift+Enter quick chat
             merge: (persistedState, currentState) => ({
                 ...currentState,

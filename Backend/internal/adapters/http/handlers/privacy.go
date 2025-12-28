@@ -4,9 +4,9 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/application/privacy"
-	domainPrivacy "xcord/internal/domain/privacy"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/application/privacy"
+	domainPrivacy "pink/internal/domain/privacy"
 )
 
 // PrivacyHandler handles privacy-related requests.

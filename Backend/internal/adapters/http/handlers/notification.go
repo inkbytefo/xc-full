@@ -6,8 +6,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/notification"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/notification"
 )
 
 // NotificationHandler handles notification requests.

@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/live"
+	"pink/internal/domain/live"
 )
 
 // CategoryRepository implements live.CategoryRepository using PostgreSQL.

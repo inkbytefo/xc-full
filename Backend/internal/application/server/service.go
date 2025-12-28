@@ -12,11 +12,14 @@ import (
 
 	"github.com/google/uuid"
 
-	channelDomain "xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
-	"xcord/internal/pkg/id"
-	"xcord/internal/pkg/validation"
+	channelDomain "pink/internal/domain/channel"
+	"pink/internal/domain/server"
+	"pink/internal/pkg/id"
+	"pink/internal/pkg/validation"
 )
+
+// handleRegex is compiled once at package init for performance
+var handleRegex = regexp.MustCompile("[^a-z0-9]+")
 
 // Service provides server-related operations.
 type Service struct {
@@ -184,9 +187,8 @@ func (s *Service) GetByHandle(ctx context.Context, handle, userID string) (*serv
 }
 
 func generateHandle(name string) string {
-	// Simple slugify
-	reg := regexp.MustCompile("[^a-z0-9]+")
-	slug := reg.ReplaceAllString(strings.ToLower(name), "-")
+	// Simple slugify using pre-compiled regex
+	slug := handleRegex.ReplaceAllString(strings.ToLower(name), "-")
 	slug = strings.Trim(slug, "-")
 
 	if len(slug) < 3 {
@@ -198,13 +200,13 @@ func generateHandle(name string) string {
 		slug = slug[:30]
 	}
 
-	// Add random suffix to reduce collision probability (for now)
-	// In a real app we'd check availability
-	slug = slug + "-" + id.Generate("")[len(id.Generate(""))-4:]
+	// Add random suffix to reduce collision probability (single ID generation)
+	suffix := id.Generate("")
+	slug = slug + "-" + suffix[len(suffix)-4:]
 
 	// Final validation check
 	if err := validation.ValidateHandle(slug); err != nil {
-		// If still invalid (e.g. reserved word + suffix is still reserved?? unlikely), fallback to purely random
+		// If still invalid, fallback to purely random
 		return "server-" + id.Generate("serv")[0:8]
 	}
 
@@ -283,7 +285,9 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult
 		if err == nil && member != nil {
 			everyoneRole, err := s.roleRepo.FindDefaultRole(ctx, serverID)
 			if err == nil && everyoneRole != nil {
-				_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
+				if err := s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID); err != nil {
+					slog.Warn("assign @everyone role failed", slog.Any("error", err), slog.String("memberId", member.ID))
+				}
 			}
 		}
 		return JoinResult{Joined: true}, nil
@@ -335,7 +339,9 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult
 			if findErr == nil && existing != nil {
 				everyoneRole, roleErr := s.roleRepo.FindDefaultRole(ctx, serverID)
 				if roleErr == nil && everyoneRole != nil {
-					_ = s.memberRepo.AssignRole(ctx, existing.ID, everyoneRole.ID)
+					if err := s.memberRepo.AssignRole(ctx, existing.ID, everyoneRole.ID); err != nil {
+						slog.Warn("assign @everyone role failed", slog.Any("error", err), slog.String("memberId", existing.ID))
+					}
 				}
 			}
 			return JoinResult{Joined: true}, nil
@@ -346,7 +352,9 @@ func (s *Service) Join(ctx context.Context, serverID, userID string) (JoinResult
 	// Assign @everyone role
 	everyoneRole, err := s.roleRepo.FindDefaultRole(ctx, serverID)
 	if err == nil && everyoneRole != nil {
-		_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
+		if err := s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID); err != nil {
+			slog.Warn("assign @everyone role failed", slog.Any("error", err), slog.String("memberId", member.ID))
+		}
 	}
 
 	if err := s.serverRepo.IncrementMemberCount(ctx, serverID, 1); err != nil {
@@ -507,7 +515,9 @@ func (s *Service) AcceptJoinRequest(ctx context.Context, serverID, targetUserID,
 
 	everyoneRole, err := s.roleRepo.FindDefaultRole(ctx, serverID)
 	if err == nil && everyoneRole != nil && member != nil {
-		_ = s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID)
+		if err := s.memberRepo.AssignRole(ctx, member.ID, everyoneRole.ID); err != nil {
+			slog.Warn("assign @everyone role failed", slog.Any("error", err), slog.String("memberId", member.ID))
+		}
 	}
 
 	if err := s.serverRepo.IncrementMemberCount(ctx, serverID, 1); err != nil {
@@ -572,14 +582,18 @@ func (s *Service) BanMember(ctx context.Context, serverID, targetUserID, actorUs
 		if err := s.memberRepo.Delete(ctx, serverID, targetUserID); err != nil {
 			slog.Warn("failed to remove banned member", slog.Any("error", err))
 		} else {
-			_ = s.serverRepo.IncrementMemberCount(ctx, serverID, -1)
+			if err := s.serverRepo.IncrementMemberCount(ctx, serverID, -1); err != nil {
+				slog.Warn("failed to decrement member count", slog.Any("error", err), slog.String("serverId", serverID))
+			}
 		}
 	}
 
 	// 3. Create Audit Log
-	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberBan, map[string]interface{}{
+	if err := s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberBan, map[string]interface{}{
 		"reason": reason,
-	})
+	}); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "member_ban"))
+	}
 
 	return nil
 }
@@ -600,7 +614,9 @@ func (s *Service) UnbanMember(ctx context.Context, serverID, targetUserID, actor
 	}
 
 	// Audit Log
-	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberUnban, nil)
+	if err := s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberUnban, nil); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "member_unban"))
+	}
 
 	return nil
 }
@@ -655,11 +671,13 @@ func (s *Service) TimeoutMember(ctx context.Context, serverID, targetUserID, act
 		return err
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
+	if err := s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
 		"duration": duration.String(),
 		"until":    until,
 		"reason":   reason,
-	})
+	}); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "member_timeout"))
+	}
 
 	return nil
 }
@@ -691,7 +709,9 @@ func (s *Service) RemoveTimeout(ctx context.Context, serverID, targetUserID, act
 		return err
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionTimeoutRemove, nil)
+	if err := s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionTimeoutRemove, nil); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "timeout_remove"))
+	}
 
 	return nil
 }
@@ -734,10 +754,12 @@ func (s *Service) CreateRole(ctx context.Context, serverID, name, color string, 
 		return nil, err
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleCreate, map[string]interface{}{
+	if err := s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleCreate, map[string]interface{}{
 		"name":        name,
 		"permissions": permissions,
-	})
+	}); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "role_create"))
+	}
 
 	return role, nil
 }
@@ -762,10 +784,8 @@ func (s *Service) UpdateRole(ctx context.Context, serverID, roleID, name, color 
 		return nil, server.ErrRoleNotFound
 	}
 
-	// Prevent editing restricted roles (like @everyone) if we enforce logic there (e.g. can't change position or name of @everyone)
-	if role.IsDefault {
-		// Example check: maybe allow changing permissions but not name
-	}
+	// NOTE: Editing @everyone role - we allow permission changes but preserve role identity
+	// No action needed for default role as of now
 
 	changes := make(map[string]interface{})
 
@@ -796,7 +816,9 @@ func (s *Service) UpdateRole(ctx context.Context, serverID, roleID, name, color 
 		return nil, err
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleUpdate, changes)
+	if err := s.logAudit(ctx, serverID, actorUserID, role.ID, server.AuditLogActionRoleUpdate, changes); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "role_update"))
+	}
 
 	return role, nil
 }
@@ -829,7 +851,9 @@ func (s *Service) DeleteRole(ctx context.Context, serverID, roleID, actorUserID 
 		return err
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, roleID, server.AuditLogActionRoleDelete, nil)
+	if err := s.logAudit(ctx, serverID, actorUserID, roleID, server.AuditLogActionRoleDelete, nil); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "role_delete"))
+	}
 
 	return nil
 }
@@ -868,7 +892,9 @@ func (s *Service) UpdateMemberRoles(ctx context.Context, serverID, targetUserID 
 		if r.IsDefault {
 			continue // Don't touch default role
 		}
-		_ = s.memberRepo.RemoveRole(ctx, member.ID, r.ID)
+		if err := s.memberRepo.RemoveRole(ctx, member.ID, r.ID); err != nil {
+			slog.Warn("remove role failed", slog.Any("error", err), slog.String("roleId", r.ID))
+		}
 	}
 
 	// Add new roles
@@ -882,18 +908,23 @@ func (s *Service) UpdateMemberRoles(ctx context.Context, serverID, targetUserID 
 		if r.ServerID != serverID {
 			continue
 		}
-		_ = s.memberRepo.AssignRole(ctx, member.ID, rid)
+		if err := s.memberRepo.AssignRole(ctx, member.ID, rid); err != nil {
+			slog.Warn("assign role failed", slog.Any("error", err), slog.String("roleId", rid))
+		}
 	}
 
-	// Ensure default role is assigned
 	if defaultRole != nil {
-		_ = s.memberRepo.AssignRole(ctx, member.ID, defaultRole.ID)
+		if err := s.memberRepo.AssignRole(ctx, member.ID, defaultRole.ID); err != nil {
+			slog.Warn("assign default role failed", slog.Any("error", err), slog.String("roleId", defaultRole.ID))
+		}
 	}
 
-	_ = s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
+	if err := s.logAudit(ctx, serverID, actorUserID, targetUserID, server.AuditLogActionMemberTimeout, map[string]interface{}{
 		"action": "update_roles",
 		"roles":  roleIDs,
-	})
+	}); err != nil {
+		slog.Warn("audit log failed", slog.Any("error", err), slog.String("action", "update_roles"))
+	}
 
 	return nil
 }

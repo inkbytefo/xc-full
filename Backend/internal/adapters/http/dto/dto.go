@@ -587,6 +587,28 @@ type VoiceChannelResponse struct {
 	CreatedAt        string `json:"createdAt"`
 }
 
+// VoiceParticipantResponse represents a voice channel participant.
+type VoiceParticipantResponse struct {
+	UserID      string `json:"userId"`
+	ChannelID   string `json:"channelId"`
+	Handle      string `json:"handle"`
+	DisplayName string `json:"displayName"`
+	Avatar      string `json:"avatar"`
+	IsMuted     bool   `json:"isMuted"`
+	IsDeafened  bool   `json:"isDeafened"`
+	IsVideoOn   bool   `json:"isVideoOn"`
+	IsScreening bool   `json:"isScreening"`
+}
+
+// LiveKitParticipantResponse represents a LiveKit room participant.
+type LiveKitParticipantResponse struct {
+	Identity   string `json:"identity"`
+	SID        string `json:"sid"`
+	State      string `json:"state"`
+	JoinedAt   int64  `json:"joinedAt"`
+	IsSpeaking bool   `json:"isSpeaking"`
+}
+
 // === Media DTOs ===
 
 // MediaResponse represents a media file in API responses.

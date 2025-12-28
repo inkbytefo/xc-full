@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../store/authStore";
 import { useVoiceStore } from "../../store/voiceStore";
 import type { Channel } from "../../api/types";
+import { Modal, ModalBody, ModalFooter } from "../../components/Modal";
 
 // Custom Hooks
 import { useServerData, useChannelMessages, useServerMembers } from "./hooks";
@@ -22,6 +23,8 @@ import { CreateChannelModal } from "./CreateChannelModal";
 import { CreateServerModal } from "./CreateServerModal";
 import { ExploreServersModal } from "./ExploreServersModal";
 import { ServerSettingsModal } from "./ServerSettingsModal";
+import { deleteChannel, reorderChannels, updateChannel } from "./serversApi";
+import { deleteVoiceChannel } from "../voice/voiceApi";
 
 export function ServersPage() {
   const navigate = useNavigate();
@@ -51,6 +54,12 @@ export function ServersPage() {
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false);
   const [showServerProfile, setShowServerProfile] = useState(false);
   const [isViewingVoiceRoom, setIsViewingVoiceRoom] = useState(false);
+  const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editParentId, setEditParentId] = useState<string>("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const chatMessages = useChannelMessages({
     serverId: serverData.selectedServer,
@@ -88,6 +97,62 @@ export function ServersPage() {
     // Regular channels: any member can send
     return true;
   }, [serverData.currentChannel, isOwner, isAdmin, isModerator]);
+
+  const handleEditChannel = useCallback((channel: Channel) => {
+    if (channel.type === "voice" || channel.type === "video" || channel.type === "stage") {
+      setError("Sesli/Video kanalları için düzenleme henüz desteklenmiyor");
+      return;
+    }
+    setEditingChannel(channel);
+    setEditName(channel.name);
+    setEditDescription(channel.description ?? "");
+    setEditParentId(channel.parentId ?? "");
+    setEditSaving(false);
+    setEditError(null);
+  }, []);
+
+  const handleDeleteChannel = useCallback(
+    async (channel: Channel) => {
+      if (!serverData.currentServer) return;
+      if (!confirm(`"${channel.name}" kanalını silmek istediğinize emin misiniz?`)) return;
+
+      try {
+        if (channel.type === "voice" || channel.type === "video" || channel.type === "stage") {
+          await deleteVoiceChannel(channel.id);
+        } else {
+          await deleteChannel(serverData.currentServer.id, channel.id);
+        }
+
+        if (serverData.selectedChannel === channel.id) {
+          serverData.setSelectedChannel(null);
+        }
+        await serverData.refreshChannels();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Kanal silinemedi");
+      }
+    },
+    [
+      deleteVoiceChannel,
+      deleteChannel,
+      serverData.currentServer,
+      serverData.refreshChannels,
+      serverData.selectedChannel,
+      serverData.setSelectedChannel,
+    ]
+  );
+
+  const handleReorderChannels = useCallback(
+    async (updates: Array<{ id: string; position: number; parentId?: string | null }>) => {
+      if (!serverData.currentServer) return;
+      try {
+        await reorderChannels(serverData.currentServer.id, updates);
+        await serverData.refreshChannels();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Kanal sıralaması güncellenemedi");
+      }
+    },
+    [reorderChannels, serverData.currentServer, serverData.refreshChannels]
+  );
 
   // Voice channel handlers
   const handleVoiceChannelClick = useCallback(
@@ -169,6 +234,126 @@ export function ServersPage() {
         onServerCreated={serverData.handleServerCreated}
       />
 
+      <Modal
+        isOpen={editingChannel !== null}
+        onClose={() => setEditingChannel(null)}
+        title="Kanalı Düzenle"
+        size="md"
+      >
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!editingChannel || !serverData.currentServer) return;
+
+            const trimmedName = editName.trim();
+            if (!trimmedName) {
+              setEditError("Kanal adı gerekli");
+              return;
+            }
+            if (trimmedName.length > 100) {
+              setEditError("Kanal adı en fazla 100 karakter olabilir");
+              return;
+            }
+            if (editDescription.length > 500) {
+              setEditError("Açıklama en fazla 500 karakter olabilir");
+              return;
+            }
+
+            setEditSaving(true);
+            setEditError(null);
+
+            const formattedName =
+              editingChannel.type === "category" ? trimmedName : trimmedName.toLowerCase().replace(/\s+/g, "-");
+
+            try {
+              await updateChannel(serverData.currentServer.id, editingChannel.id, {
+                name: formattedName,
+                description: editDescription.trim() || undefined,
+                parentId:
+                  editingChannel.type === "category"
+                    ? undefined
+                    : editParentId.trim()
+                      ? editParentId.trim()
+                      : undefined,
+              });
+              setEditingChannel(null);
+              await serverData.refreshChannels();
+            } catch (err) {
+              setEditError(err instanceof Error ? err.message : "Kanal güncellenemedi");
+            } finally {
+              setEditSaving(false);
+            }
+          }}
+        >
+          <ModalBody className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-300 mb-2">Kanal Adı</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                maxLength={100}
+                className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                autoFocus
+              />
+            </div>
+
+            {editingChannel?.type !== "category" && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Açıklama</label>
+                <textarea
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 resize-none"
+                />
+              </div>
+            )}
+
+            {editingChannel?.type !== "category" && (
+              <div>
+                <label className="block text-sm font-medium text-zinc-300 mb-2">Kategori</label>
+                <select
+                  value={editParentId}
+                  onChange={(e) => setEditParentId(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+                >
+                  <option value="">Kategorisiz</option>
+                  {serverData.categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {editError && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                {editError}
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <button
+              type="button"
+              onClick={() => setEditingChannel(null)}
+              className="px-4 py-2 rounded-lg bg-white/5 text-zinc-300 hover:bg-white/10 transition-colors font-medium"
+            >
+              İptal
+            </button>
+            <button
+              type="submit"
+              disabled={editSaving}
+              className="px-4 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {editSaving ? "Kaydediliyor..." : "Kaydet"}
+            </button>
+          </ModalFooter>
+        </form>
+      </Modal>
+
       {serverData.currentServer && (
         <>
           <CreateChannelModal
@@ -240,6 +425,9 @@ export function ServersPage() {
             onBack={() => serverData.setSelectedServer(null)}
             onSelectChannel={handleSelectChannel}
             onVoiceChannelClick={handleVoiceChannelClick}
+            onEditChannel={handleEditChannel}
+            onDeleteChannel={handleDeleteChannel}
+            onReorderChannels={handleReorderChannels}
             onServerProfile={() => {
               setShowServerProfile(true);
               setShowServerMenu(false);
@@ -262,10 +450,6 @@ export function ServersPage() {
                   setError(e instanceof Error ? e.message : "Sunucudan ayrılınamadı");
                 });
               }
-              setShowServerMenu(false);
-            }}
-            onInvitePeople={() => {
-              // TODO: Implement invite modal
               setShowServerMenu(false);
             }}
           />

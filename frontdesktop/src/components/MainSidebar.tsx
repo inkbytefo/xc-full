@@ -193,7 +193,7 @@ export function MainSidebar() {
                 "shadow-[0_12px_30px_rgba(0,0,0,0.35)]",
               )}
             >
-              <div className="text-sm font-semibold tracking-wide text-white">XC</div>
+              <div className="text-sm font-semibold tracking-wide text-white">Pink</div>
             </button>
             <SidebarTooltip label="Ana Sayfa" />
           </div>

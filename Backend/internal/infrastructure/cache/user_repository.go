@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"xcord/internal/domain/user"
+	"pink/internal/domain/user"
 
 	"github.com/redis/go-redis/v9"
 )

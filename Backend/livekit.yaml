@@ -21,4 +21,4 @@ logging:
 webhook:
     api_key: ea73317c045a01c963d37b5078cfdf85
     urls:
-        - http://xcord-api:8080/api/webhooks/livekit
+        - http://pink-api:8080/api/webhooks/livekit

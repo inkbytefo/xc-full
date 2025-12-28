@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"xcord/internal/domain/post"
-	"xcord/internal/pkg/id"
+	"pink/internal/domain/post"
+	"pink/internal/pkg/id"
 )
 
 // Service provides feed-related operations.

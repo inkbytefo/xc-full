@@ -5,7 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
+	"pink/internal/adapters/http/dto"
 )
 
 // SearchRepository defines the interface for search operations.

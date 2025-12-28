@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/server"
+	"pink/internal/domain/server"
 )
 
 // ServerRepository implements server.Repository using PostgreSQL.

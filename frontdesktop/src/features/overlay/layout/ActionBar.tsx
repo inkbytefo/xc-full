@@ -106,7 +106,7 @@ export function ActionBar({ onSettingsClick }: ActionBarProps) {
                 <div className="dock-handle flex items-center gap-4 px-4 h-[54px] rounded-[18px] bg-white/[0.03] border border-white/[0.08] cursor-grab active:cursor-grabbing">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-[14px] bg-[radial-gradient(circle_at_30%_20%,rgba(52,211,153,0.35),transparent_55%),linear-gradient(180deg,rgba(16,185,129,0.40),rgba(16,185,129,0.14))] border border-emerald-300/20 flex items-center justify-center shadow-[0_10px_30px_rgba(16,185,129,0.12)]">
-                            <span className="text-[11px] font-black text-white leading-none tracking-tight">XC</span>
+                            <span className="text-[11px] font-black text-white leading-none tracking-tight">Pink</span>
                         </div>
                         <div className="flex flex-col">
                             <span className="text-sm font-extrabold text-zinc-100 tracking-tight leading-none tabular-nums">

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/server"
+	"pink/internal/domain/server"
 )
 
 // WallPostRepository implements server.WallPostRepository using PostgreSQL.

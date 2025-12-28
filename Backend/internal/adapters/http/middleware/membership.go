@@ -4,8 +4,8 @@ package middleware
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/server"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/server"
 )
 
 // RequireServerMembership creates a middleware that checks if the authenticated user

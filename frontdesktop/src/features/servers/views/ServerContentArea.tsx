@@ -1,5 +1,3 @@
-
-// ... (imports remain same except removing unused)
 import {
     DiscoveryDashboard,
     ServerProfileView,
@@ -330,7 +328,3 @@ export function ServerContentArea({
         </div>
     );
 }
-
-// Add missing props to interface
-// I noticed I accessed `members` in the code but defined it as [] or missed in Props interface.
-// I should add `members: any[]` and `isOwner`, `isModerator`, `isAdmin` to props.

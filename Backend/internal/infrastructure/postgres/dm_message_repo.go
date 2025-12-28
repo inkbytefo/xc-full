@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/dm"
+	"pink/internal/domain/dm"
 )
 
 // DMMessageRepository implements dm.MessageRepository using PostgreSQL.

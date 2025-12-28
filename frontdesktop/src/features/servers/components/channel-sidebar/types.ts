@@ -37,6 +37,6 @@ export interface ChannelSidebarProps {
     onVoiceChannelClick: (channelId: string) => void;
     onAddChannel?: () => void;
     onEditChannel?: (channel: Channel) => void;
-    onDeleteChannel?: (channel: Channel) => void;
+    onDeleteChannel?: (channel: Channel) => void | Promise<void>;
     onReorderChannels?: (updates: Array<{ id: string; position: number; parentId?: string | null }>) => Promise<void>;
 }

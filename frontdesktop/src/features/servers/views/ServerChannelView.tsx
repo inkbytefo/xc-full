@@ -19,6 +19,9 @@ interface ServerChannelViewProps {
     onBack: () => void;
     onSelectChannel: (channelId: string) => void;
     onVoiceChannelClick: (channelId: string) => void;
+    onEditChannel?: (channel: Channel) => void;
+    onDeleteChannel?: (channel: Channel) => void | Promise<void>;
+    onReorderChannels?: (updates: Array<{ id: string; position: number; parentId?: string | null }>) => Promise<void>;
 
     // Modal Openers
     onServerProfile: () => void;
@@ -26,7 +29,7 @@ interface ServerChannelViewProps {
     onCreateChannel: () => void;
     onSettings: () => void;
     onLeave: () => void;
-    onInvitePeople: () => void;
+    onInvitePeople?: () => void;
 }
 
 export function ServerChannelView({
@@ -45,6 +48,9 @@ export function ServerChannelView({
     onBack,
     onSelectChannel,
     onVoiceChannelClick,
+    onEditChannel,
+    onDeleteChannel,
+    onReorderChannels,
     onServerProfile,
     onMembers,
     onCreateChannel,
@@ -99,40 +105,9 @@ export function ServerChannelView({
                 onSelectChannel={onSelectChannel}
                 onVoiceChannelClick={onVoiceChannelClick}
                 onAddChannel={onCreateChannel}
-                onEditChannel={(channel) => {
-                    // TODO: Open edit channel modal
-                    console.log("Edit channel:", channel);
-                }}
-                onDeleteChannel={async (channel) => {
-                    if (confirm(`"${channel.name}" kanalını silmek istediğinize emin misiniz?`)) {
-                        try {
-                            if (channel.type === "voice" || channel.type === "video" || channel.type === "stage") {
-                                await import("../../voice/voiceApi").then(m => m.deleteVoiceChannel(channel.id));
-                            } else {
-                                await import("../../servers/serversApi").then(m => m.deleteChannel(currentServer.id, channel.id));
-                            }
-
-                            // Note: We rely on parent to refresh or the store triggers update.
-                            // However, ServersPage passes a callback that refreshes. 
-                            // But here we are inline defined. 
-                            // Ideally, `onDeleteChannel` should be a prop passed down entirely, 
-                            // instead of implementing logic here.
-                            // But for refactoring 'view', I'll keep logic in View or move to Page?
-                            // Moving to Page makes View cleaner.
-                            // I will keep as is for now mimicking existing structure then optimize.
-                        } catch (err) {
-                            console.error("Failed to delete channel:", err);
-                        }
-                    }
-                }}
-                onReorderChannels={async (updates) => {
-                    try {
-                        const { reorderChannels } = await import("../../servers/serversApi");
-                        await reorderChannels(currentServer.id, updates);
-                    } catch (err) {
-                        console.error("Failed to reorder channels:", err);
-                    }
-                }}
+                onEditChannel={onEditChannel}
+                onDeleteChannel={onDeleteChannel}
+                onReorderChannels={onReorderChannels}
             />
 
             {/* User Panel */}

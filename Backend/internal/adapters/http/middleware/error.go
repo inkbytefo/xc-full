@@ -7,12 +7,12 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/dm"
-	"xcord/internal/domain/post"
-	"xcord/internal/domain/server"
-	"xcord/internal/domain/user"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/dm"
+	"pink/internal/domain/post"
+	"pink/internal/domain/server"
+	"pink/internal/domain/user"
 )
 
 // HandleDomainError maps domain errors to HTTP responses.

@@ -204,7 +204,7 @@ export function useServerData(options: UseServerDataOptions = {}): UseServerData
         subscribeToServer(selectedServer);
 
         // 2. Fetch initial active participants
-        api.get<{ data: ChannelParticipant[] }>(`/servers/${selectedServer}/active-voice-users`)
+        api.get<{ data: ChannelParticipant[] }>(`/api/v1/servers/${selectedServer}/active-voice-users`)
             .then(res => {
                 if (res.data) {
                     setAllParticipants(res.data);

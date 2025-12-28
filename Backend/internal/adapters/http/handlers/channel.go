@@ -6,10 +6,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	channelApp "xcord/internal/application/channel"
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
+	"pink/internal/adapters/http/dto"
+	channelApp "pink/internal/application/channel"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/server"
 )
 
 // ChannelHandler handles channel-related requests.

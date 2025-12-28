@@ -129,7 +129,7 @@ interface VoiceState {
 }
 
 const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL || "ws://localhost:7880";
-const VOICE_BUS_NAME = "xc-voice-bus-v1";
+const VOICE_BUS_NAME = "pink-voice-bus-v1";
 const OWNER_HEARTBEAT_MS = 1500;
 const OWNER_STALE_MS = 5000;
 const SNAPSHOT_THROTTLE_MS = 150;

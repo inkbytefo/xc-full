@@ -1,20 +1,20 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
-	"xcord/internal/domain/user" // Added as per instruction, though it's a duplicate
-	"xcord/internal/domain/voice"
-	"xcord/internal/infrastructure/livekit"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/server"
+	"pink/internal/domain/user" // Added as per instruction, though it's a duplicate
+	"pink/internal/domain/voice"
+	"pink/internal/infrastructure/livekit"
 )
 
 // VoiceHandler handles voice/video channel requests using unified channel system.
@@ -70,8 +70,8 @@ func (h *VoiceHandler) GetActiveParticipants(c *fiber.Ctx) error {
 		))
 	}
 
-	// Map to DTO
-	result := make([]fiber.Map, len(participants))
+	// Map to typed DTO for type safety
+	result := make([]dto.VoiceParticipantResponse, len(participants))
 	for i, p := range participants {
 		// Use gradient for avatar if available
 		avatar := ""
@@ -79,16 +79,16 @@ func (h *VoiceHandler) GetActiveParticipants(c *fiber.Ctx) error {
 			avatar = p.AvatarGradient[0]
 		}
 
-		result[i] = fiber.Map{
-			"userId":      p.UserID,
-			"channelId":   p.ChannelID,
-			"handle":      p.Handle,
-			"displayName": p.DisplayName,
-			"avatar":      avatar,
-			"isMuted":     p.IsMuted,
-			"isDeafened":  p.IsDeafened,
-			"isVideoOn":   p.IsVideoOn,
-			"isScreening": p.IsScreening,
+		result[i] = dto.VoiceParticipantResponse{
+			UserID:      p.UserID,
+			ChannelID:   p.ChannelID,
+			Handle:      p.Handle,
+			DisplayName: p.DisplayName,
+			Avatar:      avatar,
+			IsMuted:     p.IsMuted,
+			IsDeafened:  p.IsDeafened,
+			IsVideoOn:   p.IsVideoOn,
+			IsScreening: p.IsScreening,
 		}
 	}
 
@@ -238,8 +238,8 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 		return h.handleError(c, err)
 	}
 
-	// Verify membership
-	_, err = h.memberRepo.FindByServerAndUser(c.Context(), channel.ServerID, userID)
+	// Verify membership and get member for timeout check (single call)
+	member, err := h.memberRepo.FindByServerAndUser(c.Context(), channel.ServerID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusForbidden).JSON(dto.NewErrorResponse(
 			"FORBIDDEN",
@@ -262,17 +262,7 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 		))
 	}
 
-	// Check for timeout
-	member, err := h.memberRepo.FindByServerAndUser(c.Context(), channel.ServerID, userID)
-	if err != nil {
-		slog.Error("find member error", slog.Any("error", err))
-		// Continue but assume no timeout check possible - or fail? Failing is safer.
-		return c.Status(fiber.StatusInternalServerError).JSON(dto.NewErrorResponse(
-			"INTERNAL_ERROR",
-			"Failed to verify member status",
-		))
-	}
-
+	// Check for timeout using already fetched member
 	canPublish := true
 	if member.IsTimedOut() {
 		canPublish = false
@@ -299,9 +289,20 @@ func (h *VoiceHandler) GetVoiceToken(c *fiber.Ctx) error {
 
 	metadata := ""
 	if u != nil {
-		// Embed basic user info as JSON in metadata
-		metadata = fmt.Sprintf(`{"displayName":"%s","avatarGradient":["%s","%s"],"handle":"%s"}`,
-			u.DisplayName, u.AvatarGradient[0], u.AvatarGradient[1], u.Handle)
+		// Use proper JSON encoding to prevent injection
+		type voiceMetadata struct {
+			DisplayName    string   `json:"displayName"`
+			AvatarGradient []string `json:"avatarGradient"`
+			Handle         string   `json:"handle"`
+		}
+		metaStruct := voiceMetadata{
+			DisplayName:    u.DisplayName,
+			AvatarGradient: []string{u.AvatarGradient[0], u.AvatarGradient[1]},
+			Handle:         u.Handle,
+		}
+		if metaBytes, err := json.Marshal(metaStruct); err == nil {
+			metadata = string(metaBytes)
+		}
 	}
 
 	// Generate token
@@ -349,21 +350,21 @@ func (h *VoiceHandler) GetChannelParticipants(c *fiber.Ctx) error {
 		if err != nil {
 			slog.Error("list participants error", slog.Any("error", err))
 		} else {
-			result := make([]fiber.Map, len(participants))
+			result := make([]dto.LiveKitParticipantResponse, len(participants))
 			for i, p := range participants {
-				result[i] = fiber.Map{
-					"identity":   p.Identity,
-					"sid":        p.Sid,
-					"state":      p.State.String(),
-					"joinedAt":   p.JoinedAt,
-					"isSpeaking": false,
+				result[i] = dto.LiveKitParticipantResponse{
+					Identity:   p.Identity,
+					SID:        p.Sid,
+					State:      p.State.String(),
+					JoinedAt:   p.JoinedAt,
+					IsSpeaking: false,
 				}
 			}
 			return c.JSON(fiber.Map{"data": result})
 		}
 	}
 
-	return c.JSON(fiber.Map{"data": []fiber.Map{}})
+	return c.JSON(fiber.Map{"data": []dto.LiveKitParticipantResponse{}})
 }
 
 // canManageChannels checks if user can manage channels

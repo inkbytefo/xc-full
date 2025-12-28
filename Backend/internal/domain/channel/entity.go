@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"xcord/internal/domain/server"
+	"pink/internal/domain/server"
 )
 
 // Domain errors

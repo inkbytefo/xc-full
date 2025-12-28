@@ -32,7 +32,7 @@ export const useUIStore = create<UIState>()(
             setNotificationVolume: (volume) => set({ notificationVolume: Math.max(0, Math.min(100, volume)) }),
         }),
         {
-            name: "xcord-ui",
+            name: "pink-ui",
             storage: createJSONStorage(() => localStorage),
         }
     )

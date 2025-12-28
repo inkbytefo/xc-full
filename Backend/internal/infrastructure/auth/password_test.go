@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"xcord/internal/domain/user"
+	"pink/internal/domain/user"
 )
 
 func TestPasswordHasher_Hash(t *testing.T) {

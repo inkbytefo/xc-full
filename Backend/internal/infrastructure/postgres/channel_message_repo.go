@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/channel"
+	"pink/internal/domain/channel"
 )
 
 // ChannelMessageRepository implements channel.MessageRepository using PostgreSQL.

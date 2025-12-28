@@ -8,8 +8,8 @@
 package permission
 
 import (
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/server"
 )
 
 // Engine calculates permissions for a member in a specific context.

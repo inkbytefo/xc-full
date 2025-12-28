@@ -7,7 +7,7 @@ import (
 
 	"github.com/gofiber/contrib/websocket"
 
-	wsDomain "xcord/internal/domain/ws"
+	wsDomain "pink/internal/domain/ws"
 )
 
 // Client represents a connected WebSocket client.

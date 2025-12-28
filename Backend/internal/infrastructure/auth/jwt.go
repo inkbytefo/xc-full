@@ -14,8 +14,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
-	"xcord/internal/config"
-	"xcord/internal/domain/user"
+	"pink/internal/config"
+	"pink/internal/domain/user"
 )
 
 // JWT errors
@@ -62,8 +62,8 @@ func NewJWTService(cfg *config.JWTConfig) (*JWTService, error) {
 		publicKey:            publicKey,
 		accessTokenDuration:  cfg.AccessTokenDuration,
 		refreshTokenDuration: cfg.RefreshTokenDuration,
-		issuer:               "xcord-auth",
-		audience:             "xcord-api",
+		issuer:               "pink-auth",
+		audience:             "pink-api",
 	}, nil
 }
 

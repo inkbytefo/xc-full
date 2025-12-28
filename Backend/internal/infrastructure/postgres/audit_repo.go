@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 
-	"xcord/internal/domain/server"
+	"pink/internal/domain/server"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

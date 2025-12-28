@@ -7,10 +7,10 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	serverApp "xcord/internal/application/server"
-	"xcord/internal/domain/server"
-	"xcord/internal/domain/user"
+	"pink/internal/adapters/http/dto"
+	serverApp "pink/internal/application/server"
+	"pink/internal/domain/server"
+	"pink/internal/domain/user"
 )
 
 // ServerHandler handles server-related requests.

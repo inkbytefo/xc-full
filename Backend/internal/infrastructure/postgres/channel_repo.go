@@ -8,8 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/server"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/server"
 )
 
 // ============================================================================

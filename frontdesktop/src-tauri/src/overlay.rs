@@ -1,4 +1,4 @@
-// XC Overlay Module
+// Pink Overlay Module
 // Handles overlay window management, ghost mode, and game detection
 
 use std::str::FromStr;
@@ -183,7 +183,7 @@ pub fn toggle_overlay(app: AppHandle) {
 
             set_pinned_view_state(&app, false);
             let _ = overlay.eval(
-                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                "window.__PINK_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
             );
 
             #[cfg(target_os = "windows")]
@@ -192,7 +192,7 @@ pub fn toggle_overlay(app: AppHandle) {
             // Currently in GHOST mode → Switch to ACTIVE mode
             set_pinned_view_state(&app, false);
             let _ = overlay.eval(
-                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                "window.__PINK_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
             );
 
             #[cfg(target_os = "windows")]
@@ -203,7 +203,7 @@ pub fn toggle_overlay(app: AppHandle) {
             // Currently in ACTIVE mode → Switch to GHOST mode (auto-transition)
             set_pinned_view_state(&app, true);
             let _ = overlay.eval(
-                "window.__XC_PINNED_VIEW = true; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                "window.__PINK_PINNED_VIEW = true; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
             );
 
             #[cfg(target_os = "windows")]
@@ -228,7 +228,7 @@ pub fn toggle_ghost_mode(app: AppHandle) {
 
             set_pinned_view_state(&app, false);
             let _ = overlay.eval(
-                "window.__XC_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
+                "window.__PINK_PINNED_VIEW = false; window.dispatchEvent(new Event('overlayPinnedViewChanged'));",
             );
             let _ = overlay.hide();
         }

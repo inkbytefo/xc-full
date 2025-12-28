@@ -6,8 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/server"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/server"
 )
 
 // ServerWallHandler handles server wall post requests.

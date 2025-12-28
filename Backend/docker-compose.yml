@@ -2,18 +2,18 @@ services:
   # PostgreSQL database
   postgres:
     image: postgres:16-alpine
-    container_name: xcord-postgres
+    container_name: pink-postgres
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: xcord
-      POSTGRES_PASSWORD: xcord
-      POSTGRES_DB: xcord
+      POSTGRES_USER: pink
+      POSTGRES_PASSWORD: pink
+      POSTGRES_DB: pink
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U xcord -d xcord" ]
+      test: [ "CMD-SHELL", "pg_isready -U pink -d pink" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # Redis cache
   redis:
     image: redis:7-alpine
-    container_name: xcord-redis
+    container_name: pink-redis
     ports:
       - "6379:6379"
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -40,13 +40,13 @@ services:
     build:
       context: .
       dockerfile: deployments/docker/Dockerfile
-    container_name: xcord-api
+    container_name: pink-api
     ports:
       - "8080:8080"
     environment:
       ENV: production
       HTTP_PORT: 8080
-      DATABASE_URL: postgres://xcord:xcord@postgres:5432/xcord?sslmode=disable
+      DATABASE_URL: postgres://pink:pink@postgres:5432/pink?sslmode=disable
       REDIS_URL: redis://redis:6379
       JWT_PRIVATE_KEY_PATH: /app/keys/jwt_private.pem
       JWT_PUBLIC_KEY_PATH: /app/keys/jwt_public.pem
@@ -74,7 +74,7 @@ services:
   # LiveKit Server (Voice/Video)
   livekit:
     image: livekit/livekit-server:latest
-    container_name: xcord-livekit
+    container_name: pink-livekit
     command: --config /etc/livekit.yaml
     ports:
       - "7880:7880"
@@ -89,7 +89,7 @@ services:
   # Redis Commander (GUI) - Development only
   redis-commander:
     image: rediscommander/redis-commander:latest
-    container_name: xcord-redis-commander
+    container_name: pink-redis-commander
     ports:
       - "8081:8081"
     environment:
@@ -101,11 +101,11 @@ services:
   # pgAdmin (GUI) - Development only
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: xcord-pgadmin
+    container_name: pink-pgadmin
     ports:
       - "5050:80"
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@xcord.dev
+      PGADMIN_DEFAULT_EMAIL: admin@pink.dev
       PGADMIN_DEFAULT_PASSWORD: admin
     depends_on:
       postgres:

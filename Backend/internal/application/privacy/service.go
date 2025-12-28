@@ -5,8 +5,8 @@ import (
 	"context"
 	"errors"
 
-	"xcord/internal/domain/privacy"
-	"xcord/internal/domain/user"
+	"pink/internal/domain/privacy"
+	"pink/internal/domain/user"
 )
 
 // Service provides privacy-related operations.

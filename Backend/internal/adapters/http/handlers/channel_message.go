@@ -3,11 +3,11 @@ package handlers
 import (
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/adapters/http/middleware"
-	channelApp "xcord/internal/application/channel"
-	"xcord/internal/domain/channel"
-	"xcord/internal/domain/ws"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/adapters/http/middleware"
+	channelApp "pink/internal/application/channel"
+	"pink/internal/domain/channel"
+	"pink/internal/domain/ws"
 )
 
 // ChannelMessageHandler handles channel message requests.

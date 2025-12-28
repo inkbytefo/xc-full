@@ -6,8 +6,8 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/requestid"
 
-	"xcord/internal/adapters/http/handlers"
-	"xcord/internal/adapters/http/middleware"
+	"pink/internal/adapters/http/handlers"
+	"pink/internal/adapters/http/middleware"
 )
 
 // Config holds router dependencies.

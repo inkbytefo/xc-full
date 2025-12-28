@@ -5,8 +5,8 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/user"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/user"
 )
 
 // SettingsHandler handles user settings requests.

@@ -8,11 +8,11 @@ import (
 
 	"github.com/google/uuid"
 
-	"xcord/internal/domain/privacy"
-	"xcord/internal/domain/user"
-	"xcord/internal/infrastructure/auth"
-	"xcord/internal/pkg/id"
-	"xcord/internal/pkg/validation"
+	"pink/internal/domain/privacy"
+	"pink/internal/domain/user"
+	"pink/internal/infrastructure/auth"
+	"pink/internal/pkg/id"
+	"pink/internal/pkg/validation"
 )
 
 // Service provides user-related operations.

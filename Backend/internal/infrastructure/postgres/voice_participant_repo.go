@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"xcord/internal/domain/voice"
+	"pink/internal/domain/voice"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )

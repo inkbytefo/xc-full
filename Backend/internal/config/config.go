@@ -87,7 +87,7 @@ func Load() (*Config, error) {
 			IdleTimeout:  getDuration("HTTP_IDLE_TIMEOUT", 120*time.Second),
 		},
 		DB: DatabaseConfig{
-			URL:             getEnv("DATABASE_URL", "postgres://xcord:xcord@localhost:5432/xcord?sslmode=disable"),
+			URL:             getEnv("DATABASE_URL", "postgres://pink:pink@localhost:5432/pink?sslmode=disable"),
 			MaxOpenConns:    getInt("DATABASE_MAX_OPEN_CONNS", 25),
 			MaxIdleConns:    getInt("DATABASE_MAX_IDLE_CONNS", 5),
 			ConnMaxLifetime: getDuration("DATABASE_CONN_MAX_LIFETIME", 5*time.Minute),

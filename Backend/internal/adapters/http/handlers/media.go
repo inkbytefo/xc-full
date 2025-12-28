@@ -13,8 +13,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
-	"xcord/internal/adapters/http/dto"
-	"xcord/internal/domain/media"
+	"pink/internal/adapters/http/dto"
+	"pink/internal/domain/media"
 )
 
 // MediaHandler handles media upload requests.

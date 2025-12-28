@@ -5,14 +5,14 @@ export function useOverlayMode() {
 
     useEffect(() => {
         // @ts-expect-error - set by Rust overlay.rs
-        if (typeof window.__XC_PINNED_VIEW !== 'undefined') {
+        if (typeof window.__PINK_PINNED_VIEW !== 'undefined') {
             // @ts-expect-error - set by Rust overlay.rs
-            setPinnedView(window.__XC_PINNED_VIEW === true);
+            setPinnedView(window.__PINK_PINNED_VIEW === true);
         }
 
         const handlePinnedViewChange = () => {
             // @ts-expect-error - set by Rust overlay.rs
-            setPinnedView(window.__XC_PINNED_VIEW === true);
+            setPinnedView(window.__PINK_PINNED_VIEW === true);
         };
 
         window.addEventListener('overlayPinnedViewChanged', handlePinnedViewChange);

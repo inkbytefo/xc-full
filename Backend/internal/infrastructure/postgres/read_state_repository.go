@@ -3,7 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
-	"xcord/internal/domain/readstate"
+	"pink/internal/domain/readstate"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"

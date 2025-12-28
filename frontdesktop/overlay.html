@@ -1,32 +1,36 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XC Overlay</title>
-    <style>
-      /* Transparent background for overlay */
-      html, body {
-        margin: 0;
-        padding: 0;
-        background: transparent !important;
-        overflow: hidden;
-        font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
-      }
-      
-      /* Ghost mode styles */
-      .ghost-mode {
-        pointer-events: none !important;
-      }
-      
-      .ghost-mode .pinned-widget {
-        pointer-events: auto !important;
-        opacity: 0.8;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="overlay-root"></div>
-    <script type="module" src="/src/overlay-main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pink Overlay</title>
+  <style>
+    /* Transparent background for overlay */
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Ghost mode styles */
+    .ghost-mode {
+      pointer-events: none !important;
+    }
+
+    .ghost-mode .pinned-widget {
+      pointer-events: auto !important;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="overlay-root"></div>
+  <script type="module" src="/src/overlay-main.tsx"></script>
+</body>
+
 </html>

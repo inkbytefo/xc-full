@@ -111,7 +111,7 @@ export const useWidgetStore = create<WidgetStore>()(
             resetLayout: () => set({ widgets: {}, activeZIndex: 100 })
         }),
         {
-            name: 'xc-widget-layout',
+            name: 'pink-widget-layout',
             version: 1,
         }
     )
