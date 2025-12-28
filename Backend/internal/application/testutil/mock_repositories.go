@@ -174,6 +174,26 @@ func (m *MockFollowRepository) FindPendingRequests(ctx context.Context, userID, 
 	return args.Get(0).([]*user.Follow), args.String(1), args.Error(2)
 }
 
+func (m *MockFollowRepository) Exists(ctx context.Context, followerID, followedID string) (bool, error) {
+	args := m.Called(ctx, followerID, followedID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockFollowRepository) CountFollowers(ctx context.Context, userID string) (int64, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockFollowRepository) CountFollowing(ctx context.Context, userID string) (int64, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(int64), args.Error(1)
+}
+
+func (m *MockFollowRepository) CountPendingRequests(ctx context.Context, userID string) (int64, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 // =============================================================================
 // Mock Privacy Repository
 // =============================================================================
@@ -193,5 +213,10 @@ func (m *MockPrivacyRepository) FindByUserID(ctx context.Context, userID string)
 
 func (m *MockPrivacyRepository) Upsert(ctx context.Context, settings *privacy.Settings) error {
 	args := m.Called(ctx, settings)
+	return args.Error(0)
+}
+
+func (m *MockPrivacyRepository) Delete(ctx context.Context, userID string) error {
+	args := m.Called(ctx, userID)
 	return args.Error(0)
 }

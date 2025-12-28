@@ -54,6 +54,8 @@ export function ServersPage() {
   const [showServerSettingsModal, setShowServerSettingsModal] = useState(false);
   const [showServerProfile, setShowServerProfile] = useState(false);
   const [isViewingVoiceRoom, setIsViewingVoiceRoom] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteCopyStatus, setInviteCopyStatus] = useState<string | null>(null);
   const [editingChannel, setEditingChannel] = useState<Channel | null>(null);
   const [editName, setEditName] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -74,7 +76,7 @@ export function ServersPage() {
 
   // Derived values
   const isOwner = serverData.currentServer?.ownerId === currentUser?.id;
-  const myMembership = members.members.find((m) => m.id === currentUser?.id);
+  const myMembership = members.members.find((m) => m.userId === currentUser?.id);
   const isModerator = myMembership?.role === "moderator";
   const isAdmin = myMembership?.role === "admin" || myMembership?.role === "owner";
   const filteredServers = serverData.servers.filter((s) =>
@@ -97,6 +99,31 @@ export function ServersPage() {
     // Regular channels: any member can send
     return true;
   }, [serverData.currentChannel, isOwner, isAdmin, isModerator]);
+
+  const inviteLink = useMemo(() => {
+    if (!serverData.currentServer) return "";
+    const path = serverData.currentServer.handle
+      ? `/s/${serverData.currentServer.handle}`
+      : `/servers/${serverData.currentServer.id}`;
+
+    try {
+      return new URL(path, window.location.origin).toString();
+    } catch {
+      return path;
+    }
+  }, [serverData.currentServer]);
+
+  const handleCopyInviteLink = useCallback(async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteCopyStatus("Kopyalandı");
+      window.setTimeout(() => setInviteCopyStatus(null), 1500);
+    } catch {
+      setInviteCopyStatus("Kopyalanamadı");
+      window.setTimeout(() => setInviteCopyStatus(null), 2000);
+    }
+  }, [inviteLink]);
 
   const handleEditChannel = useCallback((channel: Channel) => {
     if (channel.type === "voice" || channel.type === "video" || channel.type === "stage") {
@@ -354,6 +381,75 @@ export function ServersPage() {
         </form>
       </Modal>
 
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => {
+          setShowInviteModal(false);
+          setInviteCopyStatus(null);
+        }}
+        title="Sunucuyu Paylaş"
+        size="md"
+      >
+        <ModalBody className="space-y-3">
+          <div className="text-sm text-zinc-400">
+            Bu linki paylaşarak kullanıcıların sunucu profilini açmasını sağlayabilirsiniz.
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-300 mb-2">Paylaşım Linki</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={inviteLink}
+                className="flex-1 px-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500"
+              />
+              <button
+                type="button"
+                onClick={() => void handleCopyInviteLink()}
+                disabled={!inviteLink}
+                className="px-4 py-2.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 text-purple-200 border border-purple-500/30 transition-colors disabled:opacity-50 disabled:hover:bg-purple-500/20"
+              >
+                Kopyala
+              </button>
+            </div>
+          </div>
+
+          {inviteCopyStatus && (
+            <div
+              className={`text-sm ${inviteCopyStatus === "Kopyalandı" ? "text-green-300" : "text-red-300"}`}
+              role="status"
+            >
+              {inviteCopyStatus}
+            </div>
+          )}
+        </ModalBody>
+        <ModalFooter>
+          <button
+            type="button"
+            onClick={() => setShowInviteModal(false)}
+            className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 transition-colors"
+          >
+            Kapat
+          </button>
+          {serverData.currentServer && (
+            <button
+              type="button"
+              onClick={() => {
+                navigate(
+                  serverData.currentServer!.handle
+                    ? `/s/${serverData.currentServer!.handle}`
+                    : `/servers/${serverData.currentServer!.id}`
+                );
+                setShowInviteModal(false);
+              }}
+              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white transition-colors"
+            >
+              Sunucu Profili
+            </button>
+          )}
+        </ModalFooter>
+      </Modal>
+
       {serverData.currentServer && (
         <>
           <CreateChannelModal
@@ -442,6 +538,10 @@ export function ServersPage() {
             }}
             onSettings={() => {
               setShowServerSettingsModal(true);
+              setShowServerMenu(false);
+            }}
+            onInvitePeople={() => {
+              setShowInviteModal(true);
               setShowServerMenu(false);
             }}
             onLeave={() => {

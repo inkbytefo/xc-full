@@ -22,7 +22,7 @@ func setupTestService(t *testing.T) (*Service, *testutil.MockUserRepository, *te
 	followRepo := new(testutil.MockFollowRepository)
 	privacyRepo := new(testutil.MockPrivacyRepository)
 
-	hasher := auth.NewPasswordHasher(10)
+	hasher := auth.NewPasswordHasher()
 
 	// Create JWT service with test keys
 	jwtCfg := &config.JWTConfig{
@@ -149,7 +149,7 @@ func TestService_Login_Success(t *testing.T) {
 	ctx := context.Background()
 
 	// Create test user with hashed password
-	hasher := auth.NewPasswordHasher(10)
+	hasher := auth.NewPasswordHasher()
 	hash, _ := hasher.Hash("SecurePass123")
 	testUser := &user.User{
 		ID:           "user_12345678901234567",
@@ -179,7 +179,7 @@ func TestService_Login_WrongPassword(t *testing.T) {
 	svc, userRepo, _, _ := setupTestService(t)
 	ctx := context.Background()
 
-	hasher := auth.NewPasswordHasher(10)
+	hasher := auth.NewPasswordHasher()
 	hash, _ := hasher.Hash("CorrectPassword123")
 	testUser := &user.User{
 		ID:           "user_12345678901234567",
@@ -239,7 +239,7 @@ func TestService_Login_StripsAtSign(t *testing.T) {
 	svc, userRepo, sessionRepo, _ := setupTestService(t)
 	ctx := context.Background()
 
-	hasher := auth.NewPasswordHasher(10)
+	hasher := auth.NewPasswordHasher()
 	hash, _ := hasher.Hash("SecurePass123")
 	testUser := &user.User{
 		ID:           "user_12345678901234567",
@@ -347,7 +347,24 @@ func TestService_UpdateProfile_Success(t *testing.T) {
 // =============================================================================
 
 func TestService_Follow_Success(t *testing.T) {
-	svc, userRepo, _, followRepo := setupTestService(t)
+	// For this test, we create service without privacy repo to skip privacy check
+	userRepo := new(testutil.MockUserRepository)
+	sessionRepo := new(testutil.MockSessionRepository)
+	followRepo := new(testutil.MockFollowRepository)
+
+	hasher := auth.NewPasswordHasher()
+
+	jwtCfg := &config.JWTConfig{
+		PrivateKeyPath:       "../../infrastructure/auth/testdata/jwt_private.pem",
+		PublicKeyPath:        "../../infrastructure/auth/testdata/jwt_public.pem",
+		AccessTokenDuration:  15 * time.Minute,
+		RefreshTokenDuration: 168 * time.Hour,
+	}
+	jwt, err := auth.NewJWTService(jwtCfg)
+	require.NoError(t, err)
+
+	// Create service WITHOUT privacy repo (nil) to skip privacy check
+	svc := NewService(userRepo, sessionRepo, followRepo, nil, hasher, jwt)
 	ctx := context.Background()
 
 	targetUser := &user.User{ID: "user_target123456789012"}

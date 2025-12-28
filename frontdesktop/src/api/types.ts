@@ -57,6 +57,7 @@ export type MemberRole = "owner" | "admin" | "moderator" | "member";
 
 export interface Server {
   id: string;
+  handle?: string;
   name: string;
   description?: string;
   iconGradient: [string, string];
